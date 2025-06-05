@@ -1,4 +1,3 @@
-"use server";
 
 import client from "@/utils/db";
 import { connection } from "@/utils/connection";
