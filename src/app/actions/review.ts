@@ -1,9 +1,8 @@
 "use server";
 
+import { connection } from "@/utils/connection";
 import { Review } from "@/models/Review";
 import Product from "@/models/Product";
-
-import { connection } from "@/utils/connection";
 import { revalidatePath } from "next/cache";
 
 // app/actions/reviewActions.ts

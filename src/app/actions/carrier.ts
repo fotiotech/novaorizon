@@ -1,7 +1,6 @@
 "use server";
-
-import Carrier from "@/models/Carrier";
 import { connection } from "@/utils/connection";
+import Carrier from "@/models/Carrier";
 import { revalidatePath } from "next/cache";
 
 // CREATE
