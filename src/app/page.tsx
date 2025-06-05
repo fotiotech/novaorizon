@@ -46,7 +46,7 @@ export default function Home() {
           name="description"
           content="Discover the best deals on a wide range of products including electronics, fashion, home essentials, and more. Shop now at dyfkCameroun.com!"
         />
-        <meta name="canonical" content="https://dyfk-com.vercel.app" />
+        <meta name="canonical" content="https://novaorizon.vercel.app" />
         {/* Open Graph */}
         <meta
           property="og:title"
@@ -56,10 +56,10 @@ export default function Home() {
           property="og:description"
           content="Discover the best deals on a wide range of products including electronics, fashion, home essentials, and more. Shop now at dyfkCameroun.com!"
         />
-        <meta property="og:url" content="https://dyfk-com.vercel.app" />
+        <meta property="og:url" content="https://novaorizon.vercel.app" />
         <meta
           property="og:image"
-          content="https://dyfk-com.vercel.app/logo.png"
+          content="https://novaorizon.vercel.app/logo.png"
         />
         <meta
           property="og:image:alt"
