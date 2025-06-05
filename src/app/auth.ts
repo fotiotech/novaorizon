@@ -1,12 +1,13 @@
-import NextAuth from "next-auth";
-import GitHub from "next-auth/providers/github";
-import Google from "next-auth/providers/google";
-import { connection } from "@/utils/connection";
+'use server'
+
 import client from "@/utils/db";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import Credentials from "next-auth/providers/credentials";
 import type { Provider } from "next-auth/providers";
-
+import NextAuth from "next-auth";
+import GitHub from "next-auth/providers/github";
+import Google from "next-auth/providers/google";
+import { connection } from "@/utils/connection";
 import User from "@/models/users";
 
 
