@@ -3,6 +3,8 @@
 import { connection } from "@/utils/connection";
 import slugify from "slugify";
 import Product from "@/models/Product";
+import "@/models/User";
+import "@/models/Brand";
 
 type PopulatedProduct = {
   _id: string;
