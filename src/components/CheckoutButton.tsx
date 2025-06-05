@@ -1,18 +1,15 @@
 "use client";
 import React, { FC, ReactNode, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { findCustomer, updateShippingInfos } from "@/app/actions/customer";
-import ShippingForm from "@/components/customers/ShippingForm";
 import { useUser } from "@/app/context/UserContext";
 import { Customer } from "@/constant/types";
-import OrderSummary from "@/components/cart/OrderSummary";
 import { createOrUpdateOrder } from "@/app/actions/order";
 import { useCart } from "@/app/context/CartContext";
 import { CartItem } from "@/app/reducer/cartReducer";
-import OrderButton from "@/components/checkout/OrderButton";
 import { calculateShippingPrice } from "@/app/actions/carrier";
 import { triggerNotification } from "@/app/actions/notifications";
 import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 
 export type CalcShippingPrice = {
   averageDeliveryTime: string;

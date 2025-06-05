@@ -82,5 +82,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       session.user.role = token?.role;
       return session;
     },
+    authorized: async ({ auth }) => {
+      // Logged in users are authenticated, otherwise redirect to login page
+      return !!auth;
+    },
   },
+  secret: process.env.AUTH_SECRET,
 });

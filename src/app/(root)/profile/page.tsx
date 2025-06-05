@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { useUser } from "@/app/context/UserContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import { useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { SignOut } from "@/components/auth/SignInButton";
 
 const Profile = () => {
   const session = useSession();
@@ -34,7 +34,9 @@ const Profile = () => {
         ) : (
           ""
         )}
-        
+        <li className="mt-20 bg-red-300 p-2 rounded-lg">
+          <SignOut />
+        </li>
       </ul>
     </>
   );

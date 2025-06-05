@@ -21,6 +21,7 @@ export type CalcShippingPrice = {
   shippingPrice: number;
 };
 const CheckoutPage = () => {
+  
   const orderNumber = useSearchParams()?.get("orderNumber");
   const { user, customerInfos } = useUser();
   const [shippingAddressCheck, setShippingAddressCheck] =
