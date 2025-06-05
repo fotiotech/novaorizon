@@ -27,13 +27,13 @@ export default function Home() {
   useEffect(() => {
     dispatch(fetchProducts());
     if (user?.id) {
-      dispatch(fetchUserEvents(user.id, "click", 10));
+      dispatch(fetchUserEvents(user?.id, "click", 10));
     }
   }, [dispatch, user]);
 
   const handleProductClick = () => {
     if (user?.id) {
-      triggerNotification(user.id, "A customer clicked on a product!");
+      triggerNotification(user?.id, "A customer clicked on a product!");
     }
   };
 

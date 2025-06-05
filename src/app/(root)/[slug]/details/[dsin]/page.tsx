@@ -34,17 +34,17 @@ export default function DetailsPage({ params }: { params: Params }) {
 
   // Analytics event (view)
   useEffect(() => {
-    if (product && user.id) {
+    if (product && user?.id) {
       dispatch({
         type: "userEvent/add",
         payload: {
-          userId: user.id,
+          userId: user?.id,
           productId: params.dsin,
           eventType: "view",
         },
       });
     }
-  }, [dispatch, product, user.id, params.dsin]);
+  }, [dispatch, product, user?.id, params.dsin]);
 
   useEffect(() => {
     if (!selectedVariant && product?.variants_options?.variants?.length > 0) {
@@ -599,7 +599,7 @@ export default function DetailsPage({ params }: { params: Params }) {
         )}
 
         <div>
-          <ReviewForm productId={params.dsin} userId={user.id as string} />
+          <ReviewForm productId={params.dsin} userId={user?.id as string} />
           <ExistingReviews reviews={reviews} />
         </div>
       </div>
