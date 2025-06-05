@@ -2,7 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import { signIn, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { SignOut } from "@/components/auth/SignInButton";
 
 const Profile = () => {

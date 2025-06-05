@@ -14,12 +14,14 @@ import { NextSeo } from "next-seo";
 import { fetchProducts } from "@/fetch/fetchProducts";
 import ReviewForm from "@/components/product/reviews/ProductReviews";
 import ExistingReviews from "@/components/product/reviews/ExistingReviews";
+import { useSession } from "next-auth/react";
 
 type Params = { slug: string; dsin: string };
 
 export default function DetailsPage({ params }: { params: Params }) {
   const dispatch = useAppDispatch();
-  const { customerInfos } = useUser();
+  const session = useSession();
+  const user = session?.data?.user as any;
   const product = useAppSelector((s) => s.product?.byId[params.dsin]);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
@@ -32,17 +34,17 @@ export default function DetailsPage({ params }: { params: Params }) {
 
   // Analytics event (view)
   useEffect(() => {
-    if (product && customerInfos?.userId) {
+    if (product && user.id) {
       dispatch({
         type: "userEvent/add",
         payload: {
-          userId: customerInfos?.userId,
+          userId: user.id,
           productId: params.dsin,
           eventType: "view",
         },
       });
     }
-  }, [dispatch, product, customerInfos?.userId, params.dsin]);
+  }, [dispatch, product, user.id, params.dsin]);
 
   useEffect(() => {
     if (!selectedVariant && product?.variants_options?.variants?.length > 0) {
@@ -438,7 +440,7 @@ export default function DetailsPage({ params }: { params: Params }) {
             Related Products
           </h2>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            {mergedProduct?.related_products.map((relProd:any) => {
+            {mergedProduct?.related_products.map((relProd: any) => {
               const prod = relProd.product_id;
               const image = prod?.media_visuals?.main_image;
               const name =
@@ -448,7 +450,7 @@ export default function DetailsPage({ params }: { params: Params }) {
               return (
                 <Link
                   key={relProd._id}
-                  href={'/slug/details/' + relProd._id}
+                  href={"/slug/details/" + relProd._id}
                   className="border rounded-lg p-4 flex flex-col gap-4 hover:shadow-md transition-shadow"
                 >
                   <div className="relative w-16 h-16 flex-shrink-0 mx-auto">
@@ -464,9 +466,10 @@ export default function DetailsPage({ params }: { params: Params }) {
                     )}
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium truncate line-clamp-1">{name}</h3>
+                    <h3 className="text-sm font-medium truncate line-clamp-1">
+                      {name}
+                    </h3>
                     <p className="text-xs text-gray-500">SKU: {sku}</p>
-                    
                   </div>
                 </Link>
               );
@@ -596,10 +599,7 @@ export default function DetailsPage({ params }: { params: Params }) {
         )}
 
         <div>
-          <ReviewForm
-            productId={params.dsin}
-            userId={customerInfos?.userId as string}
-          />
+          <ReviewForm productId={params.dsin} userId={user.id as string} />
           <ExistingReviews reviews={reviews} />
         </div>
       </div>

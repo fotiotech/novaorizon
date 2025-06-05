@@ -10,29 +10,30 @@ import Spinner from "@/components/Spinner";
 import { useEffect } from "react";
 import { Prices } from "@/components/cart/Prices";
 import { triggerNotification } from "./actions/notifications";
-import { useUser } from "./context/UserContext";
 import Head from "next/head";
 import { useAppDispatch, useAppSelector } from "./hooks";
 import { fetchUserEvents } from "@/fetch/fetchUser";
 import { fetchProducts } from "@/fetch/fetchProducts";
+import { useSession } from "next-auth/react";
 
 export default function Home() {
   const { t } = useTranslation("common");
   const dispatch = useAppDispatch();
-  const { user } = useUser();
+  const session = useSession();
+    const user = session?.data?.user as any;
 
   const productsState = useAppSelector((state) => state.product);
 
   useEffect(() => {
     dispatch(fetchProducts());
-    if (user?._id) {
-      dispatch(fetchUserEvents(user._id, "click", 10));
+    if (user?.id) {
+      dispatch(fetchUserEvents(user.id, "click", 10));
     }
   }, [dispatch, user]);
 
   const handleProductClick = () => {
-    if (user?._id) {
-      triggerNotification(user._id, "A customer clicked on a product!");
+    if (user?.id) {
+      triggerNotification(user.id, "A customer clicked on a product!");
     }
   };
 
