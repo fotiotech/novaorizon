@@ -120,7 +120,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         }
 
         if (userData?.id) {
-          const response = await findCustomer(userData.id);
+          const response = await findCustomer(userData?.id);
+    console.log('response', response)
+
           if (response) {
             setCustomerInfos(response);
           }
@@ -134,7 +136,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     };
 
     fetchUser();
-  }, []); // Fetch user and customer on component mount
+  }, [userData]); // Fetch user and customer on component mount
 
   return (
     <UserContext.Provider

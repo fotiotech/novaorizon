@@ -44,7 +44,9 @@ const CheckoutButton: FC<CheckoutProps> = ({
   product,
   children,
 }) => {
-  const { user, customerInfos } = useUser();
+  const session = useSession();
+  const user = session?.data?.user as any;
+  const { customerInfos } = useUser();
   const { dispatch, cart } = useCart();
   const router = useRouter();
 
@@ -56,6 +58,9 @@ const CheckoutButton: FC<CheckoutProps> = ({
     null
   );
   const [hasAddedProduct, setHasAddedProduct] = useState<boolean>(false);
+
+  console.log('user', user)
+  console.log('customer infos', customerInfos)
 
   // Generate order number once
   useEffect(() => {
@@ -75,31 +80,31 @@ const CheckoutButton: FC<CheckoutProps> = ({
 
   // Fetch customer data
   useEffect(() => {
-    if (!user?._id) return;
+    if (!user?.id) return;
     const customerData = async () => {
       try {
-        const found = await findCustomer(user._id as string);
+        const found = await findCustomer(user?.id as string);
         if (found) setCustomer(found);
       } catch (err) {
         console.error("Error fetching customer:", err);
       }
     };
     customerData();
-  }, [user?._id]);
+  }, [user?.id]);
 
   // Update shipping infos when checkbox changes
   useEffect(() => {
-    if (!user?._id) return;
+    if (!user?.id) return;
     // Assuming `shippingAddressCheck` is always true when meant to update
     const updateInfo = async () => {
       try {
-        await updateShippingInfos(user._id as string, true);
+        await updateShippingInfos(user?.id as string, true);
       } catch (err) {
         console.error("Error updating shipping info:", err);
       }
     };
     updateInfo();
-  }, [user?._id]);
+  }, [user?.id]);
 
   // Fetch shipping price when region changes
   useEffect(() => {
@@ -163,7 +168,7 @@ const CheckoutButton: FC<CheckoutProps> = ({
 
     try {
       const res = await createOrUpdateOrder(orderNumber, {
-        userId: user?._id ?? "",
+        userId: user?.id ?? "",
         email: customer!.billingAddress?.email ?? "",
         firstName: customer!.billingAddress?.firstName ?? "",
         lastName: customer!.billingAddress?.lastName ?? "",
@@ -210,7 +215,7 @@ const CheckoutButton: FC<CheckoutProps> = ({
     customerInfos,
     orderNumber,
     shippingPrice,
-    user?._id,
+    user?.id,
     router,
   ]);
 
@@ -244,8 +249,8 @@ const CheckoutButton: FC<CheckoutProps> = ({
     }
 
     setIsOrderPlaced(true);
-    if (user?._id) {
-      triggerNotification(user._id, `${user.name} placed an order!`).catch(
+    if (user?.id) {
+      triggerNotification(user?.id, `${user?.name} placed an order!`).catch(
         (err) => console.error(err)
       );
     }
