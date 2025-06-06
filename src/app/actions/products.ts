@@ -103,7 +103,7 @@ export async function findProducts(
     {
       path: "reviews_ratings.user_id",
       model: "User",
-      select: "_id username", // Only grab _id and username
+      select: "_id name", // Only grab _id and name
     },
     {
       path: "related_products.product_id",
@@ -182,7 +182,7 @@ function transformPopulatedProduct(raw: any): PopulatedProduct {
         // user_id was populated → an object { _id, username }
         transformed.user_id = {
           _id: review.user_id._id.toString(),
-          username: review.user_id.username,
+          name: review.user_id.name,
         };
       } else {
         transformed.user_id = null;

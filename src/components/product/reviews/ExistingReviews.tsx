@@ -5,7 +5,7 @@ import React from "react";
 
 type Review = {
   _id: string;
-  user_id: { _id: string; username: string };
+  user_id: { _id: string; name: string };
   rating: number;
   comment: string;
   created_at: Date | string;
@@ -42,7 +42,7 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
               {/* 1) User ID (first 6 chars) */}
               <div>
                 <span className="font-medium">
-                  User {review.user_id.username}
+                  {review.user_id.name}
                 </span>
                 <span className="text-gray-500 text-sm ml-2">
                   {new Date(review.created_at).toLocaleDateString("fr-CM", {

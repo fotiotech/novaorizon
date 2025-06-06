@@ -15,6 +15,7 @@ import { fetchProducts } from "@/fetch/fetchProducts";
 import ReviewForm from "@/components/product/reviews/ProductReviews";
 import ExistingReviews from "@/components/product/reviews/ExistingReviews";
 import { useSession } from "next-auth/react";
+import StarRating from "@/components/StarRating";
 
 type Params = { slug: string; dsin: string };
 
@@ -136,9 +137,6 @@ export default function DetailsPage({ params }: { params: Params }) {
         {/* ====== Left/Main Column ====== */}
         <div className="flex-1 grid lg:grid-cols-2 gap-8 p-4">
           <div>
-            {/* Mobile title (hidden on lg+) */}
-            <h1 className="text-2xl font-semibold lg:hidden">{title}</h1>
-
             {/* Brand link */}
             {product.identification_branding?.brand && (
               <Link
@@ -153,12 +151,36 @@ export default function DetailsPage({ params }: { params: Params }) {
             <DetailImages file={images} />
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 ">
+            {reviews.map((review: any) => (
+              <div
+                key={review.rating}
+                className="flex justify-end items-center gap-1 lg:hidden"
+              >
+                <StarRating
+                  rating={review.rating}
+                  ratingCount={reviews.length}
+                />{" "}
+              </div>
+            ))}
+
             {/* Title (desktop) */}
-            <h1 className="text-3xl font-bold hidden lg:block">{title}</h1>
+            <h1 className="text-lg text-gray-800 font-bold ">{title}</h1>
+
+            {reviews.map((review: any) => (
+              <div
+                key={review.rating}
+                className="flex justify-end items-center gap-1 hidden lg:block"
+              >
+                <StarRating
+                  rating={review.rating}
+                  ratingCount={reviews.length}
+                />{" "}
+              </div>
+            ))}
 
             {product.variants_options?.variant_theme && (
-              <div className="mt-4">
+              <div className="">
                 <h3 className="text-sm font-bold text-gray-900">
                   {product.variants_options.variant_theme
                     .charAt(0)
