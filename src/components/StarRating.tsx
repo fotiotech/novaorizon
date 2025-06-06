@@ -16,13 +16,13 @@ const StarRating: React.FC<StarRatingProps> = ({ rating, maxStars = 5, ratingCou
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 text-sm">
         {[...Array(fullStars)].map((_, i) => (
-          <StarIcon key={`full-${i}`} style={{ color: '#FFD700' }} />
+          <StarIcon key={`full-${i}`} style={{ color: '#FFD700', fontSize: 16 }} />
         ))}
         {hasHalfStar && <StarHalfIcon style={{ color: '#FFD700' }} />}
         {[...Array(emptyStars)].map((_, i) => (
-          <StarBorderIcon key={`empty-${i}`} style={{ color: '#FFD700' }} />
+          <StarBorderIcon key={`empty-${i}`} style={{ color: '#FFD700', fontSize: 16 }} />
         ))}
       </div>
       <span className="text-sm text-gray-700">{rating.toFixed(1)}{ratingCount !== undefined ? ` (${ratingCount})` : ''}</span>

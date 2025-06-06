@@ -143,7 +143,7 @@ export default function DetailsPage({ params }: { params: Params }) {
             {product.identification_branding?.brand && (
               <Link
                 href={`/brandStore?brandId=${product.identification_branding.brand?._id}`}
-                className="text-blue-600 underline mb-4 block"
+                className="text-blue-600 underline mb-2 block text-sm"
               >
                 Visit {product.identification_branding.brand?.name || "—"} Store
               </Link>
