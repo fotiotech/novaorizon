@@ -81,7 +81,7 @@ const ProductSchema = new Schema(
       attributes: { type: Schema.Types.Mixed, default: {} },
     },
 
-    /* Related Products */
+    /* Related Products */ 
     related_products: [
       {
         product_id: { type: Schema.Types.ObjectId, ref: "Product" },

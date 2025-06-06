@@ -182,7 +182,7 @@ function transformPopulatedProduct(raw: any): PopulatedProduct {
         // user_id was populated → an object { _id, username }
         transformed.user_id = {
           _id: review.user_id._id.toString(),
-          name: review.user_id.name,
+          username: review.user_id.name,
         };
       } else {
         transformed.user_id = null;

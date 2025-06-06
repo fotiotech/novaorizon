@@ -23,9 +23,11 @@ export default function DetailsPage({ params }: { params: Params }) {
   const dispatch = useAppDispatch();
   const session = useSession();
   const user = session?.data?.user as any;
-  const product = useAppSelector((s) => s.product?.byId[params.dsin]);
+  const productData = useAppSelector((s) => s.product?.byId[params.dsin]);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
+  const product = productData;
+  const related_products = productData?.related_products;
 
   // Load product on mount / dsin change
   useEffect(() => {
@@ -462,7 +464,7 @@ export default function DetailsPage({ params }: { params: Params }) {
             Related Products
           </h2>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            {mergedProduct?.related_products.map((relProd: any) => {
+            {related_products?.map((relProd: any) => {
               const prod = relProd.product_id;
               const image = prod?.media_visuals?.main_image;
               const name =
