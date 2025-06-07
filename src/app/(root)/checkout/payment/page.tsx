@@ -22,17 +22,15 @@ const PaymentPage: React.FC = () => {
   }, [orderNumber]);
 
   let content;
-console.log( order)
+
   if (order?.paymentMethod) {
-    switch (order?.paymentMethod) {
+    switch (order.paymentMethod) {
       case "Mobile Money":
         content = <MonetBilPayment />;
         break;
-
       case "Paypal":
         content = <PaypalPayment />;
         break;
-
       default:
         content = <p>Invalid payment method or no payment method selected.</p>;
         break;
@@ -40,16 +38,16 @@ console.log( order)
   }
 
   return (
-    <div className=" p-2">
-      <h2 className="text-2xl font-bold">Payment Page</h2>
-      <div className="my-2 ">
-        <p>
-          Payment Method:{" "}
-          <span className="font-semibold">{order?.paymentMethod}</span>{" "}
-        </p>
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-2xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-4">Payment</h2>
+        <div className="mb-6 text-center">
+          <p className="text-lg">
+            Payment Method: <span className="font-semibold">{order?.paymentMethod || "Loading..."}</span>
+          </p>
+        </div>
+        <div>{content}</div>
       </div>
-
-      <div className="h-screen  my-2">{content}</div>
     </div>
   );
 };
