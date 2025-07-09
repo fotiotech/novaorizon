@@ -136,7 +136,7 @@ export async function updateOrderStatus(
         userId: savedOrder.userId,
         address: savedOrder.shippingAddress,
         trackingNumber: savedOrder.orderNumber,
-        shippingCost: savedOrder.shippingCost,
+        shippingCost: savedOrder.shippingCost || 0,
         status: "pending",
       });
       const res = await createShipping.save();

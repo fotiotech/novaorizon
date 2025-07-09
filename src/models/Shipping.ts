@@ -35,11 +35,12 @@ const ShippingSchema = new Schema<IShipping>(
       country: { type: String, required: true },
     },
     trackingNumber: { type: String },
-    carrier: { type: String, required: true },
+    carrier: { type: String, required: true, default: 'Novaorizon' },
     shippingMethod: {
       type: String,
       enum: ['standard', 'express', 'overnight'],
       required: true,
+      default: 'standard',
     },
     shippingCost: { type: Number, required: true, min: 0 },
     status: {
