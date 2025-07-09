@@ -142,7 +142,7 @@ export async function updateOrderStatus(
           country: savedOrder.shippingAddress.country,
         },
         trackingNumber: savedOrder.orderNumber,
-        shippingCost: savedOrder.shippingCost || 0,
+        shippingCost: savedOrder.shippingCost || 2,
         status: "pending",
       });
       await createShipping.save();
