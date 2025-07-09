@@ -175,7 +175,7 @@ const CheckoutButton: FC<CheckoutProps> = ({
         products: cart.map((item) => ({
           productId: item.id,
           name: item.name,
-          imageUrl: item.imageUrl,
+          imageUrl: item.imageUrl, 
           quantity: item.quantity,
           price: item.price,
         })),

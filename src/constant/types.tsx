@@ -302,6 +302,7 @@ export type Customer = {
 
 export type MonetbilPaymentRequest = {
   serviceKey: string;
+  orderNumber: string;
   amount: number;
   phone?: string;
   phoneLock?: boolean;

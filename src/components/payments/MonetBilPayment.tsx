@@ -6,7 +6,7 @@ import { CartItem } from "@/app/reducer/cartReducer";
 import { Customer, MonetbilPaymentRequest } from "@/constant/types";
 import React, { useEffect, useState } from "react";
 
-function MonetbilPayment() {
+function MonetbilPayment({orderNumber}:{orderNumber:string}) {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const { cart } = useCart();
   const { user } = useUser();
@@ -37,6 +37,7 @@ function MonetbilPayment() {
 
     const paymentData: MonetbilPaymentRequest = {
       serviceKey: process.env.NEXT_PUBLIC_MONETBIL_KEY as string,
+       orderNumber,
       amount: calculateTotal(cart),
       phone: customer?.billingAddress.phone,
       user: user?.name,

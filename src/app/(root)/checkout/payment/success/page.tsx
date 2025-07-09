@@ -13,7 +13,7 @@ export default function PaymentSuccess() {
   const [isProcessing, setIsProcessing] = useState(true);
 
   const transaction_id = params.get("transaction_id");
-  const orderNumber = params.get("orderNumber");
+  const payment_ref = params.get("payment_ref");
   const email = params.get("email");
   const firstName = params.get("first_name");
   const lastName = params.get("last_name");
@@ -22,12 +22,12 @@ export default function PaymentSuccess() {
   useEffect(() => {
     async function updatePaymentInfos() {
       try {
-        if (!email || !transaction_id || !status) {
+        if (!payment_ref || !transaction_id || !status) {
           throw new Error("Missing payment information");
         }
 
         // Update order status
-        await updateOrderStatus(email, transaction_id, status);
+        await updateOrderStatus(payment_ref, transaction_id, status);
 
         // Clear cart if payment was successful
         if (status === "paid") {
@@ -75,7 +75,7 @@ export default function PaymentSuccess() {
               Payment Successful!
             </h1>
             <div className="space-y-3 text-gray-600">
-              <p className="font-medium">Order #{orderNumber}</p>
+              <p className="font-medium">Order #{payment_ref}</p>
               <p>Transaction ID: {transaction_id}</p>
               <p>
                 Thank you, {firstName} {lastName}!

@@ -23,7 +23,7 @@ export async function generatePaymentLink(
         country: "CM",
         currency: "XAF",
         item_ref: paymentData.itemRef,
-        payment_ref: paymentData.paymentRef,
+        payment_ref: paymentData.orderNumber,
         user: paymentData.user,
         first_name: paymentData.firstName,
         last_name: paymentData.lastName,
@@ -115,22 +115,22 @@ export async function getPaymentNotification(request: Request) {
 }
 
 export async function updateOrderStatus(
-  email: string,
+  payment_ref: string,
   transaction_id: string,
   status: string
 ) {
-  if (!email || !transaction_id || !status) return null;
+  if (!payment_ref || !transaction_id || !status) return null;
   try {
     await connection();
     const savedOrder = await Order.findOneAndUpdate(
-      { email },
+      { orderNumber: payment_ref },
       { transaction_id, paymentStatus: status },
       { new: true }
     );
     if (!savedOrder) {
       throw new Error("Order not found");
     }
-    if (savedOrder && savedOrder.paymentStatus === "pending") {
+    if (savedOrder && savedOrder.paymentStatus === "cancelled") {
       const createShipping = new Shipping({
         orderId: savedOrder._id,
         userId: savedOrder.userId,

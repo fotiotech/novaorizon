@@ -26,7 +26,7 @@ const PaymentPage: React.FC = () => {
   if (order?.paymentMethod) {
     switch (order.paymentMethod) {
       case "Mobile Money":
-        content = <MonetBilPayment />;
+        content = <MonetBilPayment orderNumber={orderNumber as string} />;
         break;
       case "Paypal":
         content = <PaypalPayment />;
@@ -43,7 +43,10 @@ const PaymentPage: React.FC = () => {
         <h2 className="text-3xl font-bold text-center mb-4">Payment</h2>
         <div className="mb-6 text-center">
           <p className="text-lg">
-            Payment Method: <span className="font-semibold">{order?.paymentMethod || "Loading..."}</span>
+            Payment Method:{" "}
+            <span className="font-semibold">
+              {order?.paymentMethod || "Loading..."}
+            </span>
           </p>
         </div>
         <div>{content}</div>
