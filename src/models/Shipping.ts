@@ -15,7 +15,7 @@ export interface IShipping extends Document {
   driver: string;
   shippingMethod: 'standard' | 'express' | 'overnight';
   shippingCost: number;
-  status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'returned' | 'canceled';
+  status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'returned' | 'cancelled';
   shippedAt?: Date;
   deliveredAt?: Date;
   createdAt: Date;

@@ -138,7 +138,7 @@ export async function updateOrderStatus(
           street: savedOrder.shippingAddress.street,
           city: savedOrder.shippingAddress.city,
           state: savedOrder.shippingAddress.state || 'state',
-          postalCode: savedOrder.shippingAddress.postalCode,
+          postalCode: savedOrder.shippingAddress.postalCode || 'postalCode',
           country: savedOrder.shippingAddress.country,
         },
         trackingNumber: savedOrder.orderNumber,
