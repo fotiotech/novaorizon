@@ -134,7 +134,13 @@ export async function updateOrderStatus(
       const createShipping = new Shipping({
         orderId: savedOrder._id,
         userId: savedOrder.userId,
-        address: savedOrder.shippingAddress,
+        address: {
+          street: savedOrder.shippingAddress.street,
+          city: savedOrder.shippingAddress.city,
+          state: savedOrder.shippingAddress.state,
+          postalCode: savedOrder.shippingAddress.postalCode,
+          country: savedOrder.shippingAddress.country,
+        },
         trackingNumber: savedOrder.orderNumber,
         shippingCost: savedOrder.shippingCost || 0,
         status: "pending",
