@@ -145,8 +145,7 @@ export async function updateOrderStatus(
         shippingCost: savedOrder.shippingCost || 0,
         status: "pending",
       });
-      const res = await createShipping.save();
-      console.log("Shipping created:", res);
+      await createShipping.save();
     }
   } catch (error) {
     console.error("Error updating order status:", error);

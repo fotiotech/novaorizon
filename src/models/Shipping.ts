@@ -12,7 +12,7 @@ export interface IShipping extends Document {
     country: string;
   };
   trackingNumber?: string;
-  carrier: string;
+  driver: string;
   shippingMethod: 'standard' | 'express' | 'overnight';
   shippingCost: number;
   status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'returned' | 'canceled';
@@ -35,7 +35,7 @@ const ShippingSchema = new Schema<IShipping>(
       country: { type: String, required: true },
     },
     trackingNumber: { type: String },
-    carrier: { type: String, required: true, default: 'Novaorizon' },
+    driver: { type: String, required: true, default: 'Novaorizon' },
     shippingMethod: {
       type: String,
       enum: ['standard', 'express', 'overnight'],
@@ -45,7 +45,7 @@ const ShippingSchema = new Schema<IShipping>(
     shippingCost: { type: Number, required: true, min: 0 },
     status: {
       type: String,
-      enum: ['pending', 'shipped', 'in_transit', 'delivered', 'returned', 'canceled'],
+      enum: ['pending', 'assigned', 'in_transit', 'delivered', 'returned', 'cancelled'],
       default: 'pending',
     },
     shippedAt: { type: Date },
