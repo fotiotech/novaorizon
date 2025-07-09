@@ -21,7 +21,7 @@ export interface OrderDocument extends Document {
   total: number;
   paymentStatus: "pending" | "paid" | "failed" | "cancelled";
   paymentMethod: string;
-  transactionId?: string;
+  transaction_id?: string;
   shippingAddress: {
     street: string;
     city: string;
@@ -43,6 +43,7 @@ export interface OrderDocument extends Document {
 const OrderSchema = new mongoose.Schema<OrderDocument>(
   {
     orderNumber: { type: String, required: true, unique: true },
+    transaction_id: { type: String, },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

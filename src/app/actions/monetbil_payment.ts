@@ -6,6 +6,7 @@ import axios from "axios";
 import { NextResponse } from "next/server";
 import User from "@/models/User";
 import Order from "@/models/Order"; // Adjust the path based on your project structure
+import Shipping from "@/models/Shipping";
 
 export async function generatePaymentLink(
   paymentData: MonetbilPaymentRequest
@@ -121,13 +122,24 @@ export async function updateOrderStatus(
   if (!email || !transaction_id || !status) return null;
   try {
     await connection();
-    const order = await Order.findOneAndUpdate(
+    const savedOrder = await Order.findOneAndUpdate(
       { email },
       { transaction_id, paymentStatus: status },
       { new: true }
     );
-    if (!order) {
+    if (!savedOrder) {
       throw new Error("Order not found");
+    }
+    if (savedOrder && savedOrder.paymentStatus === "paid") {
+      const createShipping = new Shipping({
+        orderId: savedOrder._id,
+        userId: savedOrder.userId,
+        address: savedOrder.shippingAddress,
+        trackingNumber: savedOrder.orderNumber,
+        shippingCost: savedOrder.shippingCost,
+        status: "pending",
+      });
+      await createShipping.save();
     }
   } catch (error) {
     console.error("Error updating order status:", error);

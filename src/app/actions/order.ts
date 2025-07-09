@@ -83,7 +83,7 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
 }
 
 export async function createOrUpdateOrder(
-  orderNumber: string,
+  orderNumber: string, 
   data: OrderData
 ): Promise<boolean> {
   await connection();
@@ -136,13 +136,15 @@ export async function createOrUpdateOrder(
   if (shippingAddress) payload.shippingAddress = shippingAddress;
 
   try {
-    await Order.findOneAndUpdate({ orderNumber }, payload, {
+    
+     await Order.findOneAndUpdate({ orderNumber }, payload, {
       upsert: true, // create if not found
       new: true, // return the updated/created document
       runValidators: true, // apply schema validation
       setDefaultsOnInsert: true, // apply schema defaults on insert
     });
-    console.log(`[createOrUpdateOrder] Order ${orderNumber} saved/updated.`);
+
+    
     return true;
   } catch (err: any) {
     console.error("[createOrUpdateOrder] Error saving order:", err);

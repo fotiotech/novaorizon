@@ -15,7 +15,7 @@ export interface IShipping extends Document {
   carrier: string;
   shippingMethod: 'standard' | 'express' | 'overnight';
   shippingCost: number;
-  status: 'pending' | 'shipped' | 'in_transit' | 'delivered' | 'returned' | 'canceled';
+  status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'returned' | 'canceled';
   shippedAt?: Date;
   deliveredAt?: Date;
   createdAt: Date;
