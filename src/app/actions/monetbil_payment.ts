@@ -130,7 +130,7 @@ export async function updateOrderStatus(
     if (!savedOrder) {
       throw new Error("Order not found");
     }
-    if (savedOrder && savedOrder.paymentStatus === "paid") {
+    if (savedOrder && savedOrder.paymentStatus === "pending") {
       const createShipping = new Shipping({
         orderId: savedOrder._id,
         userId: savedOrder.userId,
@@ -139,7 +139,8 @@ export async function updateOrderStatus(
         shippingCost: savedOrder.shippingCost,
         status: "pending",
       });
-      await createShipping.save();
+      const res = await createShipping.save();
+      console.log("Shipping created:", res);
     }
   } catch (error) {
     console.error("Error updating order status:", error);

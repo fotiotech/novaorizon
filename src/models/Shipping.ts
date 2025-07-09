@@ -54,6 +54,6 @@ const ShippingSchema = new Schema<IShipping>(
 );
 
 // Export the Shipping Model
-const Shipping = mongoose.model<IShipping>('Shipping', ShippingSchema);
+const Shipping = mongoose.models.Shipping || mongoose.model<IShipping>('Shipping', ShippingSchema);
 
 export default Shipping;

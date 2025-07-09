@@ -30,7 +30,7 @@ export default function PaymentSuccess() {
         await updateOrderStatus(email, transaction_id, status);
 
         // Clear cart if payment was successful
-        if (status === "success") {
+        if (status === "paid") {
           cartDispatch({ type: "CLEAR_CART" });
           toast.success("Payment successful! Thank you for your purchase.");
         } else {
