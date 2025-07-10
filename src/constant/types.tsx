@@ -271,19 +271,18 @@ export type Customer = {
     lastName: string;
     email: string;
     phone?: string;
+    street?: string;
     address?: string;
     city?: string;
     region?: string;
     country?: string;
-    postalCode?: string;
     preferences?: string[]; // Array to store customer preferences
   };
   shippingAddress: {
     street: string;
     region: string;
     city: string;
-    state: string;
-    postalCode: string;
+    address: string;
     country: string;
     carrier: string;
     shippingMethod: string;

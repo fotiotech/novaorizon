@@ -7,8 +7,8 @@ export interface IShipping extends Document {
   address: {
     street: string;
     city: string;
-    state: string;
-    postalCode: string;
+    region: string;
+    address: string;
     country: string;
   };
   trackingNumber?: string;
@@ -30,8 +30,8 @@ const ShippingSchema = new Schema<IShipping>(
     address: {
       street: { type: String, required: true },
       city: { type: String, required: true },
-      state: { type: String, required: true },
-      postalCode: { type: String, required: true },
+      region: { type: String, required: true },
+      address: { type: String, required: true },
       country: { type: String, required: true },
     },
     trackingNumber: { type: String },

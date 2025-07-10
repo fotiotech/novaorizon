@@ -6,12 +6,10 @@ import { useCart } from "@/app/context/CartContext";
 import { Prices, TotalPrice } from "@/components/cart/Prices";
 
 interface OrderSummaryProps {
-  orderNumber: string;
   shippingPrice: CalcShippingPrice | null;
 }
 
 const OrderSummary: React.FC<OrderSummaryProps> = ({
-  orderNumber,
   shippingPrice,
 }) => {
   const { cart } = useCart();
@@ -25,10 +23,6 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
 
   return (
     <div className="border rounded-lg p-4 space-y-4">
-      <div>
-        <p className="font-medium">Order number:</p>
-        <p className="text-lg font-semibold">{orderNumber}</p>
-      </div>
 
       <ul className="space-y-2">
         {cart.map((item) => (

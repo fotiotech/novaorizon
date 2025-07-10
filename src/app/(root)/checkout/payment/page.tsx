@@ -8,25 +8,14 @@ import { useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 const PaymentPage: React.FC = () => {
-  const orderNumber = useSearchParams()?.get("orderNumber");
-  const [order, setOrder] = useState<Orders | null>(null);
-
-  useEffect(() => {
-    async function getOrder() {
-      if (orderNumber) {
-        const response = await findOrders(orderNumber, undefined);
-        setOrder(response as any);
-      }
-    }
-    getOrder();
-  }, [orderNumber]);
+  const paymentMethod = useSearchParams()?.get("paymentMethod");
 
   let content;
 
-  if (order?.paymentMethod) {
-    switch (order.paymentMethod) {
+  if (paymentMethod) {
+    switch (paymentMethod) {
       case "Mobile Money":
-        content = <MonetBilPayment orderNumber={orderNumber as string} />;
+        content = <MonetBilPayment />;
         break;
       case "Paypal":
         content = <PaypalPayment />;
@@ -45,7 +34,7 @@ const PaymentPage: React.FC = () => {
           <p className="text-lg">
             Payment Method:{" "}
             <span className="font-semibold">
-              {order?.paymentMethod || "Loading..."}
+              {paymentMethod || "Loading..."}
             </span>
           </p>
         </div>

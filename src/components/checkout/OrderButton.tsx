@@ -7,29 +7,34 @@ import { useUser } from "@/app/context/UserContext";
 import { useRouter } from "next/navigation";
 
 interface OrderButtonProps {
-  orderNumber: string;
+  paymentMethod?: string;
 }
 
-const ProceedPaymentButton: React.FC<OrderButtonProps> = ({ orderNumber }) => {
+const ProceedPaymentButton: React.FC<OrderButtonProps> = ({
+  paymentMethod,
+}) => {
   const { user } = useUser();
   const router = useRouter();
   const [isOrderPlaced, setIsOrderPlaced] = useState<boolean>(false);
 
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    if (!orderNumber) return;
+    if (!paymentMethod) return;
 
     router.push(
-      `/checkout/payment?orderNumber=${encodeURIComponent(orderNumber)}`
+      `/checkout/payment?paymentMethod=${encodeURIComponent(paymentMethod)}`
     );
 
     setIsOrderPlaced(true);
     if (user?._id) {
-      await triggerNotification(user._id, `${user.name} is proceeding payment!`);
+      await triggerNotification(
+        user._id,
+        `${user.name} is proceeding payment!`
+      );
     }
   };
 
-  const isDisabled = !orderNumber;
+  const isDisabled = !paymentMethod;
 
   return (
     <div className="text-center">

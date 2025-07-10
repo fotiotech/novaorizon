@@ -25,11 +25,11 @@ export async function updateBillingAddresses(_id: string, formData: FormData) {
   const lastName = (formData.get("lastName") as string) || "";
   const email = (formData.get("email") as string) || "";
   const phone = (formData.get("phone") as string) || "";
+  const street = (formData.get("street") as string) || "";
   const address = (formData.get("address") as string) || "";
   const city = (formData.get("city") as string) || "";
   const region = (formData.get("region") as string) || "";
   const country = (formData.get("country") as string) || "";
-  const postalCode = (formData.get("postalCode") as string) || "";
   const preferences = formData.get("preferences")
     ? (formData.get("preferences") as string).split(",")
     : []; // Assuming preferences is a comma-separated string, adjust as needed
@@ -49,11 +49,11 @@ export async function updateBillingAddresses(_id: string, formData: FormData) {
         lastName,
         email,
         phone,
+        street,
         address,
         city,
         region,
         country,
-        postalCode,
         preferences,
       };
       customer.billingMethod = {
@@ -71,11 +71,11 @@ export async function updateBillingAddresses(_id: string, formData: FormData) {
           lastName,
           email,
           phone,
+          street,
           address,
           city,
           region,
           country,
-          postalCode,
           preferences,
         },
         billingMethod: {
@@ -94,7 +94,6 @@ export async function updateBillingAddresses(_id: string, formData: FormData) {
 
 export async function updateShippingInfos(
   userId: string,
-  useBillingAsShipping: boolean,
   formData?: FormData
 ) {
   if (!userId || !formData) {
@@ -104,33 +103,17 @@ export async function updateShippingInfos(
   await connection();
   // If using billing address as shipping address, retrieve billing address fields
   let shippingAddress;
-  if (useBillingAsShipping) {
-    const customer = await Customer.findOne({ userId });
-    if (!customer) {
-      throw new Error("Customer not found");
-    }
-
-    shippingAddress = {
-      region: customer.billingAddress.region,
-      street: customer.billingAddress.address,
-      city: customer.billingAddress.city,
-      postalCode: customer.billingAddress.postalCode,
-      country: customer.billingAddress.country,
-      carrier: formData.get("carrier"),
-      shippingMethod: formData.get("shippingMethod"),
-    };
-  } else {
     // Use values from formData for shipping address if not using billing address
     shippingAddress = {
       street: formData.get("street"),
       city: formData.get("city"),
       region: formData.get("region"),
-      postalCode: formData.get("postalCode"),
+      address: formData.get("address"),
       country: formData.get("country"),
       carrier: formData.get("carrier"),
       shippingMethod: formData.get("shippingMethod"),
     };
-  }
+ 
 
   try {
     const response = await Customer.findOneAndUpdate(

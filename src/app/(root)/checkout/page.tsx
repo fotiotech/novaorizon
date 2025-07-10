@@ -13,6 +13,7 @@ import { CartItem } from "@/app/reducer/cartReducer";
 import OrderButton from "@/components/checkout/OrderButton";
 import { calculateShippingPrice } from "@/app/actions/carrier";
 import { useSearchParams } from "next/navigation";
+import BillingAddress from "./billing_addresses/page";
 
 export type CalcShippingPrice = {
   averageDeliveryTime: string;
@@ -21,28 +22,12 @@ export type CalcShippingPrice = {
   shippingPrice: number;
 };
 const CheckoutPage = () => {
-  
-  const orderNumber = useSearchParams()?.get("orderNumber");
   const { user, customerInfos } = useUser();
   const [shippingAddressCheck, setShippingAddressCheck] =
     useState<boolean>(true);
-
   const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
     null
   );
-
-  useEffect(() => {
-    async function updateDirectly() {
-      if (shippingAddressCheck) {
-        updateShippingInfos(
-          user?._id as string,
-          shippingAddressCheck,
-          undefined
-        );
-      }
-    }
-    updateDirectly();
-  }, [shippingAddressCheck, updateShippingInfos, user?._id]);
 
   useEffect(() => {
     async function fetchCarriers() {
@@ -59,74 +44,91 @@ const CheckoutPage = () => {
     fetchCarriers();
   }, [customerInfos?.shippingAddress?.region, calculateShippingPrice]);
 
+  
+
   return (
-    <div className="p-2">
+    <div className="p-2 lg:p-4 max-w-5xl mx-auto g">
       <h1 className="text-2xl font-bold">Checkout Page</h1>
-      <div>
-        <p className="font-bold">Products Summary</p>
-        <OrderSummary
-          orderNumber={orderNumber as string}
-          shippingPrice={shippingPrice}
-        />
+      <div className="lg:flex lg:justify-between lg:items-start mb-6">
+        <div className="flex flex-col gap-3 my-2">
+          <div>
+            <p className="font-bold">Billing Address</p>
+            {customerInfos ? (
+              <Link href={`/checkout/billing_addresses`}>
+                <div className="border rounded-lg p-2 cursor-pointer">
+                  <p>
+                    {customerInfos?.billingAddress.lastName}{" "}
+                    {customerInfos?.billingAddress.firstName}
+                  </p>
+                  <p>
+                    {customerInfos?.billingAddress.email},{" "}
+                    {customerInfos?.billingAddress.address},{" "}
+                    {customerInfos?.billingAddress.city}
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <BillingAddress />
+            )}
+          </div>
+
+          <div>
+            <p className="font-bold">Shipping Information</p>
+
+            {customerInfos?.shippingAddress ? (
+              <Link href={`/checkout/shipping_infos`}>
+                <div className="border rounded-lg p-2">
+                  <p>Region: {customerInfos?.shippingAddress?.region}</p>
+                  <p>city: {customerInfos?.shippingAddress?.city}</p>
+                  <p>street: {customerInfos?.shippingAddress?.street}</p>
+                </div>
+              </Link>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <span> Same as Billing address?</span>
+                  <input
+                    title="check"
+                    type="checkbox"
+                    checked={shippingAddressCheck}
+                    onChange={(e) => setShippingAddressCheck(e.target.checked)}
+                    className={`checked:bg-blue-700 `}
+                  />
+                </div>
+
+                <ShippingForm shippingAddressCheck={shippingAddressCheck} />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 my-2">
+          <div>
+            <p className="font-bold">Products Summary</p>
+
+            <OrderSummary
+              shippingPrice={shippingPrice}
+            />
+          </div>
+
+          <div>
+            {customerInfos?.billingMethod ? (
+              <div className="border rounded-lg p-2">
+                <p className="font-bold">Payment Method</p>
+                <p>{customerInfos?.billingMethod.methodType} - </p>
+              </div>
+            ) : (
+              <Link href={`/checkout/billing_addresses`}>
+                <div className="border rounded-lg p-2 cursor-pointer">
+                  <p className="font-bold">Add Billing Information</p>
+                </div>
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3 my-2">
-        <div>
-          <p className="font-bold">Billing Address</p>
-          {customerInfos ? (
-            <Link href={`/checkout/billing_addresses`}>
-              <div className="border rounded-lg p-2 cursor-pointer">
-                <p>
-                  {customerInfos?.billingAddress.lastName}{" "}
-                  {customerInfos?.billingAddress.firstName}
-                </p>
-                <p>
-                  {customerInfos?.billingAddress.email},{" "}
-                  {customerInfos?.billingAddress.address},{" "}
-                  {customerInfos?.billingAddress.city}
-                </p>
-              </div>
-            </Link>
-          ) : (
-            <Link
-              href={"/checkout/billing_addresses"}
-              className="p-2 rounded-lg cursor-pointer"
-            >
-              <p>Complete Billing Address</p>
-            </Link>
-          )}
-        </div>
-
-        <div>
-          <p className="font-bold">Shipping Information</p>
-
-          {customerInfos?.shippingAddress ? (
-            <div className="border rounded-lg p-2">
-              <p>Region: {customerInfos?.shippingAddress?.region}</p>
-              <p>city: {customerInfos?.shippingAddress?.city}</p>
-              <p>street: {customerInfos?.shippingAddress?.street}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <span> Same as Billing address?</span>
-                <input
-                  title="check"
-                  type="checkbox"
-                  checked={shippingAddressCheck}
-                  onChange={(e) => setShippingAddressCheck(e.target.checked)}
-                  className={`checked:bg-blue-700 `}
-                />
-              </div>
-
-              <ShippingForm shippingAddressCheck={shippingAddressCheck} />
-            </div>
-          )}
-        </div>
-      </div>
-
       <div>
-        <OrderButton orderNumber={orderNumber as string} />
+        <OrderButton paymentMethod={customerInfos?.billingMethod?.methodType} />
       </div>
     </div>
   );

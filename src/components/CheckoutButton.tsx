@@ -1,22 +1,10 @@
 "use client";
-import React, { FC, ReactNode, useState, useEffect, useCallback } from "react";
-import { findCustomer, updateShippingInfos } from "@/app/actions/customer";
-import { useUser } from "@/app/context/UserContext";
-import { Customer } from "@/constant/types";
-import { createOrUpdateOrder } from "@/app/actions/order";
-import { useCart } from "@/app/context/CartContext";
-import { CartItem } from "@/app/reducer/cartReducer";
-import { calculateShippingPrice } from "@/app/actions/carrier";
-import { triggerNotification } from "@/app/actions/notifications";
+
+import React, { FC, ReactNode, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
-
-export type CalcShippingPrice = {
-  averageDeliveryTime: string;
-  basePrice: number;
-  region: string;
-  shippingPrice: number;
-};
+import { useCart } from "@/app/context/CartContext";
+import { triggerNotification } from "@/app/actions/notifications";
 
 interface Product {
   _id: string;
@@ -34,8 +22,6 @@ interface CheckoutProps {
   children: ReactNode;
 }
 
-const DEFAULT_CARRIER_ID = "675eeda75a81d16c81aca736";
-
 const CheckoutButton: FC<CheckoutProps> = ({
   width = "w-44",
   height = "h-10",
@@ -44,187 +30,15 @@ const CheckoutButton: FC<CheckoutProps> = ({
   product,
   children,
 }) => {
-  const session = useSession();
-  const user = session?.data?.user as any;
-  const { customerInfos } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user as any;
   const { dispatch, cart } = useCart();
   const router = useRouter();
+  const [processing, setProcessing] = useState(false);
+  const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
-  const [orderNumber, setOrderNumber] = useState<string>("");
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [isOrderPlaced, setIsOrderPlaced] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
-    null
-  );
-  const [hasAddedProduct, setHasAddedProduct] = useState<boolean>(false);
-
-  console.log('user', user)
-  console.log('customer infos', customerInfos)
-
-  // Generate order number once
-  useEffect(() => {
-    const generateOrderNumber = () => {
-      const datePart = new Date()
-        .toISOString()
-        .replace(/[-:ZT.]/g, "")
-        .slice(0, 14); // YYYYMMDDHHMMSS
-      const randomStr = Math.random()
-        .toString(36)
-        .substring(2, 8)
-        .toUpperCase();
-      return `ORD${datePart}${randomStr}`;
-    };
-    setOrderNumber(generateOrderNumber());
-  }, []);
-
-  // Fetch customer data
-  useEffect(() => {
-    if (!user?.id) return;
-    const customerData = async () => {
-      try {
-        const found = await findCustomer(user?.id as string);
-        if (found) setCustomer(found);
-      } catch (err) {
-        console.error("Error fetching customer:", err);
-      }
-    };
-    customerData();
-  }, [user?.id]);
-
-  // Update shipping infos when checkbox changes
-  useEffect(() => {
-    if (!user?.id) return;
-    // Assuming `shippingAddressCheck` is always true when meant to update
-    const updateInfo = async () => {
-      try {
-        await updateShippingInfos(user?.id as string, true);
-      } catch (err) {
-        console.error("Error updating shipping info:", err);
-      }
-    };
-    updateInfo();
-  }, [user?.id]);
-
-  // Fetch shipping price when region changes
-  useEffect(() => {
-    if (!customerInfos?.shippingAddress?.region) return;
-    const fetchCarrier = async () => {
-      try {
-        const res = await calculateShippingPrice(
-          DEFAULT_CARRIER_ID,
-          customerInfos.shippingAddress.region,
-          0
-        );
-        setShippingPrice(res ?? null);
-      } catch (err) {
-        console.error("Error calculating shipping price:", err);
-      }
-    };
-    fetchCarrier();
-  }, [customerInfos?.shippingAddress?.region]);
-
-  // Prevent placing an order if required info is missing
-  const canPlaceOrder = (): boolean => {
-    return (
-      !!customer &&
-      !!orderNumber &&
-      !!customerInfos?.billingMethod?.methodType &&
-      !!customerInfos?.shippingAddress
-    );
-  };
-
-  const calculateTotal = (items: CartItem[]) => {
-    return items.reduce(
-      (sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1),
-      0
-    );
-  };
-
-  const handleOrderData = useCallback(async (): Promise<boolean> => {
-    if (!canPlaceOrder()) {
-      if (!customerInfos?.billingMethod?.methodType) {
-        router.push(`/checkout/billing_addresses`);
-      } else if (!customerInfos?.shippingAddress) {
-        router.push(`/checkout/shipping_infos`);
-      }
-      return false;
-    }
-
-    const processingDays = 3;
-    const transitDays = 5;
-    const now = new Date();
-    const estimatedShippingDate = new Date(now);
-    estimatedShippingDate.setDate(now.getDate() + processingDays);
-    const estimatedDeliveryDate = new Date(estimatedShippingDate);
-    estimatedDeliveryDate.setDate(
-      estimatedShippingDate.getDate() + transitDays
-    );
-
-    const subtotal = calculateTotal(cart);
-    const shippingCost = shippingPrice?.shippingPrice ?? 0;
-    const tax = 0;
-    const total = subtotal + shippingCost + tax;
-
-    try {
-      const res = await createOrUpdateOrder(orderNumber, {
-        userId: user?.id ?? "",
-        email: customer!.billingAddress?.email ?? "",
-        firstName: customer!.billingAddress?.firstName ?? "",
-        lastName: customer!.billingAddress?.lastName ?? "",
-        products: cart.map((item) => ({
-          productId: item.id,
-          name: item.name,
-          imageUrl: item.imageUrl, 
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        subtotal,
-        tax,
-        shippingCost,
-        total,
-        paymentStatus: "pending",
-        transactionId: Math.random().toString(36).substring(2, 8).toUpperCase(),
-        paymentMethod: customerInfos!.billingMethod!.methodType,
-        shippingAddress: {
-          street: customerInfos!.shippingAddress!.street ?? "",
-          region: customerInfos!.shippingAddress!.region ?? "",
-          city: customerInfos!.shippingAddress!.city ?? "",
-          state: customerInfos!.shippingAddress!.state ?? "",
-          carrier: customerInfos!.shippingAddress!.carrier ?? "",
-          postalCode: customerInfos!.shippingAddress!.postalCode ?? "",
-          country: customerInfos!.shippingAddress!.country ?? "",
-        },
-        shippingStatus: "pending",
-        shippingDate: estimatedShippingDate,
-        deliveryDate: estimatedDeliveryDate,
-        orderStatus: "processing",
-        notes: "",
-        couponCode: "",
-        discount: 0,
-      });
-
-      return Boolean(res);
-    } catch (err) {
-      console.error("Error creating/updating order:", err);
-      return false;
-    }
-  }, [
-    cart,
-    customer,
-    customerInfos,
-    orderNumber,
-    shippingPrice,
-    user?.id,
-    router,
-  ]);
-
-  const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    if (!orderNumber || isOrderPlaced || isSubmitting) return;
-
-    // 1) Add the product to cart if provided (and not already added)
-    if (product && !hasAddedProduct) {
+  const addProductToCart = () => {
+    if (product && addedProductId !== product._id) {
       dispatch({
         type: "ADD_ITEM",
         payload: {
@@ -235,49 +49,46 @@ const CheckoutButton: FC<CheckoutProps> = ({
           quantity: 1,
         },
       });
-      setHasAddedProduct(true);
-    }
-
-    // 2) Continue with order creation
-    setIsSubmitting(true);
-    const success = await handleOrderData();
-    setIsSubmitting(false);
-
-    if (!success) {
-      alert("Failed to place order. Please try again.");
-      return;
-    }
-
-    setIsOrderPlaced(true);
-    if (user?.id) {
-      triggerNotification(user?.id, `${user?.name} placed an order!`).catch(
-        (err) => console.error(err)
-      );
+      setAddedProductId(product._id);
     }
   };
 
-  useEffect(() => {
-    if (isOrderPlaced) {
-      router.push(`/checkout?orderNumber=${encodeURIComponent(orderNumber)}`);
-    }
-  }, [isOrderPlaced, orderNumber, router]);
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
 
-  const isDisabled =
-    !orderNumber || !canPlaceOrder() || isOrderPlaced || isSubmitting;
+    if (product) addProductToCart();
+
+    if (user?.id) {
+      triggerNotification(user.id, `${user.name} is checking out!`).catch(
+        console.error
+      );
+    }
+
+    setProcessing(true);
+  };
+
+  useEffect(() => {
+    if (processing && cart.length > 0) {
+      router.push("/checkout");
+    } else if (processing) {
+      // Wait briefly to allow cart update before checking again
+      const timeout = setTimeout(() => {
+        if (cart.length > 0) router.push("/checkout");
+        else setProcessing(false);
+      }, 300);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [processing, cart, router]);
 
   return (
     <button
       title="Check Out"
       type="button"
       onClick={handleClick}
-      disabled={isDisabled}
-      className={`${width} ${height} ${bgColor} ${textColor} 
-        mx-auto rounded-lg shadow-lg font-semibold flex 
-        items-center justify-center p-2 ${
-          isDisabled ? "opacity-50 cursor-not-allowed" : "hover:opacity-90"
-        }`}
+      className={`${width} ${height} ${bgColor} ${textColor} mx-auto rounded-lg shadow-lg font-semibold flex items-center justify-center p-2 hover:opacity-90`}
     >
-      {isSubmitting ? "Processing..." : children}
+      {processing ? "Processing..." : children}
     </button>
   );
 };

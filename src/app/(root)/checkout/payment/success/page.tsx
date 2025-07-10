@@ -5,11 +5,23 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/app/context/CartContext";
 import { toast } from "react-hot-toast";
+import { createOrUpdateOrder } from "@/app/actions/order";
+import { CartItem } from "@/app/reducer/cartReducer";
+import { calculateShippingPrice } from "@/app/actions/carrier";
+import { useSession } from "next-auth/react";
+import { useUser } from "@/app/context/UserContext";
+import { CalcShippingPrice } from "../../page";
+
+const DEFAULT_CARRIER_ID = "675eeda75a81d16c81aca736";
 
 export default function PaymentSuccess() {
+  const session = useSession();
   const router = useRouter();
   const params = useSearchParams();
   const { dispatch: cartDispatch } = useCart();
+  const user = session?.data?.user as any;
+  const { customerInfos } = useUser();
+  const { dispatch, cart } = useCart();
   const [isProcessing, setIsProcessing] = useState(true);
 
   const transaction_id = params.get("transaction_id");
@@ -19,18 +31,95 @@ export default function PaymentSuccess() {
   const lastName = params.get("last_name");
   const status = params.get("status");
 
+  const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
+    null
+  );
+
+  // Fetch shipping price when region changes
+  useEffect(() => {
+    if (!customerInfos?.shippingAddress?.region) return;
+    const fetchCarrier = async () => {
+      try {
+        const res = await calculateShippingPrice(
+          DEFAULT_CARRIER_ID,
+          customerInfos.shippingAddress.region,
+          0
+        );
+        setShippingPrice(res ?? null);
+      } catch (err) {
+        console.error("Error calculating shipping price:", err);
+      }
+    };
+    fetchCarrier();
+  }, [customerInfos?.shippingAddress?.region]);
+
+  const calculateTotal = (items: CartItem[]) => {
+    return items.reduce(
+      (sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1),
+      0
+    );
+  };
+
   useEffect(() => {
     async function updatePaymentInfos() {
       try {
-        if (!payment_ref || !transaction_id || !status) {
+        if (!payment_ref || !transaction_id || status !== "cancelled") {
           throw new Error("Missing payment information");
         }
 
-        // Update order status
-        await updateOrderStatus(payment_ref, transaction_id, status);
+        const processingDays = 3;
+        const transitDays = 5;
+        const now = new Date();
+        const estimatedShippingDate = new Date(now);
+        estimatedShippingDate.setDate(now.getDate() + processingDays);
+        const estimatedDeliveryDate = new Date(estimatedShippingDate);
+        estimatedDeliveryDate.setDate(
+          estimatedShippingDate.getDate() + transitDays
+        );
+
+        const subtotal = calculateTotal(cart);
+        const shippingCost = shippingPrice?.shippingPrice ?? 0;
+        const tax = 0;
+        const total = subtotal + shippingCost + tax;
+
+        const res = await createOrUpdateOrder(payment_ref, {
+          userId: user?.id ?? "",
+          email: customerInfos!.billingAddress?.email ?? "",
+          firstName: customerInfos!.billingAddress?.firstName ?? "",
+          lastName: customerInfos!.billingAddress?.lastName ?? "",
+          products: cart.map((item) => ({
+            productId: item.id,
+            name: item.name,
+            imageUrl: item.imageUrl,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          subtotal,
+          tax,
+          shippingCost,
+          total,
+          paymentStatus: status,
+          transactionId: transaction_id,
+          paymentMethod: customerInfos!.billingMethod!.methodType,
+          shippingAddress: {
+            street: customerInfos!.shippingAddress!.street ?? "",
+            region: customerInfos!.shippingAddress!.region ?? "",
+            city: customerInfos!.shippingAddress!.city ?? "",
+            carrier: customerInfos!.shippingAddress!.carrier ?? "",
+            address: customerInfos!.shippingAddress!.address ?? "",
+            country: customerInfos!.shippingAddress!.country ?? "",
+          },
+          shippingStatus: "pending",
+          shippingDate: estimatedShippingDate,
+          deliveryDate: estimatedDeliveryDate,
+          orderStatus: "processing",
+          notes: "",
+          couponCode: "",
+          discount: 0,
+        });
 
         // Clear cart if payment was successful
-        if (status === "paid") {
+        if (status === "cancelled") {
           cartDispatch({ type: "CLEAR_CART" });
           toast.success("Payment successful! Thank you for your purchase.");
         } else {
@@ -54,7 +143,7 @@ export default function PaymentSuccess() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
             <p className="text-gray-600">Processing your payment...</p>
           </div>
-        ) : status === "success" ? (
+        ) : status === "cancelled" ? (
           <div className="text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
               <svg
@@ -72,7 +161,7 @@ export default function PaymentSuccess() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Payment Successful!
+              Payment {status}!
             </h1>
             <div className="space-y-3 text-gray-600">
               <p className="font-medium">Order #{payment_ref}</p>

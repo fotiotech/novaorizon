@@ -1,17 +1,15 @@
-import { getCarriers, getCarriersById } from "@/app/actions/carrier";
+import { getCarriersById } from "@/app/actions/carrier";
 import { updateBillingAddresses } from "@/app/actions/customer";
 import { useUser } from "@/app/context/UserContext";
 import { Carrier } from "@/constant/types";
 import React, { useEffect, useState } from "react";
 
 const BillingAddresses: React.FC = () => {
-  const { user } = useUser();
-  const { customerInfos } = useUser();
+  const { user, customerInfos } = useUser();
   const toUpdateBillingAddresses = updateBillingAddresses.bind(
     null,
     user?._id as string
   );
-
   const [carrier, setCarrier] = useState<Carrier | null>(null);
 
   useEffect(() => {
@@ -26,72 +24,118 @@ const BillingAddresses: React.FC = () => {
   const paymentMeth = customerInfos?.billingMethod?.methodType;
 
   return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4">Billing Information</h2>
-      <form action={toUpdateBillingAddresses}>
-        <div>
-          <label>First Name</label>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <h2 className="text-xl font-semibold mb-6 text-center">
+        Billing Information
+      </h2>
+      <form
+        action={toUpdateBillingAddresses}
+        className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+      >
+        <div className="flex flex-col">
+          <label className="mb-1">First Name</label>
           <input
-            title="firstName"
             type="text"
             name="firstName"
             defaultValue={billingAddress?.firstName}
             required
+            className="input input-bordered"
+            placeholder="Enter first name"
+            title="First Name"
+            pattern="^[A-Za-zÀ-ÿ' -]{2,40}$"
+            autoComplete="given-name"
           />
         </div>
-        <div>
-          <label>Last Name</label>
+
+        <div className="flex flex-col">
+          <label className="mb-1">Last Name</label>
           <input
-            title="lastName"
             type="text"
             name="lastName"
             defaultValue={billingAddress?.lastName}
             required
+            className="input input-bordered"
+            placeholder="Enter last name"
+            title="Last Name"
+            pattern="^[A-Za-zÀ-ÿ' -]{2,40}$"
+            autoComplete="family-name"
           />
         </div>
-        <div>
-          <label>Email</label>
+
+        <div className="flex flex-col">
+          <label className="mb-1">Email</label>
           <input
-            title="email"
             type="email"
             name="email"
             defaultValue={billingAddress?.email}
             required
+            className="input input-bordered"
+            placeholder="Enter email"
+            title="Email"
+            pattern="^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$"
+            autoComplete="email"
           />
         </div>
-        <div>
-          <label>Phone</label>
+
+        <div className="flex flex-col">
+          <label className="mb-1">Phone</label>
           <input
-            title="phone"
             type="tel"
             name="phone"
             defaultValue={billingAddress?.phone}
+            className="input input-bordered"
+            pattern="^[+]?[0-9]{7,15}$"
+            autoComplete="tel"
+            title="Phone"
+            placeholder="Enter phone number"
           />
         </div>
-        <div>
-          <label>Address</label>
+
+        <div className="flex flex-col">
+          <label className="mb-1">street</label>
           <input
-            title="address"
+            type="text"
+            name="street"
+            defaultValue={billingAddress?.street}
+            className="input input-bordered"
+            autoComplete="address-line1"
+            title="street"
+            placeholder="Enter street"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="mb-1">Address</label>
+          <input
             type="text"
             name="address"
             defaultValue={billingAddress?.address}
+            className="input input-bordered"
+            autoComplete="street-address"
+            title="Address"
+            placeholder="Enter address"
           />
         </div>
-        <div>
-          <label>City</label>
+
+        <div className="flex flex-col">
+          <label className="mb-1">City</label>
           <input
-            title="city"
             type="text"
             name="city"
             defaultValue={billingAddress?.city}
+            className="input input-bordered"
+            autoComplete="address-level2"
+            title="City"
           />
         </div>
-        <div>
-          <label>region</label>
+
+        <div className="flex flex-col">
+          <label className="mb-1">Region</label>
           <select
-            title="region"
             name="region"
             defaultValue={billingAddress?.region}
+            className="input input-bordered"
+            autoComplete="address-level1"
+            title="Region"
           >
             <option value="">-Select your Region-</option>
             {carrier &&
@@ -102,43 +146,43 @@ const BillingAddresses: React.FC = () => {
               ))}
           </select>
         </div>
-        <div>
-          <label>Country</label>
+
+        <div className="flex flex-col">
+          <label className="mb-1">Country</label>
           <input
-            title="country"
             type="text"
             name="country"
             defaultValue={billingAddress?.country}
+            className="input input-bordered"
+            autoComplete="country"
+            title="Country"
           />
         </div>
-        <div>
-          <label>Postal Code</label>
+
+        <div className="flex flex-col sm:col-span-2">
+          <label className="mb-1">Preferences</label>
           <input
-            title="postalCode"
-            type="text"
-            name="postalCode"
-            defaultValue={billingAddress?.postalCode}
-          />
-        </div>
-        <div>
-          <label>Preferences</label>
-          <input
-            title="preferences"
             type="text"
             name="preferences"
             defaultValue={billingAddress?.preferences}
+            className="input input-bordered"
+            title="Preferences"
           />
-        </div><div>
-          <label>Payment Method</label>
+        </div>
+
+        <div className="flex flex-col sm:col-span-2">
+          <label className="mb-1">Payment Method</label>
           <input
-            title="methodType"
             type="text"
             name="methodType"
             defaultValue={paymentMeth}
+            className="input input-bordered"
+            title="Payment Method"
           />
         </div>
-        <div className="text-center">
-          <button type="submit" className="btn px-10">
+
+        <div className="sm:col-span-2 text-center mt-6">
+          <button type="submit" className="btn btn-primary px-10">
             Save
           </button>
         </div>

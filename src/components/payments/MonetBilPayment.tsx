@@ -6,13 +6,30 @@ import { CartItem } from "@/app/reducer/cartReducer";
 import { Customer, MonetbilPaymentRequest } from "@/constant/types";
 import React, { useEffect, useState } from "react";
 
-function MonetbilPayment({orderNumber}:{orderNumber:string}) {
+function MonetbilPayment() {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const { cart } = useCart();
   const { user } = useUser();
   const [customer, setCustomer] = useState<Customer>();
   const [operator, setOperator] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [orderNumber, setOrderNumber] = useState<string>("");
+
+  // Generate order number once
+  useEffect(() => {
+    const generateOrderNumber = () => {
+      const datePart = new Date()
+        .toISOString()
+        .replace(/[-:ZT.]/g, "")
+        .slice(0, 14); // YYYYMMDDHHMMSS
+      const randomStr = Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+      return `ORD${datePart}${randomStr}`;
+    };
+    setOrderNumber(generateOrderNumber());
+  }, []);
 
   const calculateTotal = (cartItems: CartItem[]) => {
     return cartItems.reduce(
@@ -37,7 +54,7 @@ function MonetbilPayment({orderNumber}:{orderNumber:string}) {
 
     const paymentData: MonetbilPaymentRequest = {
       serviceKey: process.env.NEXT_PUBLIC_MONETBIL_KEY as string,
-       orderNumber,
+      orderNumber,
       amount: calculateTotal(cart),
       phone: customer?.billingAddress.phone,
       user: user?.name,
@@ -68,7 +85,9 @@ function MonetbilPayment({orderNumber}:{orderNumber:string}) {
   return (
     <div className="flex justify-center items-center mt-8 bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-md p-6">
-        <h2 className="text-2xl font-semibold text-center mb-6">Pay with Mobile Money</h2>
+        <h2 className="text-2xl font-semibold text-center mb-6">
+          Pay with Mobile Money
+        </h2>
         <div className="flex flex-col gap-4">
           {operators.map(({ code, name }) => (
             <button
@@ -76,7 +95,9 @@ function MonetbilPayment({orderNumber}:{orderNumber:string}) {
               onClick={() => fetchPaymentLink(code)}
               disabled={loading}
               className={`w-full border rounded-lg p-3 text-left transition-all duration-300 ${
-                operator === code ? "bg-blue-100 border-blue-500" : "hover:bg-gray-100"
+                operator === code
+                  ? "bg-blue-100 border-blue-500"
+                  : "hover:bg-gray-100"
               }`}
             >
               {name}
@@ -102,7 +123,9 @@ function MonetbilPayment({orderNumber}:{orderNumber:string}) {
               </button>
             </a>
           ) : (
-            <p className="text-sm text-gray-400">Select an operator to continue</p>
+            <p className="text-sm text-gray-400">
+              Select an operator to continue
+            </p>
           )}
         </div>
       </div>

@@ -22,12 +22,19 @@ export interface OrderDocument extends Document {
   paymentStatus: "pending" | "paid" | "failed" | "cancelled";
   paymentMethod: string;
   transaction_id?: string;
-  shippingAddress: {
+  billingAddress: {
     street: string;
     city: string;
-    state: string;
-    postalCode: string;
+    region: string;
+    address: string;
     country: string;
+  };shippingAddress: {
+    street: string;
+    city: string;
+    region: string;
+    address: string;
+    country: string;
+    carrier?: string;
   };
   shippingStatus: "pending" | "shipped" | "delivered";
   shippingDate?: Date;
@@ -74,12 +81,19 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
       default: "pending",
     },
     paymentMethod: { type: String, required: true },
-    shippingAddress: {
+    billingAddress: {
       street: { type: String, required: true },
       city: { type: String, required: true },
-      state: { type: String },
-      postalCode: { type: String, required: true },
+      region: { type: String },
+      address: { type: String, required: true },
       country: { type: String, required: true },
+    },shippingAddress: {
+      street: { type: String, required: true },
+      city: { type: String, required: true },
+      region: { type: String },
+      address: { type: String, required: true },
+      country: { type: String, required: true },
+      carrier: { type: String },
     },
     shippingStatus: {
       type: String,

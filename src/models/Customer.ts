@@ -10,19 +10,18 @@ interface ICustomer extends Document {
     lastName: string;
     email: string;
     phone?: string;
-    address?: string;
+    street?: string;
     city?: string;
     region?: string;
     country?: string;
-    postalCode?: string;
+    address?: string;
     preferences?: string[]; // Array to store customer preferences
   };
-  shippingAddress: {
+  shippingAddress: { 
     street: string;
     region: string;
     city: string;
-    state: string;
-    postalCode: string;
+    address: string;
     country: string;
     carrier: string;
     shippingMethod: string;
@@ -55,6 +54,7 @@ const CustomerSchema: Schema<ICustomer> = new Schema(
       lastName: { type: String, required: true },
       email: { type: String, required: true, unique: true },
       phone: { type: String },
+      street: { type: String },
       address: { type: String },
       city: { type: String },
       region: { type: String },

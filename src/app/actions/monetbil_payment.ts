@@ -137,9 +137,10 @@ export async function updateOrderStatus(
         address: {
           street: savedOrder.shippingAddress.street,
           city: savedOrder.shippingAddress.city,
-          state: savedOrder.shippingAddress.state || 'state',
-          postalCode: savedOrder.shippingAddress.postalCode || 'postalCode',
+          region: savedOrder.shippingAddress.region,
+          address: savedOrder.shippingAddress.address,
           country: savedOrder.shippingAddress.country,
+          carrier: savedOrder.shippingAddress.carrier || "Novaorizon",
         },
         trackingNumber: savedOrder.orderNumber,
         shippingCost: savedOrder.shippingCost || 2,

@@ -132,36 +132,31 @@ export async function calculateShippingPrice(
   distance?: number
 ) {
   try {
-    // Connect to MongoDB (if not already connected)
     await connection();
 
-    // Fetch the carrier details
     const carrier = await Carrier.findById(carrierId);
     if (!carrier) {
       throw new Error("Carrier not found");
     }
 
-    // Find the region details within the carrier's regionsServed
-    const regionDetails = carrier.regionsServed.find(
-      (r: any) => r.region.toLowerCase() === region.toLowerCase()
+    const regionDetails = carrier.regionsServed?.find(
+      (r: any) => r.region.toLowerCase().trim() === region.toLowerCase().trim()
     );
+
+
     if (!regionDetails) {
       throw new Error(`Region ${region} is not served by this carrier`);
     }
 
-    // Compute the shipping price
     const { basePrice } = regionDetails;
-    const costWeight = carrier.costWeight ? carrier.costWeight : 0;
-
-    const w = weight ? weight : 0;
-
-    // Shipping price formula (example: basePrice + (weight * costWeight) + (distance * costPerKm))
+    const costWeight = carrier.costWeight ?? 0;
+    const w = weight ?? 0;
     const shippingPrice = basePrice + w * costWeight;
 
     return {
       ...regionDetails.toObject(),
       _id: regionDetails._id.toString(),
-      shippingPrice: shippingPrice,
+      shippingPrice,
     };
   } catch (error) {
     console.error("Error calculating shipping price:", error);

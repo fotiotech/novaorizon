@@ -2,6 +2,7 @@
 import { connection } from "@/utils/connection";
 import Order from "@/models/Order";
 import { revalidatePath } from "next/cache";
+import Shipping from "@/models/Shipping";
 
 export interface OrderData {
   userId: string;
@@ -23,8 +24,7 @@ export interface OrderData {
     street?: string;
     city?: string;
     region?: string;
-    state?: string;
-    postalCode?: string;
+    address?: string;
     country?: string;
     carrier?: string;
   };
@@ -83,18 +83,19 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
 }
 
 export async function createOrUpdateOrder(
-  orderNumber: string, 
+  payment_ref: string,
   data: OrderData
 ): Promise<boolean> {
   await connection();
 
-  if (!orderNumber || !data) {
-    console.error("[createOrUpdateOrder] Missing orderNumber or data");
+  if (!payment_ref || !data) {
+    console.error("[createOrUpdateOrder] Missing payment_ref or data");
     return false;
   }
 
   console.log(
-    `[createOrUpdateOrder] Creating/updating order with orderNumber: ${orderNumber}`)
+    `[createOrUpdateOrder] Creating/updating order with orderNumber: ${payment_ref}`
+  );
 
   // Destructure defaults for optional fields
   const {
@@ -104,27 +105,12 @@ export async function createOrUpdateOrder(
     shippingStatus = "pending",
     orderStatus = "processing",
     discount = 0,
-    shippingAddress: rawAddress,
     ...rest
   } = data;
 
-  // Build shippingAddress only if required 'state' is present
-  let shippingAddress;
-  if (rawAddress && rawAddress.state) {
-    // Filter out empty fields
-    const entries = Object.entries(rawAddress as Record<string, any>).filter(
-      ([_, value]) => value != null && value !== ""
-    );
-    shippingAddress = Object.fromEntries(entries);
-  } else if (rawAddress) {
-    console.warn(
-      "[createOrUpdateOrder] Incomplete shippingAddress, skipping it to avoid validation errors."
-    );
-  }
-
   // Build payload including defaults and only valid shippingAddress
   const payload: any = {
-    orderNumber,
+    orderNumber: payment_ref,
     ...rest,
     tax,
     shippingCost,
@@ -133,18 +119,47 @@ export async function createOrUpdateOrder(
     orderStatus,
     discount,
   };
-  if (shippingAddress) payload.shippingAddress = shippingAddress;
 
   try {
-    
-     await Order.findOneAndUpdate({ orderNumber }, payload, {
-      upsert: true, // create if not found
-      new: true, // return the updated/created document
-      runValidators: true, // apply schema validation
-      setDefaultsOnInsert: true, // apply schema defaults on insert
-    });
+    const savedOrder = await Order.findOneAndUpdate(
+      { orderNumber: payment_ref },
+      payload,
+      {
+        upsert: true, // create if not found
+        new: true, // return the updated/created document
+        runValidators: true, // apply schema validation
+        setDefaultsOnInsert: true, // apply schema defaults on insert
+      }
+    );
 
-    
+    console.log(
+      `[createOrUpdateOrder] Order ${savedOrder} saved/updated successfully`
+    );
+
+    if (savedOrder && savedOrder.paymentStatus === "cancelled") {
+      const createShipping = new Shipping({
+        orderId: savedOrder._id,
+        userId: savedOrder.userId,
+        address: {
+          street: savedOrder.shippingAddress.street,
+          city: savedOrder.shippingAddress.city,
+          region: savedOrder.shippingAddress.region,
+          address: savedOrder.shippingAddress.address,
+          country: savedOrder.shippingAddress.country,
+          carrier: savedOrder.shippingAddress.carrier || "Novaorizon",
+        },
+        trackingNumber: savedOrder.orderNumber,
+        shippingCost: savedOrder.shippingCost || 2,
+        status: "pending",
+      });
+      const res = await createShipping.save();
+
+      console.log(
+        savedOrder.shippingAddress,
+        `Shipping created for order ${savedOrder.orderNumber}:`,
+        res
+      );
+    }
     return true;
   } catch (err: any) {
     console.error("[createOrUpdateOrder] Error saving order:", err);
