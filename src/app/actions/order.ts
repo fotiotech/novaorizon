@@ -88,7 +88,7 @@ export async function createOrUpdateOrder(
 ) {
   await connection();
 
-  console.log('data', data);
+  console.log("data", data);
 
   if (!payment_ref || !data) {
     console.error("[createOrUpdateOrder] Missing payment_ref or data");
@@ -154,7 +154,11 @@ export async function createOrUpdateOrder(
       `[createOrUpdateOrder] Order ${savedOrder} saved/updated successfully`
     );
 
-    if (savedOrder && savedOrder.paymentStatus === "cancelled") {
+    if (
+      savedOrder &&
+      savedOrder.orderNumber === payment_ref &&
+      savedOrder.paymentStatus === "cancelled"
+    ) {
       const createShipping = new Shipping({
         orderId: savedOrder._id,
         userId: savedOrder.userId,
