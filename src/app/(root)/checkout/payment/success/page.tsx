@@ -116,7 +116,7 @@ export default function PaymentSuccess() {
             region: customerInfos!.shippingAddress!.region,
             city: customerInfos!.shippingAddress!.city,
             carrier: customerInfos!.shippingAddress!.carrier,
-            address: customerInfos!.shippingAddress!.address,
+            address: customerInfos!.shippingAddress!.address || "excellence1",
             country: customerInfos!.shippingAddress!.country,
           },
           shippingStatus: "pending",

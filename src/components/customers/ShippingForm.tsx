@@ -56,7 +56,6 @@ const ShippingForm = ({ shippingAddressCheck }: { shippingAddressCheck?: boolean
             name="region"
             defaultValue={shippingAddress?.region}
             className="input input-bordered"
-            autoComplete="address-level1"
             title="Region"
           >
             <option value="" disabled>Select your Region</option>
@@ -92,7 +91,6 @@ const ShippingForm = ({ shippingAddressCheck }: { shippingAddressCheck?: boolean
             required
             className="input input-bordered"
             title="address"
-            autoComplete="address-line1"
             pattern="^[A-Za-z0-9 -]{3,12}$"
             placeholder="Enter postal code"
           />

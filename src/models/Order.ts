@@ -28,7 +28,8 @@ export interface OrderDocument extends Document {
     region: string;
     address: string;
     country: string;
-  };shippingAddress: {
+  };
+  shippingAddress: {
     street: string;
     city: string;
     region: string;
@@ -50,7 +51,7 @@ export interface OrderDocument extends Document {
 const OrderSchema = new mongoose.Schema<OrderDocument>(
   {
     orderNumber: { type: String, required: true, unique: true },
-    transaction_id: { type: String, },
+    transaction_id: { type: String },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -87,13 +88,14 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
       region: { type: String, required: true },
       address: { type: String, required: true },
       country: { type: String, required: true },
-    },shippingAddress: {
+    },
+    shippingAddress: {
       street: { type: String, required: true },
       region: { type: String, required: true },
       city: { type: String, required: true },
       address: { type: String, required: true },
-      country: { type: String, required: true },
       carrier: { type: String },
+      country: { type: String, required: true },
     },
     shippingStatus: {
       type: String,

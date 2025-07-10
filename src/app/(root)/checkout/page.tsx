@@ -44,7 +44,7 @@ const CheckoutPage = () => {
     fetchCarriers();
   }, [customerInfos?.shippingAddress?.region, calculateShippingPrice]);
 
-  
+  console.log('customerInfos', customerInfos);
 
   return (
     <div className="p-2 lg:p-4 max-w-5xl mx-auto g">
