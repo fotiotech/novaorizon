@@ -85,8 +85,10 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
 export async function createOrUpdateOrder(
   payment_ref: string,
   data: OrderData
-): Promise<boolean> {
+) {
   await connection();
+
+  console.log('data', data);
 
   if (!payment_ref || !data) {
     console.error("[createOrUpdateOrder] Missing payment_ref or data");
@@ -105,66 +107,82 @@ export async function createOrUpdateOrder(
     shippingStatus = "pending",
     orderStatus = "processing",
     discount = 0,
+    shippingAddress = {
+      street: "",
+      city: "",
+      region: "",
+      address: "",
+      country: "",
+      carrier: "Novaorizon", // Default carrier
+    },
     ...rest
   } = data;
 
   // Build payload including defaults and only valid shippingAddress
   const payload: any = {
-    orderNumber: payment_ref,
     ...rest,
+    orderNumber: payment_ref,
     tax,
     shippingCost,
     paymentStatus,
     shippingStatus,
     orderStatus,
     discount,
+    shippingAddress: {
+      street: shippingAddress.street || "",
+      city: shippingAddress.city || "",
+      region: shippingAddress.region || "",
+      address: shippingAddress.address || "",
+      country: shippingAddress.country || "",
+      carrier: shippingAddress.carrier || "Novaorizon", // Default carrier
+    },
   };
 
-  try {
-    const savedOrder = await Order.findOneAndUpdate(
-      { orderNumber: payment_ref },
-      payload,
-      {
-        upsert: true, // create if not found
-        new: true, // return the updated/created document
-        runValidators: true, // apply schema validation
-        setDefaultsOnInsert: true, // apply schema defaults on insert
-      }
-    );
+  // try {
+  //   const savedOrder = await Order.findOneAndUpdate(
+  //     { orderNumber: payment_ref },
+  //     payload,
+  //     {
+  //       upsert: true, // create if not found
+  //       new: true, // return the updated/created document
+  //       runValidators: true, // apply schema validation
+  //       setDefaultsOnInsert: true, // apply schema defaults on insert
+  //     }
+  //   );
 
-    console.log(
-      `[createOrUpdateOrder] Order ${savedOrder} saved/updated successfully`
-    );
+  //   console.log(
+  //     `[createOrUpdateOrder] Order ${savedOrder} saved/updated successfully`
+  //   );
 
-    if (savedOrder && savedOrder.paymentStatus === "cancelled") {
-      const createShipping = new Shipping({
-        orderId: savedOrder._id,
-        userId: savedOrder.userId,
-        address: {
-          street: savedOrder.shippingAddress.street,
-          city: savedOrder.shippingAddress.city,
-          region: savedOrder.shippingAddress.region,
-          address: savedOrder.shippingAddress.address,
-          country: savedOrder.shippingAddress.country,
-          carrier: savedOrder.shippingAddress.carrier || "Novaorizon",
-        },
-        trackingNumber: savedOrder.orderNumber,
-        shippingCost: savedOrder.shippingCost || 2,
-        status: "pending",
-      });
-      const res = await createShipping.save();
+  //   if (savedOrder && savedOrder.paymentStatus === "cancelled") {
+  //     const createShipping = new Shipping({
+  //       orderId: savedOrder._id,
+  //       userId: savedOrder.userId,
+  //       address: {
+  //         street: savedOrder.shippingAddress.street,
+  //         city: savedOrder.shippingAddress.city,
+  //         region: savedOrder.shippingAddress.region,
+  //         address: savedOrder.shippingAddress.address,
+  //         country: savedOrder.shippingAddress.country,
+  //         carrier: savedOrder.shippingAddress.carrier || "Novaorizon",
+  //       },
+  //       trackingNumber: savedOrder.orderNumber,
+  //       shippingCost: savedOrder.shippingCost || 2,
+  //       status: "pending",
+  //     });
+  //     const res = await createShipping.save();
 
-      console.log(
-        savedOrder.shippingAddress,
-        `Shipping created for order ${savedOrder.orderNumber}:`,
-        res
-      );
-    }
-    return true;
-  } catch (err: any) {
-    console.error("[createOrUpdateOrder] Error saving order:", err);
-    return false;
-  }
+  //     console.log(
+  //       savedOrder.shippingAddress,
+  //       `Shipping created for order ${savedOrder.orderNumber}:`,
+  //       res
+  //     );
+  //   }
+  //   return true;
+  // } catch (err: any) {
+  //   console.error("[createOrUpdateOrder] Error saving order:", err);
+  //   return false;
+  // }
 }
 
 export async function deleteOrder(orderNumber: string) {

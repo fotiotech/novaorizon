@@ -21,7 +21,7 @@ export default function PaymentSuccess() {
   const { dispatch: cartDispatch } = useCart();
   const user = session?.data?.user as any;
   const { customerInfos } = useUser();
-  const { dispatch, cart } = useCart();
+  const { cart } = useCart();
   const [isProcessing, setIsProcessing] = useState(true);
 
   const transaction_id = params.get("transaction_id");
@@ -34,6 +34,11 @@ export default function PaymentSuccess() {
   const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
     null
   );
+
+  console.log("User data:", user);
+  console.log("Customer Infos:", customerInfos);
+  console.log("Transaction ID:", transaction_id);
+  console.log("Payment Reference:", payment_ref);
 
   // Fetch shipping price when region changes
   useEffect(() => {
@@ -63,7 +68,7 @@ export default function PaymentSuccess() {
   useEffect(() => {
     async function updatePaymentInfos() {
       try {
-        if (!payment_ref || !transaction_id || status !== "cancelled") {
+        if (!user || !customerInfos || !payment_ref || !transaction_id || status !== "cancelled") {
           throw new Error("Missing payment information");
         }
 
@@ -83,10 +88,10 @@ export default function PaymentSuccess() {
         const total = subtotal + shippingCost + tax;
 
         const res = await createOrUpdateOrder(payment_ref, {
-          userId: user?.id ?? "",
-          email: customerInfos!.billingAddress?.email ?? "",
-          firstName: customerInfos!.billingAddress?.firstName ?? "",
-          lastName: customerInfos!.billingAddress?.lastName ?? "",
+          userId: user?.id,
+          email: customerInfos!.billingAddress?.email,
+          firstName: customerInfos!.billingAddress?.firstName,
+          lastName: customerInfos!.billingAddress?.lastName,
           products: cart.map((item) => ({
             productId: item.id,
             name: item.name,
@@ -102,12 +107,12 @@ export default function PaymentSuccess() {
           transactionId: transaction_id,
           paymentMethod: customerInfos!.billingMethod!.methodType,
           shippingAddress: {
-            street: customerInfos!.shippingAddress!.street ?? "",
-            region: customerInfos!.shippingAddress!.region ?? "",
-            city: customerInfos!.shippingAddress!.city ?? "",
-            carrier: customerInfos!.shippingAddress!.carrier ?? "",
-            address: customerInfos!.shippingAddress!.address ?? "",
-            country: customerInfos!.shippingAddress!.country ?? "",
+            street: customerInfos!.shippingAddress!.street,
+            region: customerInfos!.shippingAddress!.region,
+            city: customerInfos!.shippingAddress!.city,
+            carrier: customerInfos!.shippingAddress!.carrier,
+            address: customerInfos!.shippingAddress!.address,
+            country: customerInfos!.shippingAddress!.country,
           },
           shippingStatus: "pending",
           shippingDate: estimatedShippingDate,
@@ -118,13 +123,17 @@ export default function PaymentSuccess() {
           discount: 0,
         });
 
-        // Clear cart if payment was successful
-        if (status === "cancelled") {
-          cartDispatch({ type: "CLEAR_CART" });
-          toast.success("Payment successful! Thank you for your purchase.");
-        } else {
-          toast.error("Payment was not successful. Please try again.");
+        if (!res) {
+          throw new Error("Failed to create or update order");
         }
+
+        // Clear cart if payment was successful
+        // if (status === "cancelled") {
+        //   cartDispatch({ type: "CLEAR_CART" });
+        //   toast.success("Payment successful! Thank you for your purchase.");
+        // } else {
+        //   toast.error("Payment was not successful. Please try again.");
+        // }
       } catch (error) {
         console.error("Error updating payment status:", error);
         toast.error("Something went wrong while processing your payment.");
