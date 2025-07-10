@@ -84,13 +84,13 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
     billingAddress: {
       street: { type: String, required: true },
       city: { type: String, required: true },
-      region: { type: String },
+      region: { type: String, required: true },
       address: { type: String, required: true },
       country: { type: String, required: true },
     },shippingAddress: {
       street: { type: String, required: true },
+      region: { type: String, required: true },
       city: { type: String, required: true },
-      region: { type: String },
       address: { type: String, required: true },
       country: { type: String, required: true },
       carrier: { type: String },

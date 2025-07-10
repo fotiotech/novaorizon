@@ -92,7 +92,7 @@ const ShippingForm = ({ shippingAddressCheck }: { shippingAddressCheck?: boolean
             required
             className="input input-bordered"
             title="address"
-            autoComplete="postal-code"
+            autoComplete="address-line1"
             pattern="^[A-Za-z0-9 -]{3,12}$"
             placeholder="Enter postal code"
           />

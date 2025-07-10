@@ -130,11 +130,11 @@ export async function createOrUpdateOrder(
     discount,
     shippingAddress: {
       street: shippingAddress.street || "",
-      city: shippingAddress.city || "",
       region: shippingAddress.region || "",
+      city: shippingAddress.city || "",
       address: shippingAddress.address || "",
-      country: shippingAddress.country || "",
       carrier: shippingAddress.carrier || "Novaorizon", // Default carrier
+      country: shippingAddress.country || "",
     },
   };
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { updateOrderStatus } from "@/app/actions/monetbil_payment";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/app/context/CartContext";
@@ -68,7 +67,13 @@ export default function PaymentSuccess() {
   useEffect(() => {
     async function updatePaymentInfos() {
       try {
-        if (!user || !customerInfos || !payment_ref || !transaction_id || status !== "cancelled") {
+        if (
+          !user ||
+          !customerInfos ||
+          !payment_ref ||
+          !transaction_id ||
+          status !== "cancelled"
+        ) {
           throw new Error("Missing payment information");
         }
 
@@ -128,12 +133,12 @@ export default function PaymentSuccess() {
         }
 
         // Clear cart if payment was successful
-        // if (status === "cancelled") {
-        //   cartDispatch({ type: "CLEAR_CART" });
-        //   toast.success("Payment successful! Thank you for your purchase.");
-        // } else {
-        //   toast.error("Payment was not successful. Please try again.");
-        // }
+        if (status === "cancelled") {
+          cartDispatch({ type: "CLEAR_CART" });
+          toast.success("Payment successful! Thank you for your purchase.");
+        } else {
+          toast.error("Payment was not successful. Please try again.");
+        }
       } catch (error) {
         console.error("Error updating payment status:", error);
         toast.error("Something went wrong while processing your payment.");
@@ -142,7 +147,16 @@ export default function PaymentSuccess() {
       }
     }
     updatePaymentInfos();
-  }, [email, transaction_id, status, cartDispatch]);
+  }, [
+    email,
+    transaction_id,
+    status,
+    cartDispatch,
+    user,
+    customerInfos,
+    payment_ref,
+    shippingPrice,
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
