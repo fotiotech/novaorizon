@@ -72,7 +72,7 @@ export default function PaymentSuccess() {
           !customerInfos ||
           !payment_ref ||
           !transaction_id ||
-          status !== "cancelled"
+          !status
         ) {
           throw new Error("Missing payment information");
         }
@@ -133,7 +133,7 @@ export default function PaymentSuccess() {
         }
 
         // Clear cart if payment was successful
-        if (status === "cancelled") {
+        if (status === "paid") {
           cartDispatch({ type: "CLEAR_CART" });
           toast.success("Payment successful! Thank you for your purchase.");
         } else {
@@ -166,7 +166,7 @@ export default function PaymentSuccess() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
             <p className="text-gray-600">Processing your payment...</p>
           </div>
-        ) : status === "cancelled" ? (
+        ) : status === "paid" ? (
           <div className="text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
               <svg
@@ -184,7 +184,7 @@ export default function PaymentSuccess() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Payment {status}!
+              Payment Successful!
             </h1>
             <div className="space-y-3 text-gray-600">
               <p className="font-medium">Order #{payment_ref}</p>
