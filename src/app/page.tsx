@@ -3,7 +3,6 @@
 import Hero from "@/components/Hero";
 import ImageRenderer from "@/components/ImageRenderer";
 import Layout from "@/components/Layout";
-import { Product } from "@/constant/types";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import Spinner from "@/components/Spinner";
@@ -18,7 +17,7 @@ import { useSession } from "next-auth/react";
 import { getCollectionsWithProducts } from "./actions/products";
 
 export default function Home() {
-  const { t } = useTranslation("common");
+  // const { t } = useTranslation("common");
   const dispatch = useAppDispatch();
   const session = useSession();
   const user = session?.data?.user as any;
@@ -89,7 +88,7 @@ export default function Home() {
 
         <section className="w-full p-2 lg:px-10 lg:mt-1 mb-1 bg-pri border-y">
           <h2 className="lg:mb-4 mb-2 font-bold text-xl lg:text-3xl">
-            {t("arrival")}
+            New Arrivals
           </h2>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 mx-auto gap-3 lg:gap-5">
