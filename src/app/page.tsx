@@ -7,7 +7,7 @@ import { Product } from "@/constant/types";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import Spinner from "@/components/Spinner";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Prices } from "@/components/cart/Prices";
 import { triggerNotification } from "./actions/notifications";
 import Head from "next/head";
@@ -15,17 +15,32 @@ import { useAppDispatch, useAppSelector } from "./hooks";
 import { fetchUserEvents } from "@/fetch/fetchUser";
 import { fetchProducts } from "@/fetch/fetchProducts";
 import { useSession } from "next-auth/react";
+import { getCollectionsWithProducts } from "./actions/products";
 
 export default function Home() {
   const { t } = useTranslation("common");
   const dispatch = useAppDispatch();
   const session = useSession();
-    const user = session?.data?.user as any;
-
+  const user = session?.data?.user as any;
   const productsState = useAppSelector((state) => state.product);
+  const [collections, setCollections] = useState<any[]>([]);
 
   useEffect(() => {
     dispatch(fetchProducts());
+    // Fetch collections with products
+    const fetchCollections = async () => {
+      try {
+        const response = await getCollectionsWithProducts();
+        if (!response.success) {
+          throw new Error("Failed to fetch collections");
+        }
+        console.log("Fetched collections:", response.data);
+        setCollections(response.data || []);
+      } catch (error) {
+        console.error("Error fetching collections:", error);
+      }
+    };
+    fetchCollections();
     if (user?.id) {
       dispatch(fetchUserEvents(user?.id, "click", 10));
     }
@@ -91,7 +106,8 @@ export default function Home() {
                   null;
 
                 const price = product.pricing_availability?.price;
-                const currency = product.pricing_availability?.currency || 'USD';
+                const currency =
+                  product.pricing_availability?.currency || "USD";
 
                 return (
                   <Link
@@ -136,6 +152,68 @@ export default function Home() {
             )}
           </div>
         </section>
+
+        {collections.map((col) => (
+          <section
+            key={col.collection._id}
+            className="w-full p-2 lg:px-10 lg:mt-6 mb-6 border-y border-gray-200"
+          >
+            <h2 className="lg:mb-4 mb-2 font-bold text-xl lg:text-2xl">
+              {col.collection.name}
+            </h2>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
+              {col.products.slice(0, 4).map((product: any) => {
+                const title = product.identification_branding?.name || "";
+                const shortDesc = product.descriptions?.short || "";
+
+                const mainImage =
+                  product.media_visuals?.main_image ||
+                  product.media_visuals?.gallery?.[0] ||
+                  null;
+
+                const price = product.pricing_availability?.price;
+                const currency =
+                  product.pricing_availability?.currency || "USD";
+
+                return (
+                  <Link
+                    href={`/${product.url_slug}/details/${product._id}`}
+                    key={product._id}
+                    aria-label="collection product"
+                  >
+                    <div className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow">
+                      <div className="w-full h-full relative flex-shrink-0 bg-gray-100 rounded">
+                        {mainImage ? (
+                          <ImageRenderer image={mainImage} />
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-gray-400">
+                            No Image
+                          </div>
+                        )}
+                      </div>
+
+                      <h3 className="mt-2 w-full line-clamp-2 font-medium">
+                        {title}
+                      </h3>
+                      <p className="text-sm text-gray-500 line-clamp-2">
+                        {shortDesc}
+                      </p>
+
+                      {price !== undefined && (
+                        <div className="mt-1">
+                          <span className="font-bold">
+                            <Prices amount={price} />
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </main>
     </Layout>
   );
