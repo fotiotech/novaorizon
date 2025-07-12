@@ -6,6 +6,7 @@ import Product from "@/models/Product";
 import "@/models/User";
 import "@/models/Brand";
 import { Collection } from "@/models/Collection";
+import "@/models/Category";
 
 type PopulatedProduct = {
   _id: string;
