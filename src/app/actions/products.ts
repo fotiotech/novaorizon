@@ -82,14 +82,18 @@ export async function getCollectionsWithProducts() {
         query[attributePath][rule.operator] = rule.value;
       }
 
-      const matchingProducts = await Product.find(query).lean();
+      const matchingProducts = await Product.find(query)
+        .sort({ created_at: -1 })
+        .populate("category_id", "categoryName url_slug imageUrl")
+        .lean();
 
       results.push({
         collection: {
           _id: collection._id,
           name: collection.name,
           description: collection.description,
-          category_id: collection.category_id,
+          display: collection.display,
+          category: collection.category_id,
           created_at: collection.created_at,
           updated_at: collection.updated_at,
         },
