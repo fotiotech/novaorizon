@@ -177,7 +177,7 @@ export default function Home() {
           <div className="grid grid-cols-2 lg:grid-cols-4 mx-auto gap-3 lg:gap-5">
             {productsState.allIds.length > 0 ? (
               productsState.allIds
-                .slice(0, 8)
+                .slice(0, 4)
                 .map((id) => renderProductCard(productsState.byId[id]))
             ) : (
               <Spinner />
