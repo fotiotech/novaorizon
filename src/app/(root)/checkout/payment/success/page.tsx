@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/app/context/CartContext";
 import { toast } from "react-hot-toast";
-import { createOrUpdateOrder } from "@/app/actions/order";
+import { createOrUpdateOrder, findOrders } from "@/app/actions/order";
 import { CartItem } from "@/app/reducer/cartReducer";
 import { calculateShippingPrice } from "@/app/actions/carrier";
 import { useSession } from "next-auth/react";
@@ -29,15 +29,20 @@ export default function PaymentSuccess() {
   const firstName = params.get("first_name");
   const lastName = params.get("last_name");
   const status = params.get("status");
-
   const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
     null
   );
+  const [order, setOrder] = useState<any>({});
 
-  console.log("User data:", user);
-  console.log("Customer Infos:", customerInfos);
-  console.log("Transaction ID:", transaction_id);
-  console.log("Payment Reference:", payment_ref);
+  useEffect(() => {
+    async function fetchOrder() {
+      if (payment_ref) {
+        const response = await findOrders(payment_ref);
+        setOrder(response);
+      }
+    }
+    fetchOrder();
+  }, [payment_ref]);
 
   // Fetch shipping price when region changes
   useEffect(() => {
@@ -93,39 +98,43 @@ export default function PaymentSuccess() {
         const total = subtotal + shippingCost + tax;
 
         const res = await createOrUpdateOrder(payment_ref, {
-          userId: user?.id,
-          email: customerInfos!.billingAddress?.email,
-          firstName: customerInfos!.billingAddress?.firstName,
-          lastName: customerInfos!.billingAddress?.lastName,
-          products: cart.map((item) => ({
-            productId: item.id,
-            name: item.name,
-            imageUrl: item.imageUrl,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-          subtotal,
-          tax,
-          shippingCost,
-          total,
+          userId: order?.userId || user?.id,
+          email: order?.email || customerInfos.billingAddress?.email,
+          firstName:
+            order?.firstName || customerInfos.billingAddress?.firstName,
+          lastName: order?.lastName || customerInfos.billingAddress?.lastName,
+          products:
+            order?.products ||
+            cart.map((item) => ({
+              productId: item.id,
+              name: item.name,
+              imageUrl: item.imageUrl,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+          subtotal: order?.subtotal || subtotal,
+          tax: order?.tax || tax,
+          shippingCost: order?.shippingCost || shippingCost,
+          total: order?.total || total,
           paymentStatus: status,
           transactionId: transaction_id,
-          paymentMethod: customerInfos!.billingMethod!.methodType,
-          shippingAddress: {
-            street: customerInfos!.shippingAddress!.street,
-            region: customerInfos!.shippingAddress!.region,
-            city: customerInfos!.shippingAddress!.city,
-            carrier: customerInfos!.shippingAddress!.carrier,
-            address: customerInfos!.shippingAddress!.address || "excellence1",
-            country: customerInfos!.shippingAddress!.country,
+          paymentMethod:
+            order?.paymentMethod || customerInfos.billingMethod?.methodType,
+          shippingAddress: order?.shippingAddress || {
+            street: customerInfos.shippingAddress.street,
+            region: customerInfos.shippingAddress.region,
+            city: customerInfos.shippingAddress.city,
+            carrier: customerInfos.shippingAddress.carrier,
+            address: customerInfos.shippingAddress.address || "excellence1",
+            country: customerInfos.shippingAddress.country,
           },
-          shippingStatus: "pending",
-          shippingDate: estimatedShippingDate,
-          deliveryDate: estimatedDeliveryDate,
-          orderStatus: "processing",
-          notes: "",
-          couponCode: "",
-          discount: 0,
+          shippingStatus: order?.shippingStatus || "pending",
+          shippingDate: order?.shippingDate || estimatedShippingDate,
+          deliveryDate: order?.deliveryDate || estimatedDeliveryDate,
+          orderStatus: order?.orderStatus || "processing",
+          notes: order?.notes || "",
+          couponCode: order?.couponCode || "",
+          discount: order?.discount || 0,
         });
 
         if (!res) {
@@ -233,7 +242,11 @@ export default function PaymentSuccess() {
               support.
             </p>
             <button
-              onClick={() => router.push("/checkout")}
+              onClick={() =>
+                router.push(
+                  `/checkout/payment?payment_ref=${payment_ref}&paymentMethod=${customerInfos?.billingMethod?.methodType}`
+                )
+              }
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Try Again

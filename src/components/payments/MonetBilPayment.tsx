@@ -1,12 +1,13 @@
 import { findCustomer } from "@/app/actions/customer";
 import { generatePaymentLink } from "@/app/actions/monetbil_payment";
+import { findOrders } from "@/app/actions/order";
 import { useCart } from "@/app/context/CartContext";
 import { useUser } from "@/app/context/UserContext";
 import { CartItem } from "@/app/reducer/cartReducer";
 import { Customer, MonetbilPaymentRequest } from "@/constant/types";
 import React, { useEffect, useState } from "react";
 
-function MonetbilPayment() {
+function MonetbilPayment({ payment_ref }: { payment_ref?: string }) {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const { cart } = useCart();
   const { user } = useUser();
@@ -14,6 +15,17 @@ function MonetbilPayment() {
   const [operator, setOperator] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>("");
+  const [order, setOrder] = useState<any>({});
+
+  useEffect(() => {
+    async function fetchOrder() {
+      if (payment_ref) {
+        const response = await findOrders(payment_ref);
+        setOrder(response);
+      }
+    }
+    fetchOrder();
+  }, [payment_ref]);
 
   // Generate order number once
   useEffect(() => {
@@ -54,8 +66,8 @@ function MonetbilPayment() {
 
     const paymentData: MonetbilPaymentRequest = {
       serviceKey: process.env.NEXT_PUBLIC_MONETBIL_KEY as string,
-      orderNumber,
-      amount: calculateTotal(cart),
+      orderNumber: payment_ref || orderNumber,
+      amount: payment_ref ? order?.total : calculateTotal(cart),
       phone: customer?.billingAddress.phone,
       user: user?.name,
       firstName: customer?.billingAddress.firstName,

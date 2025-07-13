@@ -8,6 +8,7 @@ import { useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 const PaymentPage: React.FC = () => {
+  const payment_ref = useSearchParams()?.get("payment_ref");
   const paymentMethod = useSearchParams()?.get("paymentMethod");
 
   let content;
@@ -15,7 +16,7 @@ const PaymentPage: React.FC = () => {
   if (paymentMethod) {
     switch (paymentMethod) {
       case "Mobile Money":
-        content = <MonetBilPayment />;
+        content = <MonetBilPayment payment_ref={payment_ref ?? undefined} />;
         break;
       case "Paypal":
         content = <PaypalPayment />;
