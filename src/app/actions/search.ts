@@ -120,6 +120,8 @@ export async function searchProducts(options: SearchProductsOptions) {
     match[key] = attrMatch[key];
   }
 
+  console.log("attrMatch:", JSON.stringify(attrMatch, null, 2));
+
   if (priceMin != null || priceMax != null) {
     match["pricing_availability.price"] = {};
     if (priceMin != null) match["pricing_availability.price"].$gte = priceMin;
@@ -202,8 +204,6 @@ export async function searchProducts(options: SearchProductsOptions) {
   ];
 
   const [res0] = await Product.aggregate(agg);
-
-  console.log("Aggregation result:", JSON.stringify(res0, null, 2));
 
   const items = res0?.data || [];
   const total = res0?.totalCount?.[0]?.count || 0;

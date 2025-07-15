@@ -2,31 +2,68 @@ import mongoose, { Schema, model, models, Document } from "mongoose";
 
 // Attribute Interface
 interface IAttribute extends Document {
-  group: string;
-  getVariant?: boolean;
+  groupId: Schema.Types.ObjectId;
+  isVariant?: boolean;
+  is_highlight?: boolean;
   name: string;
-  category_id: mongoose.Types.ObjectId;
+  option?: string[];
+  type:
+    | "text"
+    | "select"
+    | "checkbox"
+    | "radio"
+    | "boolean"
+    | "textarea"
+    | "number"
+    | "date"
+    | "color"
+    | "file"
+    | "url"
+    | "multi-select"; // Added the missing 'type' property
 }
 
 // Attribute Schema
 const AttributeSchema = new Schema<IAttribute>({
-  group: {
-    type: String,
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: "AttributeGroup",
   },
+
   name: {
     type: String,
+    unique: true,
     required: [true, "Attribute name is required"],
   },
-  getVariant: {
+  option: [{ type: String }],
+  is_highlight: {
     type: Boolean,
     default: false,
   },
-  category_id: {
-    type: Schema.Types.ObjectId,
-    ref: "Category",
+  isVariant: {
+    type: Boolean,
+    default: false,
+  },
+  type: {
+    type: String,
+    enum: [
+      "text",
+      "select",
+      "checkbox",
+      "radio",
+      "boolean",
+      "textarea",
+      "number",
+      "date",
+      "color",
+      "file",
+      "url",
+      "multi-select",
+    ],
     required: true,
   },
 });
+
+AttributeSchema.index({ name: 1 });
 
 // Attribute Model
 const Attribute =
