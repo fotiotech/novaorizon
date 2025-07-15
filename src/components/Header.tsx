@@ -46,7 +46,7 @@ const Header = () => {
         </div>
         <div
           className={`
-          transition-all lg:w-3/4 lg:h-auto`}
+          transition-all w-0 lg:w-3/4 h-0 lg:h-auto`}
         >
           <div className="relative w-full ">
             <form
