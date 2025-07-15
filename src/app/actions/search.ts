@@ -1,6 +1,5 @@
 "use server";
 
-// Extend the existing searchProducts function to auto-detect category, brand, and attributes from textQuery
 import mongoose from "mongoose";
 import { connection } from "@/utils/connection";
 import Product from "@/models/Product";
@@ -19,29 +18,28 @@ interface SearchProductsOptions {
   sortBy?: any;
 }
 
-async function detectCategoryFromText(
-  textQuery: string
-): Promise<string | null> {
+async function detectCategoryFromText(textQuery: string) {
   if (!textQuery) return null;
   const categories = await Category.find({}, { categoryName: 1, synonyms: 1 });
   const normalized = textQuery.toLowerCase();
   for (const cat of categories) {
     if (normalized.includes(cat.categoryName.toLowerCase()))
-      return cat._id.toString();
+      return { id: cat._id.toString(), name: cat.categoryName };
     for (const syn of cat.synonyms || []) {
-      if (normalized.includes(syn.toLowerCase())) return cat._id.toString();
+      if (normalized.includes(syn.toLowerCase()))
+        return { id: cat._id.toString(), name: cat.categoryName };
     }
   }
   return null;
 }
 
-async function detectBrandFromText(textQuery: string): Promise<string | null> {
+async function detectBrandFromText(textQuery: string) {
   if (!textQuery) return null;
   const brands = await Brand.find({}, { name: 1 });
   const normalized = textQuery.toLowerCase();
   for (const brand of brands) {
     if (normalized.includes(brand.name.toLowerCase()))
-      return brand._id.toString();
+      return { id: brand._id.toString(), name: brand.name };
   }
   return null;
 }
@@ -61,21 +59,10 @@ async function detectAttributesFromText(
       }
     }
   }
-
   return attributes;
 }
 
-export async function searchProducts(options: SearchProductsOptions): Promise<{
-  items: any[];
-  total: number;
-  limit: number;
-  skip: number;
-  filters: {
-    categories: { id: string; name: string; count: number }[];
-    brands: { id: string; name: string; count: number }[];
-    priceRange: { min: number; max: number };
-  };
-}> {
+export async function searchProducts(options: SearchProductsOptions) {
   await connection();
   const {
     textQuery,
@@ -88,27 +75,45 @@ export async function searchProducts(options: SearchProductsOptions): Promise<{
 
   let category_id = options.category_id;
   let brand_id = options.brand_id;
+  let detectedCategory;
+  let detectedBrand;
 
   if (!category_id && textQuery)
-    category_id = (await detectCategoryFromText(textQuery)) ?? undefined;
+    detectedCategory = (await detectCategoryFromText(textQuery)) ?? undefined;
   if (!brand_id && textQuery) {
-    const detectedBrand = await detectBrandFromText(textQuery);
-    brand_id = detectedBrand ?? undefined;
+    const detected = await detectBrandFromText(textQuery);
+    detectedBrand = detected ?? undefined;
   }
 
   const match: any = {};
 
-  if (textQuery)
+  if (
+    textQuery &&
+    !textQuery.includes(detectedCategory?.name || detectedBrand?.name || "")
+  ) {
     match["identification_branding.name"] = {
       $regex: textQuery,
       $options: "i",
     };
-  if (mongoose.Types.ObjectId.isValid(category_id || ""))
+  }
+
+  if (mongoose.Types.ObjectId.isValid(category_id || "")) {
     match.category_id = new mongoose.Types.ObjectId(category_id);
-  if (mongoose.Types.ObjectId.isValid(brand_id || ""))
+  }
+  if (detectedCategory) {
+    match.category_id = new mongoose.Types.ObjectId(detectedCategory.id);
+  }
+
+  if (mongoose.Types.ObjectId.isValid(brand_id || "")) {
     match["identification_branding.brand"] = new mongoose.Types.ObjectId(
       brand_id
     );
+  }
+  if (detectedBrand) {
+    match["identification_branding.brand"] = new mongoose.Types.ObjectId(
+      detectedBrand.id
+    );
+  }
 
   const attrMatch = await detectAttributesFromText(textQuery ?? "");
   for (const key in attrMatch) {
@@ -120,6 +125,8 @@ export async function searchProducts(options: SearchProductsOptions): Promise<{
     if (priceMin != null) match["pricing_availability.price"].$gte = priceMin;
     if (priceMax != null) match["pricing_availability.price"].$lte = priceMax;
   }
+
+  console.log("Final MongoDB match:", JSON.stringify(match, null, 2));
 
   const agg = [
     { $match: match },
@@ -155,7 +162,13 @@ export async function searchProducts(options: SearchProductsOptions): Promise<{
             },
           },
           { $unwind: "$details" },
-          { $project: { id: "_id", name: "$details.name", count: 1 } },
+          {
+            $project: {
+              id: "$details._id",
+              name: "$details.categoryName",
+              count: 1,
+            },
+          },
         ],
         brands: [
           {
@@ -173,7 +186,7 @@ export async function searchProducts(options: SearchProductsOptions): Promise<{
             },
           },
           { $unwind: "$details" },
-          { $project: { id: "_id", name: "$details.name", count: 1 } },
+          { $project: { id: "$details._id", name: "$details.name", count: 1 } },
         ],
         priceRange: [
           {
@@ -190,22 +203,24 @@ export async function searchProducts(options: SearchProductsOptions): Promise<{
 
   const [res0] = await Product.aggregate(agg);
 
-  const items = res0.data || [];
-  const total = res0.totalCount[0]?.count || 0;
+  console.log("Aggregation result:", JSON.stringify(res0, null, 2));
+
+  const items = res0?.data || [];
+  const total = res0?.totalCount?.[0]?.count || 0;
   const filters = {
-    categories: (res0.categories || []).map((c: any) => ({
+    categories: (res0?.categories || []).map((c: any) => ({
       id: c.id.toString(),
       name: c.name,
       count: c.count,
     })),
-    brands: (res0.brands || []).map((b: any) => ({
+    brands: (res0?.brands || []).map((b: any) => ({
       id: b.id.toString(),
       name: b.name,
       count: b.count,
     })),
     priceRange: {
-      min: res0.priceRange[0]?.minPrice || 0,
-      max: res0.priceRange[0]?.maxPrice || 0,
+      min: res0?.priceRange?.[0]?.minPrice || 0,
+      max: res0?.priceRange?.[0]?.maxPrice || 0,
     },
   };
 

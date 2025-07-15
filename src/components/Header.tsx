@@ -18,13 +18,12 @@ import { SignIn } from "./auth/SignInButton";
 import { useSession } from "next-auth/react";
 
 const Header = () => {
-const session = useSession();
+  const session = useSession();
   const user = session?.data?.user as any;
   const { cart } = useCart();
   const [showSearchBox, setShowSearchBox] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [category, setCategory] = useState<Category[]>([]);
-
 
   useEffect(() => {
     async function findCategories() {
@@ -45,8 +44,43 @@ const session = useSession();
             <Image src={"/logo.png"} width={60} height={30} alt="logo" />
           </Link>
         </div>
+        <div
+          className={`
+          transition-all lg:w-3/4 lg:h-auto`}
+        >
+          <div className="relative w-full ">
+            <form
+              className="flex items-center border-2
+          border-thiR h-11 shadow bg-pri bg-opacity-95 rounded-xl overflow-hidden"
+            >
+              <input
+                title="search"
+                type="text"
+                name="searchInput"
+                value={searchInput}
+                placeholder="Search Dyfk"
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="flex-1 h-full bg-none py-2 focus:outline-none 
+                 border-none font-bold px-3 leading-tight text-sec
+              "
+              />
+              <Link
+                href={`/search?query=${searchInput}`}
+                className="absolute right-0"
+              >
+                <button
+                  type="submit"
+                  title="Show search box"
+                  className=" py-1 px-3 m-1 rounded-xl bg-sec"
+                >
+                  <Search style={{ color: "#fff" }} />
+                </button>
+              </Link>
+            </form>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
-          <span className={`${showSearchBox ? "hidden" : ""}`}>
+          <span className={`${showSearchBox ? "hidden" : ""} lg:hidden`}>
             <Search
               onClick={() =>
                 setShowSearchBox((showSearchBox) => !showSearchBox)
