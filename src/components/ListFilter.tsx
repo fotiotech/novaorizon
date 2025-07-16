@@ -57,46 +57,48 @@ const ListFilter = ({
       <div>
         <h3 className="font-semibold text-lg">Filter List</h3>
       </div>
-      <div className="h-96 overflow-y-auto">
-        {/* Categories */}
-        <div>
-          <h3 className="font-bold text-lg">Categories:</h3>
-          <ul className="pl-5 font-medium list-disc">
-            {filters.categories.map((category) => (
-              <li
-                key={category.id}
-                onClick={() => handleFilterClick("category", category.id)}
-                className="cursor-pointer hover:underline"
-              >
-                {category.name} ({category.count})
-              </li>
-            ))}
-          </ul>
-        </div>
+      {filters && (
+        <div className="h-96 overflow-y-auto">
+          {/* Categories */}
+          <div>
+            <h3 className="font-bold text-lg">Categories:</h3>
+            <ul className="pl-5 font-medium list-disc">
+              {filters.categories?.map((category) => (
+                <li
+                  key={category.id}
+                  onClick={() => handleFilterClick("category", category.id)}
+                  className="cursor-pointer hover:underline"
+                >
+                  {category.name} ({category.count})
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        {/* Brands */}
-        <div>
-          <h3 className="font-bold text-lg mt-4">Brands:</h3>
-          <ul className="pl-5 font-medium list-disc">
-            {filters.brands.map((brand) => (
-              <li
-                key={brand.id}
-                onClick={() => handleFilterClick("brand", brand.id)}
-                className="cursor-pointer hover:underline"
-              >
-                {brand.name} ({brand.count})
-              </li>
-            ))}
-          </ul>
-        </div>
+          {/* Brands */}
+          <div>
+            <h3 className="font-bold text-lg mt-4">Brands:</h3>
+            <ul className="pl-5 font-medium list-disc">
+              {filters.brands?.map((brand) => (
+                <li
+                  key={brand.id}
+                  onClick={() => handleFilterClick("brand", brand.id)}
+                  className="cursor-pointer hover:underline"
+                >
+                  {brand.name} ({brand.count})
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        {/* Price Range */}
-        <h3 className="font-bold text-lg mt-4">Price Range:</h3>
-        <div>
-          <span>Min: {filters.priceRange.min}</span> -{" "}
-          <span>Max: {filters.priceRange.max}</span>
+          {/* Price Range */}
+          <h3 className="font-bold text-lg mt-4">Price Range:</h3>
+          <div>
+            <span>Min: {filters?.priceRange?.min}</span> -{" "}
+            <span>Max: {filters?.priceRange?.max}</span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

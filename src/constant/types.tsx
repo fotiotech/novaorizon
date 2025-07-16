@@ -304,7 +304,7 @@ export type MonetbilPaymentRequest = {
   orderNumber: string;
   amount: number;
   phone?: string;
-  phoneLock?: boolean;
+  phone_lock?: boolean;
   locale?: string;
   operator?: string;
   country?: string;

@@ -129,6 +129,9 @@ export async function searchProducts(options: SearchProductsOptions) {
   }
 
   console.log("Final MongoDB match:", JSON.stringify(match, null, 2));
+  if (Object.keys(match).length === 0) {
+    return { items: [], total: 0, limit, skip, filters: {} };
+  }
 
   const agg = [
     { $match: match },
