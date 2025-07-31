@@ -9,6 +9,7 @@ import OrderButton from "@/components/checkout/OrderButton";
 import { calculateShippingPrice } from "@/app/actions/carrier";
 import BillingAddress from "./billing_addresses/page";
 import GoogleMapBox from "./component/GoogleMap";
+import { SignIn } from "@/components/auth/SignInButton";
 
 export type CalcShippingPrice = {
   averageDeliveryTime: string;
