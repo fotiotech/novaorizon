@@ -474,7 +474,7 @@ export default function DetailsPage({ params }: { params: Params }) {
               return (
                 <Link
                   key={relProd._id}
-                  href={"/slug/details/" + relProd._id}
+                  href={"/undefined/details/" + relProd._id}
                   className="border rounded-lg p-4 flex flex-col gap-4 hover:shadow-md transition-shadow"
                 >
                   <div className="relative w-16 h-16 flex-shrink-0 mx-auto">

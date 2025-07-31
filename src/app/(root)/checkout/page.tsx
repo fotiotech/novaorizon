@@ -1,19 +1,14 @@
 "use client";
 
-import { findCustomer, updateShippingInfos } from "@/app/actions/customer";
 import ShippingForm from "@/components/customers/ShippingForm";
 import { useUser } from "@/app/context/UserContext";
-import { useState, useEffect, useCallback } from "react";
-import { Customer } from "@/constant/types";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import OrderSummary from "@/components/cart/OrderSummary";
-import { createOrUpdateOrder } from "@/app/actions/order";
-import { useCart } from "@/app/context/CartContext";
-import { CartItem } from "@/app/reducer/cartReducer";
 import OrderButton from "@/components/checkout/OrderButton";
 import { calculateShippingPrice } from "@/app/actions/carrier";
-import { useSearchParams } from "next/navigation";
 import BillingAddress from "./billing_addresses/page";
+import GoogleMapBox from "./component/GoogleMap";
 
 export type CalcShippingPrice = {
   averageDeliveryTime: string;
@@ -44,7 +39,7 @@ const CheckoutPage = () => {
     fetchCarriers();
   }, [customerInfos?.shippingAddress?.region, calculateShippingPrice]);
 
-  console.log('customerInfos', customerInfos);
+  console.log("customerInfos", customerInfos);
 
   return (
     <div className="p-2 lg:p-4 max-w-5xl mx-auto g">
@@ -99,15 +94,14 @@ const CheckoutPage = () => {
                 <ShippingForm shippingAddressCheck={shippingAddressCheck} />
               </div>
             )}
+            <GoogleMapBox />
           </div>
         </div>
         <div className="flex flex-col gap-3 my-2">
           <div>
             <p className="font-bold">Products Summary</p>
 
-            <OrderSummary
-              shippingPrice={shippingPrice}
-            />
+            <OrderSummary shippingPrice={shippingPrice} />
           </div>
 
           <div>
@@ -129,6 +123,13 @@ const CheckoutPage = () => {
 
       <div>
         <OrderButton paymentMethod={customerInfos?.billingMethod?.methodType} />
+      </div>
+      <div className="mt-4">
+        <Link href={`/checkout/chat`}>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded">
+            Chat with Support
+          </button>
+        </Link>
       </div>
     </div>
   );
