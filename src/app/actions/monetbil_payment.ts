@@ -16,8 +16,7 @@ export async function generatePaymentLink(
       `https://api.monetbil.com/widget/v2.1/${paymentData.serviceKey}`,
       {
         amount: paymentData.amount,
-        // phone: paymentData.phone,
-        phone_lock: paymentData.phoneLock || false,
+        phone: paymentData.phone,
         locale: paymentData.locale || "en",
         operator: paymentData.operator || "CM_MTNMOBILEMONEY",
         country: "CM",
