@@ -24,6 +24,39 @@ export default function ChatWidget({
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<any>();
 
+  const sendMessage = async () => {
+    if (!draft.trim()) return;
+    const msgsRef = collection(db, "chats", roomId, "messages");
+    const newMsg = {
+      from: user?.name,
+      text: draft.trim(),
+      timestamp: serverTimestamp(),
+    };
+
+    try {
+      // 1) add the message
+      await addDoc(msgsRef, newMsg);
+
+      // 2) upsert the room metadata
+      const roomRef = doc(db, "chatRooms", roomId);
+      await setDoc(
+        roomRef,
+        {
+          roomId,
+          name: user.name,
+          avatar: user.avatarUrl,
+          lastMessage: draft,
+          lastTimestamp: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.error("🔥 Firestore write failed:", err);
+    }
+
+    setDraft("");
+  };
+
   useEffect(() => {
     const msgsRef = collection(db, "chats", roomId, "messages");
     const q = query(msgsRef, orderBy("timestamp", "asc"), limit(100));
@@ -34,34 +67,6 @@ export default function ChatWidget({
     });
     return unsubscribe;
   }, [roomId]);
-
-  const sendMessage = async () => {
-    if (!draft.trim()) return;
-    const msgsRef = collection(db, `chats/${roomId}/messages`);
-    const newMsg = {
-      from: user?.name,
-      text: draft.trim(),
-      timestamp: serverTimestamp(),
-    };
-
-    // 1) add the message
-    await addDoc(msgsRef, newMsg);
-
-    // 2) upsert the room metadata
-    const roomRef = doc(db, "chatRooms", roomId);
-    await setDoc(
-      roomRef,
-      {
-        roomId,
-        name: user.name,
-        avatar: user.avatarUrl,
-        lastMessage: draft.trim(),
-        lastTimestamp: serverTimestamp(),
-      },
-      { merge: true }
-    );
-    setDraft("");
-  };
 
   return (
     <div className="lg:space-x-10 bg-white border rounded shadow-lg p-3">
