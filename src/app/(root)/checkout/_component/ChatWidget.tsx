@@ -37,13 +37,12 @@ export default function ChatWidget({
 
   const sendMessage = async () => {
     if (!draft.trim()) return;
-    const msgsRef = collection(db, "chats", roomId, "messages");
+    const msgsRef = collection(db, `chats/${roomId}/messages`);
     const newMsg = {
       from: user?.name,
       text: draft.trim(),
       timestamp: serverTimestamp(),
     };
-    setDraft("");
 
     // 1) add the message
     await addDoc(msgsRef, newMsg);
@@ -61,6 +60,7 @@ export default function ChatWidget({
       },
       { merge: true }
     );
+    setDraft("");
   };
 
   return (
