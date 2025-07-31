@@ -1,4 +1,5 @@
 // pages/checkout.jsx
+'use client'
 import ChatWidget from "@/app/(root)/checkout/_component/ChatWidget";
 import { useUser } from "@/app/context/UserContext"; // Assuming you have a custom hook to get user info
 export default function Checkout() {
