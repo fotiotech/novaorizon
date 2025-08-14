@@ -10,9 +10,9 @@ export default function Checkout() {
   }
 
   return (
-    <div>
+    <div className="lg:mx-24">
       {/* ... your checkout UI ... */}
-      <ChatWidget user={user} roomId={'checkout-support'} />
+      <ChatWidget user={user} roomId={"checkout-support"} />
     </div>
   );
 }
