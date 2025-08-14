@@ -7,6 +7,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -14,6 +15,8 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
+import { useCart } from "@/app/context/CartContext";
+import Image from "next/image";
 
 interface ChatWidgetProps {
   user: { name: string } | null;
@@ -31,9 +34,29 @@ export default function ChatWidget({
   user,
   roomId = "default-room",
 }: ChatWidgetProps) {
+  const { cart } = useCart();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [room, setRoom] = useState<any | null>(null);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Save or update cart content in the room document
+  useEffect(() => {
+    async function saveCart() {
+      try {
+        if (!cart || Object.keys(cart).length === 0) return;
+        const roomRef = doc(db, "chatRooms", roomId);
+        await setDoc(
+          roomRef,
+          { cart, updatedAt: serverTimestamp() },
+          { merge: true }
+        );
+      } catch (error) {
+        console.log("Error saving cart:", error);
+      }
+    }
+    saveCart();
+  }, [cart, roomId]);
 
   const sendMessage = async () => {
     if (!draft.trim() || !user) return;
@@ -84,6 +107,18 @@ export default function ChatWidget({
   };
 
   useEffect(() => {
+    async function fetchRoom() {
+      const roomRef = doc(db, "chatRooms", roomId);
+      const snap = await getDoc(roomRef);
+      if (snap.exists()) {
+        setRoom({
+          roomId: snap.id,
+          ...(snap.data() as any),
+        });
+      }
+    }
+    fetchRoom();
+
     const msgsRef = collection(db, "chats", roomId, "messages");
     const q = query(msgsRef, orderBy("sentAt", "asc"));
 
@@ -101,6 +136,27 @@ export default function ChatWidget({
 
   return (
     <div className="flex flex-col w-full  bg-white border rounded-xl shadow-lg p-4 space-y-3">
+      {room?.cart && (
+        <div className="mb-4 p-3 rounded-lg bg-gray-800 text-white shadow">
+          <h3 className="font-semibold mb-1">Cart Summary</h3>
+          <ul className="list-disc list-inside text-sm">
+            {room.cart?.map((item: any, i: number) => (
+              <li key={i} className="flex items-center gap-3">
+                <Image
+                  src={item.imageUrl}
+                  width={100}
+                  height={100}
+                  alt="image"
+                />
+                <p>{item.name}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 font-bold">
+            Total: ${room.cart?.total?.toFixed(2)}
+          </p>
+        </div>
+      )}
       <div className="flex-1 h-64 overflow-y-auto space-y-2">
         {messages.map((m) => (
           <div
