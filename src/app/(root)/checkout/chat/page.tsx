@@ -14,7 +14,7 @@ export default function Checkout() {
   }
 
   const searchParams = useSearchParams();
-  const roomId = searchParams.get("roomId") || "checkout-support";
+  const roomId = searchParams?.get("roomId") || "checkout-support";
   const [activeRoom, setActiveRoom] = useState("");
 
   return (
@@ -30,7 +30,7 @@ export default function Checkout() {
       {/* Main content */}
       <div className="flex-1 p-4 bg-gray-50">
         <div className="max-w-3xl mx-auto bg-white shadow rounded-xl p-4 h-full flex flex-col">
-          <ChatWidget user={user} roomId={roomId ? roomId : activeRoom} />
+          <ChatWidget user={user} roomId={activeRoom ? activeRoom : roomId} />
         </div>
       </div>
     </div>
