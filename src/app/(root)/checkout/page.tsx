@@ -24,6 +24,22 @@ const CheckoutPage = () => {
   const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
     null
   );
+  const [roomId, setRoomId] = useState<string>("");
+
+  useEffect(() => {
+    const generateOrderNumber = () => {
+      const datePart = new Date()
+        .toISOString()
+        .replace(/[-:ZT.]/g, "")
+        .slice(0, 14); // YYYYMMDDHHMMSS
+      const randomStr = Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+      return `ORD${datePart}${randomStr}`;
+    };
+    setRoomId(generateOrderNumber());
+  }, []);
 
   useEffect(() => {
     async function fetchCarriers() {
@@ -126,12 +142,13 @@ const CheckoutPage = () => {
         <OrderButton paymentMethod={customerInfos?.billingMethod?.methodType} />
       </div> */}
       <div className="mt-4">
-        <Link href={`/checkout/chat`}>
+        <Link href={`/checkout/chat?roomId=${roomId}`}>
           <button className="bg-blue-600 w-full text-white px-4 py-2 rounded">
             Chat with Support
           </button>
         </Link>
       </div>
+      
     </div>
   );
 };

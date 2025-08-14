@@ -62,8 +62,8 @@ const Profile = () => {
           Welcome,
           <span className="font-bold ml-1">{session?.data?.user?.email}</span>!
         </li>
-        <Link href={"/"}>
-          <li className="p-2 rounded-lg bg-gray-300">Go back to Home Page</li>
+        <Link href={"/checkout/chat"}>
+          <li className="p-2 rounded-lg bg-gray-300">Chats</li>
         </Link>
         <Link href={"/checkout/billing_addresses"}>
           <li className="p-2 rounded-lg bg-gray-300">Billing Addresses</li>
