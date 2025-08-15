@@ -157,7 +157,7 @@ export default function ChatWidget({
             ))}
           </ul>
           <p className="mt-2 font-bold">
-            Total: ${room.cart?.total?.toFixed(2)}
+            Total: {room.cart?.total?.toFixed(2)}CFA
           </p>
         </div>
       )}
