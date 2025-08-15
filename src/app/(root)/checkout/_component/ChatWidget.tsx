@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { useCart } from "@/app/context/CartContext";
 import Image from "next/image";
+import Link from "next/link";
 
 interface ChatWidgetProps {
   user: { name: string } | null;
@@ -76,6 +77,9 @@ export default function ChatWidget({
         {
           roomId,
           name: user.name,
+          from: user.name,
+          to: "novaorizon",
+          product: cart[0].name,
           lastMessage: draft,
           sentAt: serverTimestamp(),
         },
@@ -135,7 +139,7 @@ export default function ChatWidget({
   }, [roomId]);
 
   return (
-    <div className="flex flex-col w-full  bg-white border rounded-xl shadow-lg p-4 space-y-3">
+    <div className="flex flex-col w-full  bg-white border rounded-xl p-4 space-y-3">
       {room?.cart && (
         <div className="mb-4 p-3 rounded-lg bg-gray-800 text-white shadow">
           <h3 className="font-semibold mb-1">Cart Summary</h3>
@@ -163,8 +167,13 @@ export default function ChatWidget({
             key={m.id}
             className="flex justify-between items-center bg-gray-50 p-2 rounded-lg"
           >
-            <div className="text-sm">
-              <strong>{m.from}:</strong> {m.text}
+            <div className="text-sm  w-full text-wrap">
+              <strong>{m.from}:</strong>{" "}
+              {m.text.startsWith("http") ? (
+                <Link href={m.text} className="text-blue-600">{m.text}</Link>
+              ) : (
+                m.text
+              )}
             </div>
             {user?.name === m.from && (
               <div className="flex space-x-2">

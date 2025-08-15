@@ -138,9 +138,9 @@ const CheckoutPage = () => {
         </div>
       </div>
 
-      {/* <div>
+      <div>
         <OrderButton paymentMethod={customerInfos?.billingMethod?.methodType} />
-      </div> */}
+      </div>
       <div className="mt-4">
         <Link href={`/checkout/chat?roomId=${roomId}`}>
           <button className="bg-blue-600 w-full text-white px-4 py-2 rounded">
