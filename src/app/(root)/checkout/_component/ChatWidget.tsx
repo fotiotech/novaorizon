@@ -20,7 +20,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 interface ChatWidgetProps {
-  user: { name: string } | null;
+  user: { _id?: string; name: string } | null;
   roomId?: string;
 }
 
@@ -76,7 +76,7 @@ export default function ChatWidget({
         roomRef,
         {
           roomId,
-          name: user.name,
+          name: user.name + user._id,
           from: user.name,
           to: "novaorizon",
           product: cart[0].name,
@@ -169,8 +169,10 @@ export default function ChatWidget({
           >
             <div className="text-sm  w-full text-wrap">
               <strong>{m.from}:</strong>{" "}
-              {m.text.startsWith("http") ? (
-                <Link href={m.text} className="text-blue-600">{m.text}</Link>
+              {m.text.startsWith("https") ? (
+                <Link href={m.text} className="text-blue-600">
+                  {m.text}
+                </Link>
               ) : (
                 m.text
               )}

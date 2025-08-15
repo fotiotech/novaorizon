@@ -26,7 +26,10 @@ export default function ChatRoomList({ onSelectRoom }: ChatRoomListProps) {
     if (!user?.name) return;
 
     const roomsRef = collection(db, "chatRooms");
-    const roomsQuery = query(roomsRef, where("name", "==", user.name));
+    const roomsQuery = query(
+      roomsRef,
+      where("name", "==", user.name + user._id)
+    );
 
     const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
       const parsedRooms = snapshot.docs.map((doc) => ({
