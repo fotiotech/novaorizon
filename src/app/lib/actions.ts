@@ -36,7 +36,7 @@ export async function signup(state: FormState, formData: FormData) {
   } else {
     // 3. Insert the user into the database or call an Auth Library's API
     const newUser = new User({
-      username: name,
+      name: name,
       email: email,
       password: password,
       role: "user",
@@ -51,7 +51,14 @@ export async function signup(state: FormState, formData: FormData) {
       };
     }
 
-    const newCustomer = new Customer({ userId: user._id });
+    const newCustomer = new Customer({
+      userId: user._id,
+      billingAddress: {
+        firstName: name.split(" ")[0] || "N/A",
+        lastName: name.split(" ")[1] || "N/A",
+        email: email,
+      },
+    });
     await newCustomer.save();
 
     return signIn();

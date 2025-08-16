@@ -57,9 +57,9 @@ export const providerMap = providers
 export const { auth, handlers, signIn, signOut } = NextAuth({
   adapter: MongoDBAdapter(client),
   providers,
-  // pages: {
-  //   signIn: "/auth/login",
-  // },
+  pages: {
+    signIn: "/auth/login",
+  },
   session: {
     strategy: "jwt",
   },
