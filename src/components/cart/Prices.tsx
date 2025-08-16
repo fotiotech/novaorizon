@@ -18,7 +18,7 @@ export function Prices({ amount, currency = "XAF" }: PricesProps) {
 export const TotalPrice = ({
   cart,
   shippingPrice,
-  currency = "XAF",
+  currency = "CFA",
 }: {
   cart: CartItem[];
   shippingPrice: number;

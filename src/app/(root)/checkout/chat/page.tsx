@@ -21,9 +21,6 @@ export default function Checkout() {
     <div className="flex flex-col lg:flex-row lg:mx-24 min-h-screen">
       {/* Sidebar */}
       <div className="lg:w-80 w-full border-b lg:border-b-0 lg:border-r border-gray-300 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold mb-4 text-gray-700">
-          Active Chats
-        </h2>
         <ChatRoomList onSelectRoom={setActiveRoom} />
       </div>
 

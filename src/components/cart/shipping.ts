@@ -1,0 +1,34 @@
+import { calculateShippingPrice } from "@/app/actions/carrier";
+import { useUser } from "@/app/context/UserContext";
+import { useEffect, useState } from "react";
+
+export type CalcShippingPrice = {
+  averageDeliveryTime: string;
+  basePrice: number;
+  region: string;
+  shippingPrice: number;
+};
+
+export const shippingPrice = () => {
+  const { customerInfos } = useUser();
+  const [shipping_price, setShippingPrice] = useState<CalcShippingPrice | null>(
+    null
+  );
+
+  useEffect(() => {
+    async function fetchCarriers() {
+      if (customerInfos?.shippingAddress?.region) {
+        const res = await calculateShippingPrice(
+          "675eeda75a81d16c81aca736",
+          customerInfos?.shippingAddress?.region,
+          0,
+          undefined
+        );
+        setShippingPrice(res || 0);
+      }
+    }
+    fetchCarriers();
+  }, [customerInfos?.shippingAddress?.region, calculateShippingPrice]);
+
+  return shipping_price;
+};

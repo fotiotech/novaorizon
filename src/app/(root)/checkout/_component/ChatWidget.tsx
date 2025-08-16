@@ -20,6 +20,8 @@ import {
 import { useCart } from "@/app/context/CartContext";
 import Image from "next/image";
 import Link from "next/link";
+import { TotalPrice } from "@/components/cart/Prices";
+import { shippingPrice } from "@/components/cart/shipping";
 
 interface ChatWidgetProps {
   user: { _id?: string; name: string } | null;
@@ -152,6 +154,8 @@ export default function ChatWidget({
     return () => unsubscribe();
   }, [roomId]);
 
+  const shipping_price = shippingPrice();
+
   return (
     <div className="flex flex-col w-full  bg-white border rounded-xl p-4 space-y-3">
       {room?.cart && (
@@ -170,9 +174,16 @@ export default function ChatWidget({
               </li>
             ))}
           </ul>
-          <p className="mt-2 font-bold">
-            Total: {room.cart?.total?.toFixed(2)}CFA
-          </p>
+          <div className="flex flex-col gap-1 mt-2 font-bold">
+            <p>Shipping Price: {shipping_price!.shippingPrice} CFA</p>
+            <p>
+              Total:{" "}
+              <TotalPrice
+                cart={cart}
+                shippingPrice={shipping_price!.shippingPrice}
+              />
+            </p>
+          </div>
         </div>
       )}
       <div className="flex-1 h-64 overflow-y-auto space-y-2">
