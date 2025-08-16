@@ -5,14 +5,13 @@ import { useUser } from "@/app/context/UserContext";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import OrderSummary from "@/components/cart/OrderSummary";
-import OrderButton from "@/components/checkout/OrderButton";
 import { calculateShippingPrice } from "@/app/actions/carrier";
 import BillingAddress from "./billing_addresses/page";
 import GoogleMapBox from "./component/GoogleMap";
-import { SignIn } from "@/components/auth/SignInButton";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/utils/firebaseConfig";
 import { useCart } from "@/app/context/CartContext";
+import { shippingPrice } from "@/components/cart/shipping";
 
 export type CalcShippingPrice = {
   averageDeliveryTime: string;
@@ -25,9 +24,6 @@ const CheckoutPage = () => {
   const { cart } = useCart();
   const [shippingAddressCheck, setShippingAddressCheck] =
     useState<boolean>(true);
-  const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
-    null
-  );
   const [roomId, setRoomId] = useState<string>("");
 
   useEffect(() => {
@@ -45,22 +41,7 @@ const CheckoutPage = () => {
     setRoomId(generateOrderNumber());
   }, []);
 
-  useEffect(() => {
-    async function fetchCarriers() {
-      if (customerInfos?.shippingAddress?.region) {
-        const res = await calculateShippingPrice(
-          "675eeda75a81d16c81aca736",
-          customerInfos?.shippingAddress?.region,
-          0,
-          undefined
-        );
-        setShippingPrice(res || 0);
-      }
-    }
-    fetchCarriers();
-  }, [customerInfos?.shippingAddress?.region, calculateShippingPrice]);
-
-  console.log("customerInfos", customerInfos);
+  const shipping_price = shippingPrice();
 
   async function saveCart() {
     try {
@@ -68,7 +49,11 @@ const CheckoutPage = () => {
       const roomRef = doc(db, "chatRooms", roomId);
       await setDoc(
         roomRef,
-        { cart, updatedAt: serverTimestamp() },
+        {
+          cart,
+          shipping_price: shipping_price,
+          updatedAt: serverTimestamp(),
+        },
         { merge: true }
       );
     } catch (error) {
@@ -136,7 +121,7 @@ const CheckoutPage = () => {
           <div>
             <p className="font-bold">Products Summary</p>
 
-            <OrderSummary shippingPrice={shippingPrice} />
+            <OrderSummary shippingPrice={shipping_price} />
           </div>
 
           <div>

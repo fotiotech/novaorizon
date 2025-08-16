@@ -17,11 +17,9 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { useCart } from "@/app/context/CartContext";
 import Image from "next/image";
 import Link from "next/link";
 import { TotalPrice } from "@/components/cart/Prices";
-import { shippingPrice } from "@/components/cart/shipping";
 
 interface ChatWidgetProps {
   user: { id?: string; name: string } | null;
@@ -135,8 +133,6 @@ export default function ChatWidget({
     return () => unsubscribe();
   }, [user, roomId]);
 
-  const shipping_price = shippingPrice();
-
   return (
     <div className="flex flex-col w-full  bg-white lg:border rounded-xl p-4 space-y-3">
       {room?.cart && (
@@ -156,14 +152,12 @@ export default function ChatWidget({
             ))}
           </ul>
           <div className="flex flex-col gap-1 mt-2 font-bold">
-            <p>Shipping Price: {shipping_price?.shippingPrice} CFA</p>
+            <p>Shipping Price: {room?.shipping_price} CFA</p>
             <p>
               Total:{" "}
               <TotalPrice
                 cart={room?.cart}
-                shippingPrice={
-                  shipping_price ? shipping_price.shippingPrice : 0
-                }
+                shippingPrice={room?.shipping_price?.shippingPrice}
               />
             </p>
           </div>
