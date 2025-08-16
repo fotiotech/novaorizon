@@ -10,13 +10,13 @@ import { useSession } from "next-auth/react";
 
 export default function Checkout() {
   const session = useSession();
-    const user = session?.data?.user as any;
+  const user = session?.data?.user as any;
   if (!user) {
     return <SignIn />; // Redirect to sign-in if user is not authenticated
   }
 
   const searchParams = useSearchParams();
-  const roomId = searchParams.get("roomId") || "checkout-support";
+  const roomId = searchParams.get("roomId") || "";
   const [activeRoom, setActiveRoom] = useState("");
 
   return (

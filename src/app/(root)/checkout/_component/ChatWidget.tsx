@@ -59,7 +59,6 @@ export default function ChatWidget({ user, roomId }: ChatWidgetProps) {
           name: user.name + user.id,
           from: user.name,
           to: "novaorizon",
-          product: room?.cart[0].name,
           lastMessage: draft,
           sentAt: serverTimestamp(),
         },
@@ -93,15 +92,10 @@ export default function ChatWidget({ user, roomId }: ChatWidgetProps) {
   };
 
   useEffect(() => {
-    if (!roomId) return;
     async function fetchRoom() {
       if (!user) return;
       const roomsRef = collection(db, "chatRooms"); // use collection, not doc
-      const q = query(
-        roomsRef,
-        where("roomId", "==", roomId),
-        where("name", "==", user.name + user.id)
-      );
+      const q = query(roomsRef, where("roomId", "==", roomId));
       const snap = await getDocs(q);
 
       if (!snap.empty) {
@@ -117,6 +111,8 @@ export default function ChatWidget({ user, roomId }: ChatWidgetProps) {
     }
 
     fetchRoom();
+
+    if (!roomId) return;
 
     const msgsRef = collection(db, "chats", roomId, "messages");
     const q = query(msgsRef, orderBy("sentAt", "asc"));
@@ -152,7 +148,7 @@ export default function ChatWidget({ user, roomId }: ChatWidgetProps) {
             ))}
           </ul>
           <div className="flex flex-col gap-1 mt-2 font-bold">
-            <p>Shipping Price: {room?.shipping_price} CFA</p>
+            <p>Shipping Price: {room?.shipping_price?.shippingPrice} CFA</p>
             <p>
               Total:{" "}
               <TotalPrice

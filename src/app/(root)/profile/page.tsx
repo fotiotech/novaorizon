@@ -15,7 +15,7 @@ const Profile = () => {
 
   useEffect(() => {
     async function fetchOrders() {
-      if (!user.id) return null;
+      if (!user?.id) return null;
       const response = await findOrders(undefined, user.id);
       setOrders(response);
     }

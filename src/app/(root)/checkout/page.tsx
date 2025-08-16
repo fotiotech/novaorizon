@@ -19,6 +19,7 @@ export type CalcShippingPrice = {
   shippingPrice: number;
 };
 const CheckoutPage = () => {
+
   const { customerInfos } = useUser();
   const { cart } = useCart();
   const [shippingAddressCheck, setShippingAddressCheck] =
