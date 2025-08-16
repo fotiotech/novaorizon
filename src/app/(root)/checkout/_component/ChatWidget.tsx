@@ -190,41 +190,57 @@ export default function ChatWidget({
         {messages.map((m) => (
           <div
             key={m.id}
-            className="flex justify-between items-center bg-gray-50 p-2 rounded-lg"
+            className={`flex w-full p-2 mb-2 ${
+              user?.name === m.from ? "justify-end" : "justify-start"
+            }`}
           >
-            <div className="text-sm  w-full text-wrap">
-              <strong>{m.from}:</strong>{" "}
-              {m.text.startsWith("https") ? (
-                <Link href={m.text} className="text-blue-600">
-                  {m.text}
-                </Link>
-              ) : (
-                m.text
+            <div
+              className={`max-w-xs   ${
+                user?.name === m.from ? " text-right" : " text-left"
+              }`}
+            >
+              <div
+                className={`flex flex-col gap-1 rounded-lg text-sm break-words p-2 ${
+                  user?.name === m.from ? "bg-blue-100 " : "bg-gray-100 "
+                }`}
+              >
+                <strong className="text-sm">{m.from}</strong>{" "}
+                <div>
+                  {m.text.startsWith("https") ? (
+                    <Link href={m.text} className="text-blue-600">
+                      {m.text}
+                    </Link>
+                  ) : (
+                    m.text
+                  )}
+                </div>
+              </div>
+
+              {user?.name === m.from && (
+                <div className="flex justify-end space-x-2 mt-1">
+                  <button
+                    className="text-blue-600 text-xs"
+                    onClick={() =>
+                      updateMessage(
+                        m.id,
+                        prompt("Edit message:", m.text) || m.text
+                      )
+                    }
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="text-red-600 text-xs"
+                    onClick={() => deleteMessage(m.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
               )}
             </div>
-            {user?.name === m.from && (
-              <div className="flex space-x-2">
-                <button
-                  className="text-blue-600 text-xs"
-                  onClick={() =>
-                    updateMessage(
-                      m.id,
-                      prompt("Edit message:", m.text) || m.text
-                    )
-                  }
-                >
-                  Edit
-                </button>
-                <button
-                  className="text-red-600 text-xs"
-                  onClick={() => deleteMessage(m.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            )}
           </div>
         ))}
+
         <div ref={bottomRef} />
       </div>
       <div className="flex">
