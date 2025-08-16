@@ -10,6 +10,9 @@ import { calculateShippingPrice } from "@/app/actions/carrier";
 import BillingAddress from "./billing_addresses/page";
 import GoogleMapBox from "./component/GoogleMap";
 import { SignIn } from "@/components/auth/SignInButton";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { db } from "@/utils/firebaseConfig";
+import { useCart } from "@/app/context/CartContext";
 
 export type CalcShippingPrice = {
   averageDeliveryTime: string;
@@ -18,7 +21,8 @@ export type CalcShippingPrice = {
   shippingPrice: number;
 };
 const CheckoutPage = () => {
-  const { user, customerInfos } = useUser();
+  const { customerInfos } = useUser();
+  const { cart } = useCart();
   const [shippingAddressCheck, setShippingAddressCheck] =
     useState<boolean>(true);
   const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
@@ -57,6 +61,20 @@ const CheckoutPage = () => {
   }, [customerInfos?.shippingAddress?.region, calculateShippingPrice]);
 
   console.log("customerInfos", customerInfos);
+
+  async function saveCart() {
+    try {
+      if (!cart || Object.keys(cart).length === 0) return;
+      const roomRef = doc(db, "chatRooms", roomId);
+      await setDoc(
+        roomRef,
+        { cart, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    } catch (error) {
+      console.log("Error saving cart:", error);
+    }
+  }
 
   return (
     <div className="p-2 lg:p-4 max-w-5xl mx-auto g">
@@ -141,14 +159,13 @@ const CheckoutPage = () => {
       {/* <div>
         <OrderButton paymentMethod={customerInfos?.billingMethod?.methodType} />
       </div> */}
-      <div className="mt-4">
+      <div onClick={saveCart} className="mt-4">
         <Link href={`/checkout/chat?roomId=${roomId}`}>
           <button className="bg-blue-600 w-full text-white px-4 py-2 rounded">
             Chat with Support
           </button>
         </Link>
       </div>
-      
     </div>
   );
 };

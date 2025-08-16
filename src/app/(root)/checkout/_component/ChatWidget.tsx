@@ -39,29 +39,10 @@ export default function ChatWidget({
   user,
   roomId = "default-room",
 }: ChatWidgetProps) {
-  const { cart } = useCart();
   const [messages, setMessages] = useState<Message[]>([]);
   const [room, setRoom] = useState<any | null>(null);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Save or update cart content in the room document
-  useEffect(() => {
-    async function saveCart() {
-      try {
-        if (!cart || Object.keys(cart).length === 0) return;
-        const roomRef = doc(db, "chatRooms", roomId);
-        await setDoc(
-          roomRef,
-          { cart, updatedAt: serverTimestamp() },
-          { merge: true }
-        );
-      } catch (error) {
-        console.log("Error saving cart:", error);
-      }
-    }
-    saveCart();
-  }, [cart, roomId]);
 
   const sendMessage = async () => {
     if (!draft.trim() || !user) return;
@@ -83,7 +64,7 @@ export default function ChatWidget({
           name: user.name + user.id,
           from: user.name,
           to: "novaorizon",
-          product: cart[0].name,
+          product: room?.cart[0].name,
           lastMessage: draft,
           sentAt: serverTimestamp(),
         },
@@ -179,7 +160,7 @@ export default function ChatWidget({
             <p>
               Total:{" "}
               <TotalPrice
-                cart={cart}
+                cart={room?.cart}
                 shippingPrice={shipping_price!.shippingPrice}
               />
             </p>
