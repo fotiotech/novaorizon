@@ -27,7 +27,7 @@ export default function Checkout() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 p-4 bg-gray-50">
+      <div className="flex-1 lg:p-4 bg-gray-50">
         <div className="max-w-3xl mx-auto h-full flex flex-col">
           <ChatWidget user={user} roomId={activeRoom ? activeRoom : roomId} />
         </div>
