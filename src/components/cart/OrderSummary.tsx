@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { CalcShippingPrice } from "@/app/(root)/checkout/page";
 import { useCart } from "@/app/context/CartContext";
 import { Prices, TotalPrice } from "@/components/cart/Prices";
 
 interface OrderSummaryProps {
-  shippingPrice: CalcShippingPrice | null;
+  shippingPrice: CalcShippingPrice;
 }
 
 const OrderSummary: React.FC<OrderSummaryProps> = ({
@@ -51,14 +51,14 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
         <div className="flex justify-between">
           <span>Shipping Fees:</span>
           <span className="font-semibold">
-            {shippingPrice?.shippingPrice ?? 0} CFA
+            {shippingPrice?.shippingPrice} CFA
           </span>
         </div>
         <div className="flex justify-between">
           <span>Total:</span>
           <TotalPrice
             cart={cart}
-            shippingPrice={shippingPrice?.shippingPrice ?? 0}
+            shippingPrice={shippingPrice?.shippingPrice}
           />
         </div>
         <div className="flex justify-between">

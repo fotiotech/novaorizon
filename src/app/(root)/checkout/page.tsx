@@ -5,7 +5,6 @@ import { useUser } from "@/app/context/UserContext";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import OrderSummary from "@/components/cart/OrderSummary";
-import { calculateShippingPrice } from "@/app/actions/carrier";
 import BillingAddress from "./billing_addresses/page";
 import GoogleMapBox from "./component/GoogleMap";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
