@@ -24,7 +24,7 @@ import { TotalPrice } from "@/components/cart/Prices";
 import { shippingPrice } from "@/components/cart/shipping";
 
 interface ChatWidgetProps {
-  user: { _id?: string; name: string } | null;
+  user: { id?: string; name: string } | null;
   roomId?: string;
 }
 
@@ -80,7 +80,7 @@ export default function ChatWidget({
         roomRef,
         {
           roomId,
-          name: user.name + user._id,
+          name: user.name + user.id,
           from: user.name,
           to: "novaorizon",
           product: cart[0].name,
@@ -121,7 +121,7 @@ export default function ChatWidget({
       const q = query(
         roomsRef,
         where("roomId", "==", roomId),
-        where("name", "==", user.name + user._id)
+        where("name", "==", user.name + user.id)
       );
       const snap = await getDocs(q);
 
@@ -152,7 +152,7 @@ export default function ChatWidget({
     });
 
     return () => unsubscribe();
-  }, [roomId]);
+  }, [user, roomId]);
 
   const shipping_price = shippingPrice();
 

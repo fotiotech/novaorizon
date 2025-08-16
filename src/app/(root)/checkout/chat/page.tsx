@@ -6,9 +6,11 @@ import { SignIn } from "@/components/auth/SignInButton";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import ChatRoomList from "./ChatRoomList";
+import { useSession } from "next-auth/react";
 
 export default function Checkout() {
-  const { user } = useUser();
+  const session = useSession();
+    const user = session?.data?.user as any;
   if (!user) {
     return <SignIn />; // Redirect to sign-in if user is not authenticated
   }

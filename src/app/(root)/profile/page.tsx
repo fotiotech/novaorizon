@@ -11,13 +11,16 @@ const Profile = () => {
   const user = session?.data?.user as any;
   const [orders, setOrders] = React.useState<any>([]);
 
+  console.log("user session:", user);
+
   useEffect(() => {
     async function fetchOrders() {
-      const response = await findOrders(undefined, user?._id);
+      if (!user.id) return null;
+      const response = await findOrders(undefined, user.id);
       setOrders(response);
     }
     fetchOrders();
-  }, [user?._id]);
+  }, [user]);
   return (
     <>
       <div className="flex justify-between items-center p-2 ">

@@ -44,6 +44,8 @@ export interface OrderData {
 export async function findOrders(orderNumber?: string, userId?: string | null) {
   await connection();
 
+  console.log('userId:',userId)
+
   try {
     if (orderNumber !== undefined && orderNumber !== null) {
       // Explicitly check for non-null and non-undefined values

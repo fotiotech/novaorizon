@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { db } from "@/utils/firebaseConfig";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useUser } from "@/app/context/UserContext";
+import { useSession } from "next-auth/react";
 
 interface ChatRoom {
   roomId: string;
@@ -18,7 +19,8 @@ interface ChatRoomListProps {
 }
 
 export default function ChatRoomList({ onSelectRoom }: ChatRoomListProps) {
-  const { user } = useUser();
+  const session = useSession();
+    const user = session?.data?.user as any;
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [isOpen, setIsOpen] = useState(true);
 
@@ -28,7 +30,7 @@ export default function ChatRoomList({ onSelectRoom }: ChatRoomListProps) {
     const roomsRef = collection(db, "chatRooms");
     const roomsQuery = query(
       roomsRef,
-      where("name", "==", user.name + user._id)
+      where("name", "==", user.name + user.id)
     );
 
     const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
@@ -66,7 +68,7 @@ export default function ChatRoomList({ onSelectRoom }: ChatRoomListProps) {
             >
               <p>{room.to}</p>
               <p className="line-clamp-1 text-gray-400">{room.product}</p>
-              <p>{room.lastMessage}</p>
+              <p className=" line-clamp-1">{room.lastMessage}</p>
             </div>
           ))
         ))}
