@@ -8,12 +8,14 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { useCart } from "@/app/context/CartContext";
 import Image from "next/image";
@@ -112,15 +114,27 @@ export default function ChatWidget({
 
   useEffect(() => {
     async function fetchRoom() {
-      const roomRef = doc(db, "chatRooms", roomId);
-      const snap = await getDoc(roomRef);
-      if (snap.exists()) {
-        setRoom({
-          roomId: snap.id,
-          ...(snap.data() as any),
+      if (!user) return;
+      const roomsRef = collection(db, "chatRooms"); // use collection, not doc
+      const q = query(
+        roomsRef,
+        where("roomId", "==", roomId),
+        where("name", "==", user.name + user._id)
+      );
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        snap.forEach((docSnap) => {
+          setRoom({
+            roomId: docSnap.id,
+            ...(docSnap.data() as any),
+          });
         });
+      } else {
+        console.log("No matching documents.");
       }
     }
+
     fetchRoom();
 
     const msgsRef = collection(db, "chats", roomId, "messages");
