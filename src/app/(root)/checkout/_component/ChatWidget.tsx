@@ -175,7 +175,7 @@ export default function ChatWidget({
             ))}
           </ul>
           <div className="flex flex-col gap-1 mt-2 font-bold">
-            <p>Shipping Price: {shipping_price!.shippingPrice} CFA</p>
+            <p>Shipping Price: {shipping_price?.shippingPrice} CFA</p>
             <p>
               Total:{" "}
               <TotalPrice

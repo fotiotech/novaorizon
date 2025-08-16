@@ -16,7 +16,7 @@ export default function Checkout() {
   }
 
   const searchParams = useSearchParams();
-  const roomId = searchParams?.get("roomId") || "checkout-support";
+  const roomId = searchParams.get("roomId") || "checkout-support";
   const [activeRoom, setActiveRoom] = useState("");
 
   return (
