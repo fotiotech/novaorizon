@@ -161,7 +161,9 @@ export default function ChatWidget({
               Total:{" "}
               <TotalPrice
                 cart={room?.cart}
-                shippingPrice={shipping_price!.shippingPrice}
+                shippingPrice={
+                  shipping_price ? shipping_price.shippingPrice : 0
+                }
               />
             </p>
           </div>
