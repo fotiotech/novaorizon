@@ -33,17 +33,14 @@ interface Message {
   sentAt?: any;
 }
 
-export default function ChatWidget({
-  user,
-  roomId = "default-room",
-}: ChatWidgetProps) {
+export default function ChatWidget({ user, roomId }: ChatWidgetProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [room, setRoom] = useState<any | null>(null);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const sendMessage = async () => {
-    if (!draft.trim() || !user) return;
+    if (!draft.trim() || !user || !roomId) return;
     const newMsg = {
       from: user.name,
       text: draft.trim(),
@@ -76,6 +73,7 @@ export default function ChatWidget({
   };
 
   const updateMessage = async (id: string, newText: string) => {
+    if (!roomId) return;
     try {
       const msgDoc = doc(db, "chats", roomId, "messages", id);
       await updateDoc(msgDoc, { text: newText });
@@ -85,6 +83,7 @@ export default function ChatWidget({
   };
 
   const deleteMessage = async (id: string) => {
+    if (!roomId) return;
     try {
       const msgDoc = doc(db, "chats", roomId, "messages", id);
       await deleteDoc(msgDoc);
@@ -94,6 +93,7 @@ export default function ChatWidget({
   };
 
   useEffect(() => {
+    if (!roomId) return;
     async function fetchRoom() {
       if (!user) return;
       const roomsRef = collection(db, "chatRooms"); // use collection, not doc
