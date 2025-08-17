@@ -1,8 +1,8 @@
 "use server";
 
+import { connection } from "@/utils/connection";
 import Brand from "@/models/Brand";
 import Category from "@/models/Category";
-import { connection } from "@/utils/connection";
 import { Client } from "@elastic/elasticsearch";
 
 const client = new Client({
@@ -15,7 +15,7 @@ async function detectCategory(query: string) {
   const q = query.toLowerCase();
   const categories = await Category.find();
   for (const c of categories) {
-    if (q.includes(c.name?.toLowerCase())) return c._id.toString();
+    if (q.includes(c.categoryName?.toLowerCase())) return c?._id?.toString();
   }
   return null;
 }
@@ -25,7 +25,7 @@ async function detectBrand(query: string) {
   const q = query.toLowerCase();
   const brands = await Brand.find();
   for (const b of brands) {
-    if (q.includes(b.name?.toLowerCase())) return b._id.toString();
+    if (q.includes(b.name?.toLowerCase())) return b?._id?.toString();
   }
   return null;
 }
@@ -41,6 +41,7 @@ export async function searchProducts(
   // Detect category and brand from query
   const detectedCategory = await detectCategory(query);
   const detectedBrand = await detectBrand(query);
+
 
   if (detectedCategory)
     filters.push({ term: { category_id: detectedCategory } });
