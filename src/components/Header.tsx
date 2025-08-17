@@ -50,8 +50,7 @@ const Header = () => {
         >
           <div className="relative w-full ">
             <form
-              className="flex items-center border-2
-          border-thiR h-11 shadow bg-pri bg-opacity-95 rounded-xl overflow-hidden"
+              className="flex items-center  h-11 shadow bg-pri bg-opacity-95 rounded-xl overflow-hidden"
             >
               <input
                 title="search"
@@ -61,7 +60,7 @@ const Header = () => {
                 placeholder="Search Dyfk"
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="flex-1 h-full bg-none py-2 focus:outline-none 
-                 border-none font-bold px-3 leading-tight text-sec
+                 border-none px-3 leading-tight text-sec
               "
               />
               <Link
@@ -130,8 +129,8 @@ const Header = () => {
       >
         <div className="relative w-full ">
           <form
-            className="flex items-center border-2
-          border-thiR h-11 shadow bg-pri bg-opacity-95 rounded-xl overflow-hidden"
+            className="flex items-center
+           h-11 shadow bg-pri bg-opacity-95 rounded-xl overflow-hidden"
           >
             <input
               title="search"
@@ -142,7 +141,7 @@ const Header = () => {
               onChange={(e) => setSearchInput(e.target.value)}
               onFocus={() => setShowSearchBox(true)}
               className="flex-1 h-full bg-none py-2 focus:outline-none 
-                 border-none font-bold px-3 leading-tight text-sec
+                 border-none px-3 leading-tight text-sec
               "
             />
             <Link
