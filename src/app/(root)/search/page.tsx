@@ -22,6 +22,11 @@ const Search = () => {
   const [data, setData] = useState<any>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [openClose, setOpenClose] = useState(false);
+  const [filtersData, setFiltersData] = useState<any>({
+    categories: [],
+    brands: [],
+    priceRange: { min: 0, max: 0 },
+  });
 
   useEffect(() => {
     async function fetchResults() {
@@ -29,7 +34,7 @@ const Search = () => {
 
       const filters: any[] = [];
       if (category) filters.push({ term: { category_id: category } });
-      if (brand) filters.push({ term: { brand_id: brand } });
+      if (brand) filters.push({ term: { brand: brand } });
       if (priceMin || priceMax) {
         const range: any = {};
         if (priceMin) range.gte = Number(priceMin);
@@ -37,19 +42,35 @@ const Search = () => {
         filters.push({ range: { price: range } });
       }
 
-      const result = await searchProducts(
-        query as string,
-        filters as any,
-        1,
-        20
-      );
-      // Map Elasticsearch hits to usable items
-      const items = result.hits.map((hit: any) => ({
-        _id: hit._id,
-        ...hit._source,
-      }));
-      setData(items);
+      const result = await searchProducts(query as string, filters, 1, 20);
 
+      // Map Elasticsearch hits to usable items and extract filter info
+      const items = result.hits.map((hit: any) => {
+        const source = hit._source;
+        return {
+          _id: hit._id,
+          ...source,
+        };
+      });
+
+      // Extract available categories and brands from hits for filters
+      const categories = Array.from(
+        new Set(items.map((item) => item.category).filter(Boolean))
+      );
+      const brands = Array.from(
+        new Set(items.map((item) => item.brand).filter(Boolean))
+      );
+
+      // Update state
+      setFiltersData({
+        categories,
+        brands,
+        priceRange: {
+          min: Math.min(...items.map((i) => i.price)),
+          max: Math.max(...items.map((i) => i.price)),
+        },
+      });
+      setData(items);
       setIsLoading(false);
     }
 
@@ -68,7 +89,7 @@ const Search = () => {
       <ListFilter
         openClose={openClose}
         setOpenClose={setOpenClose}
-        filters={{ categories: [], brands: [], priceRange: { min: 0, max: 0 } }}
+        filters={filtersData}
         handleFilterClick={handleFilterClick}
       />
 

@@ -69,7 +69,7 @@ const ListFilter = ({
                   onClick={() => handleFilterClick("category", category.id)}
                   className="cursor-pointer hover:underline"
                 >
-                  {category.name} ({category.count})
+                  {category.name}
                 </li>
               ))}
             </ul>
@@ -85,7 +85,7 @@ const ListFilter = ({
                   onClick={() => handleFilterClick("brand", brand.id)}
                   className="cursor-pointer hover:underline"
                 >
-                  {brand.name} ({brand.count})
+                  {brand.name}
                 </li>
               ))}
             </ul>

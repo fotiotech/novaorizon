@@ -42,7 +42,6 @@ export async function searchProducts(
   const detectedCategory = await detectCategory(query);
   const detectedBrand = await detectBrand(query);
 
-
   if (detectedCategory)
     filters.push({ term: { category_id: detectedCategory } });
   if (detectedBrand) filters.push({ term: { brand: detectedBrand } });
@@ -75,7 +74,46 @@ export async function searchProducts(
       sort: [{ _score: { order: "desc" } }, { createdAt: { order: "desc" } }],
     });
 
-    return result.hits;
+    try {
+      const result = await client.search({
+        index: process.env.ELASTIC_INDEX,
+        from,
+        size,
+        query: esQuery,
+        sort: [{ _score: { order: "desc" } }, { createdAt: { order: "desc" } }],
+      });
+
+      // Populate category and brand
+      const hitsWithDetails = await Promise.all(
+        result.hits.hits.map(async (hit: any) => {
+          const source = hit._source;
+          let category = null;
+          let brand = null;
+
+          if (source.category_id) {
+            const catDoc = await Category.findById(source.category_id);
+            if (catDoc)
+              category = {
+                _id: catDoc._id.toString(),
+                name: catDoc.categoryName,
+              };
+          }
+
+          if (source.brand) {
+            const brandDoc = await Brand.findById(source.brand);
+            if (brandDoc)
+              brand = { _id: brandDoc._id.toString(), name: brandDoc.name };
+          }
+
+          return { ...hit, _source: { ...source, category, brand } };
+        })
+      );
+
+      return { ...result.hits, hits: hitsWithDetails };
+    } catch (err) {
+      console.error("Elasticsearch search error:", err);
+      throw err;
+    }
   } catch (err) {
     console.error("Elasticsearch search error:", err);
     throw err;
