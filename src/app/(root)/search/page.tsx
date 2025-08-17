@@ -79,8 +79,11 @@ const Search = () => {
 
   function handleFilterClick(key: string, value: string): void {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
     router.push(`?${params.toString()}`);
   }
 

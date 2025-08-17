@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from "react";
 import useClickOusite, { useScreenSize } from "./Hooks";
 
-interface Filter {
-  id: string;
+type Filter = {
+  _id: string;
   name: string;
   count: number;
-}
+};
 
 type FilterListProps = {
   openClose: boolean;
   setOpenClose: React.Dispatch<React.SetStateAction<boolean>>;
   filters: {
-    categories: { id: string; name: string; count: number }[];
-    brands: { id: string; name: string; count: number }[];
+    categories: Filter[];
+    brands: Filter[];
     priceRange: { min: number; max: number };
   };
   handleFilterClick: (key: string, value: string) => void;
@@ -65,8 +65,8 @@ const ListFilter = ({
             <ul className="pl-5 font-medium list-disc">
               {filters.categories?.map((category) => (
                 <li
-                  key={category.id}
-                  onClick={() => handleFilterClick("category", category.id)}
+                  key={category._id}
+                  onClick={() => handleFilterClick("category", category._id)}
                   className="cursor-pointer hover:underline"
                 >
                   {category.name}
@@ -81,8 +81,8 @@ const ListFilter = ({
             <ul className="pl-5 font-medium list-disc">
               {filters.brands?.map((brand) => (
                 <li
-                  key={brand.id}
-                  onClick={() => handleFilterClick("brand", brand.id)}
+                  key={brand._id}
+                  onClick={() => handleFilterClick("brand", brand._id)}
                   className="cursor-pointer hover:underline"
                 >
                   {brand.name}
