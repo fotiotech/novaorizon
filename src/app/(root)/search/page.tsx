@@ -19,53 +19,56 @@ const Search = () => {
   const priceMin = searchParams.get("priceMin");
   const priceMax = searchParams.get("priceMax");
 
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [openClose, setOpenClose] = useState(false);
 
   useEffect(() => {
     async function fetchResults() {
       setIsLoading(true);
-      const opts = {
-        textQuery: query,
-        limit: 20,
-        skip: 0,
-        sortBy: { createdAt: -1 },
-      } as any;
-      if (category) opts.category_id = category;
-      if (brand) opts.brand_id = brand;
-      if (priceMin) opts.priceMin = Number(priceMin);
-      if (priceMax) opts.priceMax = Number(priceMax);
 
-      const result = await searchProducts(opts);
-      setData(result as any);
+      const filters: any[] = [];
+      if (category) filters.push({ term: { category_id: category } });
+      if (brand) filters.push({ term: { brand_id: brand } });
+      if (priceMin || priceMax) {
+        const range: any = {};
+        if (priceMin) range.gte = Number(priceMin);
+        if (priceMax) range.lte = Number(priceMax);
+        filters.push({ range: { price: range } });
+      }
+
+      const result = await searchProducts(
+        query as string,
+        filters as any,
+        1,
+        20
+      );
+      // Map Elasticsearch hits to usable items
+      const items = result.hits.map((hit: any) => ({
+        _id: hit._id,
+        ...hit._source,
+      }));
+      setData(items);
+
       setIsLoading(false);
     }
+
     fetchResults();
   }, [query, category, brand, priceMin, priceMax]);
 
-  const items = data?.items || [];
-
   function handleFilterClick(key: string, value: string): void {
     const params = new URLSearchParams(searchParams.toString());
-
-    if (value) {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-
+    if (value) params.set(key, value);
+    else params.delete(key);
     router.push(`?${params.toString()}`);
   }
 
   return (
-    <div className="flex flex-col lg:flex-row  w-full min-h-screen bg-gray-50">
+    <div className="flex flex-col lg:flex-row w-full min-h-screen bg-gray-50">
       <ListFilter
         openClose={openClose}
         setOpenClose={setOpenClose}
-        filters={
-          data?.filters || { categories: [], brands: [], priceRange: {} }
-        }
+        filters={{ categories: [], brands: [], priceRange: { min: 0, max: 0 } }}
         handleFilterClick={handleFilterClick}
       />
 
@@ -87,17 +90,17 @@ const Search = () => {
           <div className="flex justify-center items-center h-60">
             <Spinner />
           </div>
-        ) : items.length === 0 ? (
+        ) : data.length === 0 ? (
           <div className="flex justify-center items-center h-60 text-lg text-gray-500">
             No results found.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {items.map((item: any) => {
-              const imageUrl = item.main_image || item.gallery?.[0] || null;
+            {data.map((item: any) => {
+              const imageUrl = item.main_image || null;
               const title = item.name;
               const price = item.price;
-              const currency = item.currency || "USD";
+              const currency = item.currency || "CFA";
 
               return (
                 <Link

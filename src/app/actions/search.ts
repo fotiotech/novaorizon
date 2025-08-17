@@ -1,231 +1,82 @@
 "use server";
 
-import mongoose from "mongoose";
-import { connection } from "@/utils/connection";
-import Product from "@/models/Product";
-import Category from "@/models/Category";
 import Brand from "@/models/Brand";
-import Attribute from "@/models/Attributes";
+import Category from "@/models/Category";
+import { connection } from "@/utils/connection";
+import { Client } from "@elastic/elasticsearch";
 
-interface SearchProductsOptions {
-  textQuery?: string;
-  category_id?: string;
-  brand_id?: string;
-  priceMin?: number;
-  priceMax?: number;
-  limit?: number;
-  skip?: number;
-  sortBy?: any;
-}
+const client = new Client({
+  node: process.env.ELASTIC_NODE,
+  auth: { apiKey: process.env.ELASTIC_API_KEY! },
+});
 
-async function detectCategoryFromText(textQuery: string) {
-  if (!textQuery) return null;
-  const categories = await Category.find({}, { categoryName: 1, synonyms: 1 });
-  const normalized = textQuery.toLowerCase();
-  for (const cat of categories) {
-    if (normalized.includes(cat.categoryName.toLowerCase()))
-      return { id: cat._id.toString(), name: cat.categoryName };
-    for (const syn of cat.synonyms || []) {
-      if (normalized.includes(syn.toLowerCase()))
-        return { id: cat._id.toString(), name: cat.categoryName };
-    }
-  }
-  return null;
-}
-
-async function detectBrandFromText(textQuery: string) {
-  if (!textQuery) return null;
-  const brands = await Brand.find({}, { name: 1 });
-  const normalized = textQuery.toLowerCase();
-  for (const brand of brands) {
-    if (normalized.includes(brand.name.toLowerCase()))
-      return { id: brand._id.toString(), name: brand.name };
-  }
-  return null;
-}
-
-async function detectAttributesFromText(
-  textQuery: string
-): Promise<Record<string, any>> {
-  const attributes: Record<string, any> = {};
-  const normalized = textQuery.toLowerCase();
-  const attributeDocs = await Attribute.find({}, { name: 1, values: 1 });
-
-  for (const attr of attributeDocs) {
-    for (const value of attr.values || []) {
-      if (normalized.includes(value.toLowerCase())) {
-        attributes[`attributes.${attr.name}`] = value;
-        break;
-      }
-    }
-  }
-  return attributes;
-}
-
-export async function searchProducts(options: SearchProductsOptions) {
+async function detectCategory(query: string) {
   await connection();
-  const {
-    textQuery,
-    priceMin,
-    priceMax,
-    limit = 20,
-    skip = 0,
-    sortBy = { createdAt: -1 },
-  } = options;
-
-  let category_id = options.category_id;
-  let brand_id = options.brand_id;
-  let detectedCategory;
-  let detectedBrand;
-
-  if (!category_id && textQuery)
-    detectedCategory = (await detectCategoryFromText(textQuery)) ?? undefined;
-  if (!brand_id && textQuery) {
-    const detected = await detectBrandFromText(textQuery);
-    detectedBrand = detected ?? undefined;
+  const q = query.toLowerCase();
+  const categories = await Category.find();
+  for (const c of categories) {
+    if (q.includes(c.name?.toLowerCase())) return c._id.toString();
   }
+  return null;
+}
 
-  const match: any = {};
-
-  if (
-    textQuery &&
-    !textQuery.includes(detectedCategory?.name || detectedBrand?.name || "")
-  ) {
-    match["identification_branding.name"] = {
-      $regex: textQuery,
-      $options: "i",
-    };
+async function detectBrand(query: string) {
+  await connection();
+  const q = query.toLowerCase();
+  const brands = await Brand.find();
+  for (const b of brands) {
+    if (q.includes(b.name?.toLowerCase())) return b._id.toString();
   }
+  return null;
+}
 
-  if (mongoose.Types.ObjectId.isValid(category_id || "")) {
-    match.category_id = new mongoose.Types.ObjectId(category_id);
-  }
-  if (detectedCategory) {
-    match.category_id = new mongoose.Types.ObjectId(detectedCategory.id);
-  }
+export async function searchProducts(
+  query: string,
+  filters: any[] = [],
+  page = 1,
+  size = 10
+) {
+  const from = (page - 1) * size;
 
-  if (mongoose.Types.ObjectId.isValid(brand_id || "")) {
-    match["identification_branding.brand"] = new mongoose.Types.ObjectId(
-      brand_id
-    );
-  }
-  if (detectedBrand) {
-    match["identification_branding.brand"] = new mongoose.Types.ObjectId(
-      detectedBrand.id
-    );
-  }
+  // Detect category and brand from query
+  const detectedCategory = await detectCategory(query);
+  const detectedBrand = await detectBrand(query);
 
-  const attrMatch = await detectAttributesFromText(textQuery ?? "");
-  for (const key in attrMatch) {
-    match[key] = attrMatch[key];
-  }
+  if (detectedCategory)
+    filters.push({ term: { category_id: detectedCategory } });
+  if (detectedBrand) filters.push({ term: { brand: detectedBrand } });
 
-  console.log("attrMatch:", JSON.stringify(attrMatch, null, 2));
-
-  if (priceMin != null || priceMax != null) {
-    match["pricing_availability.price"] = {};
-    if (priceMin != null) match["pricing_availability.price"].$gte = priceMin;
-    if (priceMax != null) match["pricing_availability.price"].$lte = priceMax;
-  }
-
-  console.log("Final MongoDB match:", JSON.stringify(match, null, 2));
-  if (Object.keys(match).length === 0) {
-    return { items: [], total: 0, limit, skip, filters: {} };
-  }
-
-  const agg = [
-    { $match: match },
-    {
-      $facet: {
-        data: [
-          { $sort: sortBy },
-          { $skip: skip },
-          { $limit: limit },
-          {
-            $project: {
-              _id: 1,
-              name: "$identification_branding.name",
-              sku: "$identification_branding.sku",
-              brand: "$identification_branding.brand",
-              category_id: 1,
-              price: "$pricing_availability.price",
-              currency: "$pricing_availability.currency",
-              main_image: "$media_visuals.main_image",
-              gallery: "$media_visuals.gallery",
-            },
+  // Only include filter if non-empty
+  const esQuery =
+    query && query.trim() !== ""
+      ? {
+          bool: {
+            must: [
+              {
+                multi_match: {
+                  query,
+                  fields: ["name^3", "description"],
+                  fuzziness: "AUTO",
+                },
+              },
+            ],
+            ...(filters.length > 0 ? { filter: filters } : {}),
           },
-        ],
-        totalCount: [{ $count: "count" }],
-        categories: [
-          { $group: { _id: "$category_id", count: { $sum: 1 } } },
-          {
-            $lookup: {
-              from: Category.collection.name,
-              localField: "_id",
-              foreignField: "_id",
-              as: "details",
-            },
-          },
-          { $unwind: "$details" },
-          {
-            $project: {
-              id: "$details._id",
-              name: "$details.categoryName",
-              count: 1,
-            },
-          },
-        ],
-        brands: [
-          {
-            $group: {
-              _id: "$identification_branding.brand",
-              count: { $sum: 1 },
-            },
-          },
-          {
-            $lookup: {
-              from: Brand.collection.name,
-              localField: "_id",
-              foreignField: "_id",
-              as: "details",
-            },
-          },
-          { $unwind: "$details" },
-          { $project: { id: "$details._id", name: "$details.name", count: 1 } },
-        ],
-        priceRange: [
-          {
-            $group: {
-              _id: null,
-              minPrice: { $min: "$pricing_availability.price" },
-              maxPrice: { $max: "$pricing_availability.price" },
-            },
-          },
-        ],
-      },
-    },
-  ];
+        }
+      : { match_all: {} };
 
-  const [res0] = await Product.aggregate(agg);
+  try {
+    const result = await client.search({
+      index: process.env.ELASTIC_INDEX,
+      from,
+      size,
+      query: esQuery,
+      sort: [{ _score: { order: "desc" } }, { createdAt: { order: "desc" } }],
+    });
 
-  const items = res0?.data || [];
-  const total = res0?.totalCount?.[0]?.count || 0;
-  const filters = {
-    categories: (res0?.categories || []).map((c: any) => ({
-      id: c.id.toString(),
-      name: c.name,
-      count: c.count,
-    })),
-    brands: (res0?.brands || []).map((b: any) => ({
-      id: b.id.toString(),
-      name: b.name,
-      count: b.count,
-    })),
-    priceRange: {
-      min: res0?.priceRange?.[0]?.minPrice || 0,
-      max: res0?.priceRange?.[0]?.maxPrice || 0,
-    },
-  };
-
-  return { items, total, limit, skip, filters };
+    return result.hits;
+  } catch (err) {
+    console.error("Elasticsearch search error:", err);
+    throw err;
+  }
 }

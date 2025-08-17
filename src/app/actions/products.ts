@@ -131,13 +131,6 @@ export async function getProductsByAttributes(filters: {
   return products;
 }
 
-/**
- * Fetches one or all products from MongoDB, populating:
- *  - identification_branding.brand → { _id, name }
- *  - reviews_ratings.user_id       → { _id, username }
- *
- * Converts all _id fields in the returned object(s) to string.
- */
 export async function findProducts(
   id?: string
 ): Promise<PopulatedProduct | PopulatedProduct[] | null> {
@@ -192,14 +185,7 @@ export async function findProducts(
   }
 }
 
-/**
- * Helper: given a populated product object (as plain JS), convert any
- * ObjectId fields to string. Specifically:
- *  - Top‐level _id, category_id
- *  - identification_branding.brand._id
- *  - reviews_ratings[]._id
- *  - reviews_ratings[].user_id._id
- */
+
 function transformPopulatedProduct(raw: any): PopulatedProduct {
   // 1. Convert top-level IDs
   const result: any = {

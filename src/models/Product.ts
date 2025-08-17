@@ -64,9 +64,7 @@ const ProductSchema = new Schema(
     /* Variants & Options */
     variants_options: {
       variant_theme: { type: String }, // e.g., "size", "color"
-      variants: [
-        { type: Schema.Types.Mixed, default: {} },
-      ],
+      variants: [{ type: Schema.Types.Mixed, default: {} }],
     },
 
     /* Key Features & Bullets */
@@ -81,7 +79,7 @@ const ProductSchema = new Schema(
       attributes: { type: Schema.Types.Mixed, default: {} },
     },
 
-    /* Related Products */ 
+    /* Related Products */
     related_products: [
       {
         product_id: { type: Schema.Types.ObjectId, ref: "Product" },

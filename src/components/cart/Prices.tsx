@@ -7,7 +7,7 @@ type PricesProps = {
   currency?: string;
 };
 
-export function Prices({ amount, currency = "XAF" }: PricesProps) {
+export function Prices({ amount, currency = "CFA" }: PricesProps) {
   return new Intl.NumberFormat("fr-CM", {
     style: "currency",
     currency,
