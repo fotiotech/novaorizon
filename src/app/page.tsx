@@ -48,7 +48,7 @@ export default function Home() {
   };
 
   const renderProductCard = (product: any) => {
-    const title = product.identification_branding?.name || "";
+    const title = product.identification_branding?.name || product?.basic_informations?.name || "";
     const shortDesc = product.descriptions?.short || "";
     const mainImage =
       product.media_visuals?.main_image ||

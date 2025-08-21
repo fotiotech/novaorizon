@@ -83,7 +83,10 @@ export default function DetailsPage({ params }: { params: Params }) {
     : product;
 
   // Basic fields
-  const title = mergedProduct.identification_branding?.name || "";
+  const title =
+    mergedProduct.identification_branding?.name ||
+    mergedProduct.basic_informations?.name ||
+    "";
   const shortDescription = mergedProduct.descriptions?.short || "";
   const longDescription = mergedProduct.descriptions?.long || "";
 

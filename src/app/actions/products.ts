@@ -102,6 +102,8 @@ export async function getCollectionsWithProducts() {
       });
     }
 
+    console.log(results);
+
     return { success: true, data: results };
   } catch (error) {
     console.error("Error fetching collections with products:", error);
@@ -134,79 +136,80 @@ export async function getProductsByAttributes(filters: {
 export async function findProducts(
   id?: string
 ): Promise<PopulatedProduct | PopulatedProduct[] | null> {
-  // 1. Ensure connection is established
   await connection();
 
-  // 2. Build the populate specification:
-  //    - identification_branding.brand populates from "Brand" model
-  //    - reviews_ratings.user_id    populates from "User"  model
   const populateInstructions = [
     {
       path: "identification_branding.brand",
       model: "Brand",
-      select: "_id name", // Only grab _id and name
+      select: "_id name",
     },
     {
       path: "reviews_ratings.user_id",
       model: "User",
-      select: "_id name", // Only grab _id and name
+      select: "_id name",
     },
     {
       path: "related_products.product_id",
       model: "Product",
-      select: "_id identification_branding media_visuals", // Only grab _id and username
+      select: "_id identification_branding media_visuals",
     },
   ];
 
   if (id) {
-    // Fetch a single product by _id, then populate
     const productDoc = await Product.findById(id)
       .populate(populateInstructions)
       .exec();
 
-    if (!productDoc) {
-      return null;
-    }
+    if (!productDoc) return null;
 
-    // Convert to plain JS object and transform ObjectIds to strings
-    const raw = productDoc.toObject({ flattenMaps: true });
+    const raw = {
+      ...productDoc.toObject({ flattenMaps: true }),
+      ...(productDoc.attributes
+        ? productDoc.attributes.toObject({ flattenMaps: true })
+        : {}),
+    };
+
     return transformPopulatedProduct(raw);
   } else {
-    // Fetch ALL products, sorted by created_at desc, then populate
     const productDocs = await Product.find()
       .sort({ createdAt: -1 })
       .populate(populateInstructions)
       .exec();
 
-    // Map each document, transform to JS object, then convert IDs to strings
     return productDocs.map((doc) =>
-      transformPopulatedProduct(doc.toObject({ flattenMaps: true }))
+      transformPopulatedProduct({
+        ...doc.toObject({ flattenMaps: true }),
+        ...(doc.attributes ? doc.attributes : {}),
+      })
     );
   }
 }
 
-
 function transformPopulatedProduct(raw: any): PopulatedProduct {
-  // 1. Convert top-level IDs
   const result: any = {
     ...raw,
     _id: raw._id.toString(),
     category_id: raw.category_id ? raw.category_id.toString() : null,
   };
 
-  // 2. identification_branding.brand
-  if (result.identification_branding?.brand) {
+  // Ensure identification_branding exists
+  if (!result.identification_branding) {
+    result.identification_branding = {};
+  }
+
+  // Brand transform
+  if (result.identification_branding.brand) {
     const brandObj = result.identification_branding.brand;
     result.identification_branding.brand = {
       _id: brandObj._id.toString(),
       name: brandObj.name,
     };
   } else {
-    // In case brand was not set or is null
     result.identification_branding.brand = null;
   }
 
-  // 3. reviews_ratings array
+  // Reviews transform
   if (Array.isArray(result.reviews_ratings)) {
     result.reviews_ratings = result.reviews_ratings.map((review: any) => {
       const transformed: any = {
@@ -217,15 +220,12 @@ function transformPopulatedProduct(raw: any): PopulatedProduct {
         created_at: review.created_at,
       };
 
-      if (review.user_id) {
-        // user_id was populated → an object { _id, username }
-        transformed.user_id = {
-          _id: review.user_id._id.toString(),
-          name: review.user_id.name,
-        };
-      } else {
-        transformed.user_id = null;
-      }
+      transformed.user_id = review.user_id
+        ? {
+            _id: review.user_id._id.toString(),
+            name: review.user_id.name,
+          }
+        : null;
 
       return transformed;
     });
