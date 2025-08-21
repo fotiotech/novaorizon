@@ -259,6 +259,7 @@ export async function findProductDetails(
         ...product.toObject(),
         _id: product._id?.toString(),
         category_id: product.category_id?.toString() ?? null,
+        ...product?.attributes,
       };
     }
 
