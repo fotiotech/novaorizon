@@ -14,8 +14,7 @@ const defaultConfig = {
 };
 
 const defaultApp =
-  getApps().find((app) => app.name === "[DEFAULT]") ??
-  initializeApp(defaultConfig);
+  initializeApp(defaultConfig, 'primary');
 
 // Secondary app (only for Realtime Database)
 const secondaryConfig = {
@@ -29,15 +28,10 @@ const secondaryConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID1,
 };
 
-const SECONDARY_APP_NAME = "secondary";
-const secondaryApp =
-  getApps().find((app) => app.name === SECONDARY_APP_NAME) ??
-  initializeApp(secondaryConfig, SECONDARY_APP_NAME);
+  
+const secondaryApp = initializeApp(secondaryConfig,'secondary' );
 
 // Exports
 export const storage = getStorage(defaultApp);
 export const db = getFirestore(secondaryApp);
 
-// Optional: log to verify
-console.log("Default projectId:", defaultApp.options.projectId);
-console.log("Secondary projectId:", secondaryApp.options.projectId);

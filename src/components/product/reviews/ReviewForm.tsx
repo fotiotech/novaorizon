@@ -1,4 +1,4 @@
-import { createReview } from "@/app/actions/review";
+import { addProductReview } from "@/app/actions/review";
 import { useUser } from "@/app/context/UserContext";
 import { useState } from "react";
 
@@ -10,11 +10,11 @@ export default function ReviewForm({ productId }: { productId: string }) {
   const userId = user?._id as string;
 
   const submitReview = async () => {
-    await createReview({
+    await addProductReview({
       productId,
       userId,
       rating,
-      reviewText,
+      comment:reviewText,
     });
   };
 

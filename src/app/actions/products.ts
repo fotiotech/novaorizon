@@ -202,8 +202,8 @@ function transformPopulatedProduct(raw: any): PopulatedProduct {
   if (result.identification_branding.brand) {
     const brandObj = result.identification_branding.brand;
     result.identification_branding.brand = {
-      _id: brandObj._id.toString(),
-      name: brandObj.name,
+      _id: brandObj._id?.toString(),
+      name: brandObj?.name,
     };
   } else {
     result.identification_branding.brand = null;
