@@ -7,59 +7,8 @@ import "@/models/User";
 import "@/models/Brand";
 import { Collection } from "@/models/Collection";
 import "@/models/Category";
-
-type PopulatedProduct = {
-  _id: string;
-  category_id: string | null;
-  identification_branding: {
-    sku: string;
-    name: string;
-    brand: { _id: string; name: string } | null;
-    manufacturer?: string;
-    model_number?: string;
-    attributes?: unknown[];
-  };
-  product_specifications: any;
-  media_visuals: any;
-  pricing_availability: any;
-  variants_options: any;
-  key_features: string[];
-  bullets: string[];
-  descriptions: any;
-  materials_composition: any;
-  logistics_shipping: any;
-  warranty_returns: any;
-  reviews_ratings: {
-    _id: string;
-    user_id: { _id: string; username: string } | null;
-    rating: number;
-    comment: string;
-    created_at: Date;
-  }[];
-  ratings_summary: any;
-  seo_marketing: any;
-  legal_compliance: any;
-  features_attributes: unknown[];
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-// Generate a slug from the product name and department
-function generateSlug(name: string, department: string | null) {
-  return slugify(`${name}${department ? `-${department}` : ""}`, {
-    lower: true,
-  });
-}
-
-// Generate a random DSIN (Digital Serial Identification Number)
-function generateDsin() {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWYZ0123456789";
-  let dsin = "";
-  for (let i = 0; i < 10; i++) {
-    dsin += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return dsin;
-}
+import AttributeGroup from "@/models/AttributesGroup";
+import "@/models/Attribute";
 
 export async function getCollectionsWithProducts() {
   try {
@@ -114,162 +63,91 @@ export async function getCollectionsWithProducts() {
   }
 }
 
-export async function getProductsByAttributes(filters: {
-  brand?: string;
-  priceRange?: [number, number];
-  tags?: string[];
-}) {
-  await connection();
-
-  const query: any = {};
-
-  if (filters.brand) query.brand = filters.brand;
-  if (filters.priceRange)
-    query.price = { $gte: filters.priceRange[0], $lte: filters.priceRange[1] };
-  if (filters.tags && filters.tags.length > 0)
-    query.tags = { $in: filters.tags };
-
-  const products = await Product.find(query).populate("tags", "name");
-  return products;
-}
-
-export async function findProducts(
-  id?: string
-): Promise<PopulatedProduct | PopulatedProduct[] | null> {
-  await connection();
-
-  const populateInstructions = [
-    {
-      path: "identification_branding.brand",
-      model: "Brand",
-      select: "_id name",
-    },
-    {
-      path: "reviews_ratings.user_id",
-      model: "User",
-      select: "_id name",
-    },
-    {
-      path: "related_products.product_id",
-      model: "Product",
-      select: "_id identification_branding media_visuals",
-    },
-  ];
-
-  if (id) {
-    const productDoc = await Product.findById(id)
-      .populate(populateInstructions)
-      .exec();
-
-    if (!productDoc) return null;
-
-    const raw = {
-      ...productDoc.toObject({ flattenMaps: true }),
-      ...(productDoc.attributes
-        ? productDoc.attributes.toObject({ flattenMaps: true })
-        : {}),
-    };
-
-    return transformPopulatedProduct(raw);
-  } else {
-    const productDocs = await Product.find()
-      .sort({ createdAt: -1 })
-      .populate(populateInstructions)
-      .exec();
-
-    return productDocs.map((doc) =>
-      transformPopulatedProduct({
-        ...doc.toObject({ flattenMaps: true }),
-        ...(doc.attributes ? doc.attributes : {}),
-      })
-    );
-  }
-}
-
-function transformPopulatedProduct(raw: any): PopulatedProduct {
-  const result: any = {
-    ...raw,
-    _id: raw._id.toString(),
-    category_id: raw.category_id ? raw.category_id.toString() : null,
-  };
-
-  // Ensure identification_branding exists
-  if (!result.identification_branding) {
-    result.identification_branding = {};
-  }
-
-  // Brand transform
-  if (result.identification_branding.brand) {
-    const brandObj = result.identification_branding.brand;
-    result.identification_branding.brand = {
-      _id: brandObj._id?.toString(),
-      name: brandObj?.name,
-    };
-  } else {
-    result.identification_branding.brand = null;
-  }
-
-  // Reviews transform
-  if (Array.isArray(result.reviews_ratings)) {
-    result.reviews_ratings = result.reviews_ratings.map((review: any) => {
-      const transformed: any = {
-        ...review,
-        _id: review._id.toString(),
-        rating: review.rating,
-        comment: review.comment,
-        created_at: review.created_at,
-      };
-
-      transformed.user_id = review.user_id
-        ? {
-            _id: review.user_id._id.toString(),
-            name: review.user_id.name,
-          }
-        : null;
-
-      return transformed;
-    });
-  } else {
-    result.reviews_ratings = [];
-  }
-
-  return result as PopulatedProduct;
-}
-
-// Define return type for `findProductDetails`
-interface ProductDetails {
-  _id: string;
-  category_id: string | null;
-}
-
-export async function findProductDetails(
-  id?: string
-): Promise<ProductDetails | null> {
+export async function findProducts(id?: string) {
   try {
-    // Ensure database connection is established
     await connection();
 
-    if (id) {
-      // Find product by dsin, and populate the brand information
-      const product = await Product.findOne({ _id: id });
+    const buildGroupTreeWithValues = (
+      groups: any[],
+      product: any,
+      parentId: string | null = null
+    ): any[] => {
+      return groups
+        .filter(
+          (group) =>
+            (!parentId && !group.parent_id) ||
+            (parentId && group.parent_id?.toString() === parentId)
+        )
+        .sort((a, b) => a.group_order - b.group_order)
+        .map((group) => {
+          const attributesWithValues = group.attributes
+            ?.sort((a: any, b: any) => a.sort_order - b.sort_order)
+            .map((attr: any) => {
+              const value = product[attr.code];
+              return value != null
+                ? {
+                    _id: attr._id?.toString(),
+                    name: attr.name,
+                    [attr.code]: value,
+                  }
+                : null;
+            });
+          const children = buildGroupTreeWithValues(
+            groups,
+            product,
+            group?._id?.toString()
+          );
 
-      // Return sanitized product details
+          return {
+            _id: group?._id?.toString(),
+            code: group.code,
+            name: group.name,
+            parent_id: group?.parent_id?.toString(),
+            group_order: group.group_order,
+            attributes: attributesWithValues,
+            children,
+          };
+        });
+    };
+
+    const groups = await AttributeGroup.find()
+      .populate("attributes")
+      .sort({ group_order: 1 })
+      .lean()
+      .exec();
+
+    if (id) {
+      const product: any = await Product.findById(id).lean().exec();
+      if (!product) {
+        return { success: false, error: "Product not found" };
+      }
+      console.log("Products with groups:", product);
       return {
-        // Safely convert to object, and ensure proper conversion of fields
-        ...product.toObject(),
-        _id: product._id?.toString(),
-        category_id: product.category_id?.toString() ?? null,
-        ...product?.attributes,
+        // ...product?.toObject(),
+        _id: product?._id,
+        category_id: product?.category_id,
+        rootGroup: buildGroupTreeWithValues(groups, product),
       };
     }
 
-    // Return null if no product is found
-    return null;
+    const products = await Product.find().sort({ createdAt: -1 }).lean().exec();
+    if (!products) {
+      console.error("No products found");
+    }
+    const productsWithGroups = products.map((product) => {
+      const rootGroup = buildGroupTreeWithValues(groups, product);
+      return {
+        // ...product,
+        _id: product?._id?.toString(),
+        category_id: product?.category_id?.toString(),
+        rootGroup,
+      };
+    });
+
+    return productsWithGroups;
   } catch (error) {
-    // Log the error for debugging
-    console.error("Error fetching product details:", error);
-    // Optionally, rethrow the error or return null
-    throw new Error("Failed to fetch product details.");
+    console.error("Error finding products:", error);
+    return { success: false, error: "Failed to fetch products" };
   }
 }
 

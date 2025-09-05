@@ -3,6 +3,7 @@
 import Hero from "@/components/Hero";
 import ImageRenderer from "@/components/ImageRenderer";
 import Layout from "@/components/Layout";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Prices } from "@/components/cart/Prices";
@@ -15,6 +16,41 @@ import { useSession } from "next-auth/react";
 import { getCollectionsWithProducts } from "./actions/products";
 import Spinner from "@/components/Spinner";
 import CategoryCard from "@/components/categoryCard";
+
+interface ProductAttribute {
+  main_image?: string;
+  title?: string;
+  code?: string;
+}
+
+interface ProductGroup {
+  code: string;
+  attributes?: ProductAttribute[];
+}
+
+interface Category {
+  _id: string;
+  categoryName: string;
+  imageUrl: string;
+}
+
+interface Product {
+  _id: string;
+  url_slug: string;
+  rootGroup?: ProductGroup[];
+  category?: Category;
+}
+
+interface Collection {
+  _id: string;
+  name: string;
+  display: "carousel" | "category" | string;
+}
+
+interface CollectionWithProducts {
+  collection: Collection;
+  products: Product[];
+}
 
 export default function Home() {
   const dispatch = useAppDispatch();
@@ -47,8 +83,42 @@ export default function Home() {
       triggerNotification(user?.id, "A customer clicked on a product!");
   };
 
-  const renderProductCard = (product: any) => {
-    const title = product.identification_branding?.name || product?.basic_informations?.name || "";
+  const renderProductImage = (attribute: ProductAttribute) => {
+    const { main_image, title } = attribute;
+
+    return (
+      main_image && (
+        <div key={main_image}>
+          <div className="w-full h-full relative flex-shrink-0 bg-gray-100 rounded">
+            {main_image ? (
+              <ImageRenderer image={main_image} />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400">
+                No Image
+              </div>
+            )}
+          </div>
+        </div>
+      )
+    );
+  };
+
+  const renderProductInfo = (attribute: ProductAttribute) => {
+    const { title } = attribute;
+    return (
+      title && (
+        <div key={title} className="p-2 m-1">
+          <h2 className="font-medium">{title || "No Title"}</h2>
+        </div>
+      )
+    );
+  };
+
+  const renderProductCardCol = (product: any) => {
+    const title =
+      product.identification_branding?.name ||
+      product?.basic_informations?.name ||
+      "";
     const shortDesc = product.descriptions?.short || "";
     const mainImage =
       product.media_visuals?.main_image ||
@@ -89,6 +159,48 @@ export default function Home() {
     );
   };
 
+  const renderProductCard = (product: Product) => {
+    const basicInfoAttrs =
+      product.rootGroup?.flatMap((group: ProductGroup) =>
+        group.code === "basic_informations" ? group.attributes || [] : []
+      ) || [];
+
+    const mediaAttrs =
+      product.rootGroup?.flatMap((group: ProductGroup) =>
+        group.code === "media_visuals" ? group.attributes || [] : []
+      ) || [];
+
+    return (
+      <Link
+        href={`/${product.url_slug}/details/${product._id}`}
+        key={product._id}
+        aria-label="collection product"
+      >
+        <div
+          onClick={handleProductClick}
+          className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow"
+        >
+          <div className="w-full h-full relative flex-shrink-0 bg-gray-100 rounded">
+            {mediaAttrs
+              .filter(
+                (attr): attr is ProductAttribute =>
+                  attr !== null && attr !== undefined
+              )
+              .map((a) => renderProductImage(a))}
+          </div>
+          <div className="flex flex-col gap-2 overflow-x-auto">
+            {basicInfoAttrs
+              .filter(
+                (attr): attr is ProductAttribute =>
+                  attr !== null && attr !== undefined
+              )
+              .map((a) => renderProductInfo(a))}
+          </div>
+        </div>
+      </Link>
+    );
+  };
+
   const renderCollectionSection = (col: any) => {
     if (col.collection.display === "carousel") {
       return (
@@ -100,7 +212,7 @@ export default function Home() {
             {col.collection.name}
           </h2>
           <div className="flex overflow-x-auto gap-3 lg:gap-5">
-            {col.products.map(renderProductCard)}
+            {col.products.map(renderProductCardCol)}
           </div>
         </section>
       );
@@ -129,7 +241,7 @@ export default function Home() {
           {col.collection.name}
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
-          {col.products.slice(0, 4).map(renderProductCard)}
+          {col.products.slice(0, 4).map(renderProductCardCol)}
         </div>
       </section>
     );

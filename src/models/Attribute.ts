@@ -33,6 +33,7 @@ const AttributeSchema = new Schema<IAttribute>({
     required: [true, "Attribute name is required"],
   },
   option: [{ type: String }],
+
   type: {
     type: String,
     enum: [

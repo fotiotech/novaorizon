@@ -8,9 +8,9 @@ import { triggerNotification } from "@/app/actions/notifications";
 
 interface Product {
   _id: string;
-  identification_branding?: { name?: string };
-  media_visuals?: { main_image?: string };
-  pricing_availability?: { price?: number };
+  name?: string;
+  main_image?: string;
+  price?: number;
 }
 
 interface CheckoutProps {
@@ -43,9 +43,9 @@ const CheckoutButton: FC<CheckoutProps> = ({
         type: "ADD_ITEM",
         payload: {
           id: product._id,
-          name: product.identification_branding?.name ?? "",
-          imageUrl: product.media_visuals?.main_image ?? "",
-          price: product.pricing_availability?.price ?? 0,
+          name: product?.name ?? "",
+          imageUrl: product?.main_image ?? "",
+          price: product?.price ?? 0,
           quantity: 1,
         },
       });

@@ -1,6 +1,6 @@
 "use server";
 import { connection } from "@/utils/connection";
-import Attribute from "@/models/Attributes";
+import Attribute from "@/models/Attribute";
 import AttributeValue from "@/models/AttributeValue";
 import Category from "@/models/Category";
 import mongoose from "mongoose";

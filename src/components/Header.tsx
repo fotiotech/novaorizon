@@ -36,7 +36,7 @@ const Header = () => {
   const domNode = useClickOusite(() => setShowSearchBox(false));
 
   return (
-    <div className="p-2 bg-sec text-pri">
+    <div className="p-2 bg-surface text-pri">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Menu style={{ fontSize: 30 }} />
@@ -49,9 +49,7 @@ const Header = () => {
           transition-all hidden lg:block w-0 lg:w-3/4 h-0 lg:h-auto`}
         >
           <div className="relative w-full ">
-            <form
-              className="flex items-center  h-11 shadow bg-pri bg-opacity-95 rounded-xl overflow-hidden"
-            >
+            <form className="flex items-center  h-11 bg-background rounded-xl overflow-hidden">
               <input
                 title="search"
                 type="text"
@@ -70,7 +68,7 @@ const Header = () => {
                 <button
                   type="submit"
                   title="Show search box"
-                  className=" py-1 px-3 m-1 rounded-xl bg-sec"
+                  className="btn py-1 px-3 m-1 rounded-xl"
                 >
                   <Search style={{ color: "#fff" }} />
                 </button>
@@ -130,7 +128,7 @@ const Header = () => {
         <div className="relative w-full ">
           <form
             className="flex items-center
-           h-11 shadow bg-pri bg-opacity-95 rounded-xl overflow-hidden"
+           h-11 bg-background rounded-xl overflow-hidden"
           >
             <input
               title="search"
@@ -151,7 +149,7 @@ const Header = () => {
               <button
                 type="submit"
                 title="Show search box"
-                className=" py-1 px-3 m-1 rounded-xl bg-sec"
+                className="btn py-1 px-3 m-1 rounded-xl bg-sec"
               >
                 <Search style={{ color: "#fff" }} />
               </button>
