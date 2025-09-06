@@ -6,10 +6,10 @@ import React, { useEffect, useState } from "react";
 
 const BillingAddresses: React.FC = () => {
   const { user, customerInfos } = useUser();
-  const toUpdateBillingAddresses = updateBillingAddresses.bind(
-    null,
-    user?._id as string
-  );
+  const toUpdateBillingAddresses = async (formData: FormData) => {
+    await updateBillingAddresses(user?._id as string, formData);
+    // Optionally handle success/error here, but do not return anything
+  };
   const [carrier, setCarrier] = useState<Carrier | null>(null);
 
   useEffect(() => {

@@ -16,7 +16,10 @@ export interface ShippingData {
 
 const ShippingForm = ({ shippingAddressCheck }: { shippingAddressCheck?: boolean }) => {
   const { user, customerInfos } = useUser();
-  const toUpdateShippingInfos = updateShippingInfos.bind(null, user?._id as string);
+  // Wrap the action to ensure it returns void
+  const toUpdateShippingInfos = async (formData: FormData) => {
+    await updateShippingInfos(user?._id as string, formData);
+  };
   const [carrier, setCarrier] = useState<Carrier | null>(null);
 
   useEffect(() => {
