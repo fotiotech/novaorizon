@@ -122,8 +122,8 @@ const Search = () => {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {data.map((item: any) => {
               const imageUrl = item.main_image || null;
-              const title = item.name;
-              const price = item.price;
+              const title = item.title;
+              const price = item.list_price;
               const currency = item.currency || "CFA";
 
               return (

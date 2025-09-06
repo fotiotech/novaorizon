@@ -17,28 +17,23 @@ import { getCollectionsWithProducts } from "./actions/products";
 import Spinner from "@/components/Spinner";
 import CategoryCard from "@/components/categoryCard";
 
-interface ProductAttribute {
-  main_image?: string;
+interface Product {
+  _id: string;
+  url_slug?: string;
   title?: string;
-  code?: string;
-}
-
-interface ProductGroup {
-  code: string;
-  attributes?: ProductAttribute[];
+  main_image?: string;
+  shortDesc?: string;
+  price?: number;
+  category_id?: string;
+  model?: string;
+  sku?: string;
+  gallery?: string[];
 }
 
 interface Category {
   _id: string;
   categoryName: string;
   imageUrl: string;
-}
-
-interface Product {
-  _id: string;
-  url_slug: string;
-  rootGroup?: ProductGroup[];
-  category?: Category;
 }
 
 interface Collection {
@@ -83,12 +78,19 @@ export default function Home() {
       triggerNotification(user?.id, "A customer clicked on a product!");
   };
 
-  const renderProductImage = (attribute: ProductAttribute) => {
-    const { main_image, title } = attribute;
+  const renderProductCardCol = (product: Product) => {
+    const { _id, url_slug, title, shortDesc, price, main_image } = product;
 
     return (
-      main_image && (
-        <div key={main_image}>
+      <Link
+        href={`/${url_slug || "product"}/details/${_id}`}
+        key={_id}
+        aria-label="collection product"
+      >
+        <div
+          onClick={handleProductClick}
+          className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow"
+        >
           <div className="w-full h-full relative flex-shrink-0 bg-gray-100 rounded">
             {main_image ? (
               <ImageRenderer image={main_image} />
@@ -98,55 +100,12 @@ export default function Home() {
               </div>
             )}
           </div>
-        </div>
-      )
-    );
-  };
-
-  const renderProductInfo = (attribute: ProductAttribute) => {
-    const { title } = attribute;
-    return (
-      title && (
-        <div key={title} className="p-2 m-1">
-          <h2 className="font-medium">{title || "No Title"}</h2>
-        </div>
-      )
-    );
-  };
-
-  const renderProductCardCol = (product: any) => {
-    const title =
-      product.identification_branding?.name ||
-      product?.basic_informations?.name ||
-      "";
-    const shortDesc = product.descriptions?.short || "";
-    const mainImage =
-      product.media_visuals?.main_image ||
-      product.media_visuals?.gallery?.[0] ||
-      null;
-    const price = product.pricing_availability?.price;
-
-    return (
-      <Link
-        href={`/${product.url_slug}/details/${product._id}`}
-        key={product._id}
-        aria-label="collection product"
-      >
-        <div
-          onClick={handleProductClick}
-          className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow"
-        >
-          <div className="w-full h-full relative flex-shrink-0 bg-gray-100 rounded">
-            {mainImage ? (
-              <ImageRenderer image={mainImage} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                No Image
-              </div>
-            )}
-          </div>
-          <h3 className="mt-2 w-full line-clamp-2 font-medium">{title}</h3>
-          <p className="text-sm text-gray-500 line-clamp-2">{shortDesc}</p>
+          <h3 className="mt-2 w-full line-clamp-2 font-medium">
+            {title || "No Title"}
+          </h3>
+          {shortDesc && (
+            <p className="text-sm text-gray-500 line-clamp-2">{shortDesc}</p>
+          )}
           {price !== undefined && (
             <div className="mt-1">
               <span className="font-bold">
@@ -160,48 +119,10 @@ export default function Home() {
   };
 
   const renderProductCard = (product: Product) => {
-    const basicInfoAttrs =
-      product.rootGroup?.flatMap((group: ProductGroup) =>
-        group.code === "basic_informations" ? group.attributes || [] : []
-      ) || [];
-
-    const mediaAttrs =
-      product.rootGroup?.flatMap((group: ProductGroup) =>
-        group.code === "media_visuals" ? group.attributes || [] : []
-      ) || [];
-
-    return (
-      <Link
-        href={`/${product.url_slug}/details/${product._id}`}
-        key={product._id}
-        aria-label="collection product"
-      >
-        <div
-          onClick={handleProductClick}
-          className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow"
-        >
-          <div className="w-full h-full relative flex-shrink-0 bg-gray-100 rounded">
-            {mediaAttrs
-              .filter(
-                (attr): attr is ProductAttribute =>
-                  attr !== null && attr !== undefined
-              )
-              .map((a) => renderProductImage(a))}
-          </div>
-          <div className="flex flex-col gap-2 overflow-x-auto">
-            {basicInfoAttrs
-              .filter(
-                (attr): attr is ProductAttribute =>
-                  attr !== null && attr !== undefined
-              )
-              .map((a) => renderProductInfo(a))}
-          </div>
-        </div>
-      </Link>
-    );
+    return renderProductCardCol(product);
   };
 
-  const renderCollectionSection = (col: any) => {
+  const renderCollectionSection = (col: CollectionWithProducts) => {
     if (col.collection.display === "carousel") {
       return (
         <section
@@ -220,12 +141,13 @@ export default function Home() {
 
     if (col.collection.display === "category") {
       return (
-        <div className="mb-5">
+        <div key={col.collection._id} className="mb-5">
           {col.products.map((p: any) => (
             <CategoryCard
-              name={p.category.categoryName}
-              imageUrl={p.category.imageUrl}
-              href={`/categories/${p.category._id}`}
+              key={p._id}
+              name={p.category?.categoryName || "Category"}
+              imageUrl={p.category?.imageUrl || ""}
+              href={`/categories/${p.category?._id || ""}`}
             />
           ))}
         </div>

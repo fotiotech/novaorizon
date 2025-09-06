@@ -67,66 +67,15 @@ export async function findProducts(id?: string) {
   try {
     await connection();
 
-    const buildGroupTreeWithValues = (
-      groups: any[],
-      product: any,
-      parentId: string | null = null
-    ): any[] => {
-      return groups
-        .filter(
-          (group) =>
-            (!parentId && !group.parent_id) ||
-            (parentId && group.parent_id?.toString() === parentId)
-        )
-        .sort((a, b) => a.group_order - b.group_order)
-        .map((group) => {
-          const attributesWithValues = group.attributes
-            ?.sort((a: any, b: any) => a.sort_order - b.sort_order)
-            .map((attr: any) => {
-              const value = product[attr.code];
-              return value != null
-                ? {
-                    _id: attr._id?.toString(),
-                    name: attr.name,
-                    [attr.code]: value,
-                  }
-                : null;
-            });
-          const children = buildGroupTreeWithValues(
-            groups,
-            product,
-            group?._id?.toString()
-          );
-
-          return {
-            _id: group?._id?.toString(),
-            code: group.code,
-            name: group.name,
-            parent_id: group?.parent_id?.toString(),
-            group_order: group.group_order,
-            attributes: attributesWithValues,
-            children,
-          };
-        });
-    };
-
-    const groups = await AttributeGroup.find()
-      .populate("attributes")
-      .sort({ group_order: 1 })
-      .lean()
-      .exec();
-
     if (id) {
       const product: any = await Product.findById(id).lean().exec();
       if (!product) {
         return { success: false, error: "Product not found" };
       }
-      console.log("Products with groups:", product);
       return {
-        // ...product?.toObject(),
-        _id: product?._id,
-        category_id: product?.category_id,
-        rootGroup: buildGroupTreeWithValues(groups, product),
+        ...product,
+        _id: product._id?.toString(),
+        category_id: product.category_id?.toString(),
       };
     }
 
@@ -134,17 +83,12 @@ export async function findProducts(id?: string) {
     if (!products) {
       console.error("No products found");
     }
-    const productsWithGroups = products.map((product) => {
-      const rootGroup = buildGroupTreeWithValues(groups, product);
-      return {
-        // ...product,
-        _id: product?._id?.toString(),
-        category_id: product?.category_id?.toString(),
-        rootGroup,
-      };
-    });
 
-    return productsWithGroups;
+    return products.map((product: any) => ({
+      ...product,
+      _id: product._id?.toString(),
+      category_id: product.category_id?.toString(),
+    }));
   } catch (error) {
     console.error("Error finding products:", error);
     return { success: false, error: "Failed to fetch products" };
