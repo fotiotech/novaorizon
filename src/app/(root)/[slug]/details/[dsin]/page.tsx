@@ -1,5 +1,3 @@
-"use client";
-
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import Loading from "@/app/loading";
 import React, { useEffect, useState } from "react";
@@ -8,6 +6,7 @@ import { useSession } from "next-auth/react";
 import DetailImages from "@/components/DetailImages";
 import AddToCart from "@/components/AddToCart";
 import CheckoutButton from "@/components/CheckoutButton";
+import { findGroup } from "@/app/actions/attributegroup";
 
 // Types
 interface Params {
@@ -15,38 +14,38 @@ interface Params {
   dsin: string;
 }
 
-interface Product {
-  _id: string;
-  title?: string;
-  main_image?: string;
-  gallery?: string[];
-  price?: number;
-  shortDesc?: string;
-  list_price?: number;
-  sale_price?: number;
-  msrp?: number;
-  model?: string;
-  sku?: string;
-  condition?: string[];
-  stock_status?: string[];
-  quantity?: number;
-}
-
 export default function DetailsPage({ params }: { params: Params }) {
   const dispatch = useAppDispatch();
   const session = useSession();
   const user = session?.data?.user as any;
-  const productData = useAppSelector((s) => s.product?.byId[params.dsin]);
-  const [loading, setLoading] = useState(!productData);
-  const product: Product | undefined = productData;
+  const product = useAppSelector((s) => s.product?.byId?.[params?.dsin]);
+  const [loading, setLoading] = useState(!product);
+  const [groups, setGroups] = useState<any[]>([]);
 
   // Load product only if not already in store
   useEffect(() => {
+    if (!params?.dsin) return;
+
     if (!product) {
       setLoading(true);
       dispatch(fetchProducts(params.dsin)).finally(() => setLoading(false));
     }
-  }, [dispatch, params.dsin, product]);
+
+    (async () => {
+      try {
+        const res = await findGroup();
+        if (Array.isArray(res)) {
+          setGroups(res);
+        } else {
+          console.warn("findGroup returned unexpected format", res);
+          setGroups([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch groups", err);
+        setGroups([]);
+      }
+    })();
+  }, [dispatch, params?.dsin, product]);
 
   // Analytics event (view)
   useEffect(() => {
@@ -55,12 +54,12 @@ export default function DetailsPage({ params }: { params: Params }) {
         type: "userEvent/add",
         payload: {
           userId: user.id,
-          productId: params.dsin,
+          productId: params?.dsin,
           eventType: "view",
         },
       });
     }
-  }, [dispatch, product, user?.id, params.dsin]);
+  }, [dispatch, product, user?.id, params?.dsin]);
 
   if (loading) {
     return <Loading loading={true} />;
@@ -70,30 +69,66 @@ export default function DetailsPage({ params }: { params: Params }) {
     return <div className="w-full p-8 text-center">Product not found</div>;
   }
 
-  console.log("Rendering product details for:", product);
+  const renderGroup = (group: any, gCode?: string) => {
+    if (!group || !group.code) return null;
+    if (group.code === gCode) {
+      return (
+        <div key={group._id || group.code}>
+          {group.name && <h3 className="font-semibold mb-2">{group.name}</h3>}
+          <div>
+            {group.attributes.length > 0 &&
+              group.attributes.map((a: any) => {
+                if (!a?.code) return null;
+                const { code, name } = a;
+                const value = product?.[code];
+
+                if (!value) return null;
+
+                return (
+                  <div key={code} className="grid grid-cols-2">
+                    <span className="text-gray-300 font-bold">{name}:</span>
+                    <span>
+                      {Array.isArray(value) ? value.join(", ") : String(value)}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+          {Array.isArray(group.children) &&
+            group.children.map((child: any) => renderGroup(child))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div className=" w-full bg-gray-100 p-4">
+    <div className="w-full bg-gray-100 p-4">
       {/* Gallery & main info */}
-      <div className="flex flex-col  md:flex-row gap-6">
-        {product.gallery && product.gallery.length > 0 && (
-          <div className="">
+      <div className="flex flex-col md:flex-row gap-6">
+        {Array.isArray(product?.gallery) && product.gallery.length > 0 ? (
+          <div>
             <DetailImages file={product.gallery} />
+          </div>
+        ) : (
+          <div className="w-full flex items-center justify-center bg-gray-200 text-gray-500 rounded p-6">
+            No images available
           </div>
         )}
 
-        <div className=" text-text">
-          <h1 className=" mb-4">{product?.title}</h1>
+        <div className="text-text">
+          <h1 className="mb-4">{product?.title || "Untitled Product"}</h1>
 
-          {product?.list_price && (
+          {typeof product?.list_price === "number" && (
             <div className="text-2xl font-semibold mb-2">
               {product.list_price} cfa
             </div>
           )}
 
-          {product.stock_status && product.stock_status.length > 0 && (
-            <div>{product.stock_status.join(", ")}</div>
-          )}
+          {Array.isArray(product?.stock_status) &&
+            product.stock_status.length > 0 && (
+              <div>{product.stock_status.join(", ")}</div>
+            )}
 
           <div className="flex gap-4 mt-4">
             <CheckoutButton
@@ -124,7 +159,7 @@ export default function DetailsPage({ params }: { params: Params }) {
 
       {/* Extra details */}
       <div className="mt-6 bg-white p-4 rounded shadow grid grid-cols-1 md:grid-cols-2 gap-4">
-        {product.condition && product.condition.length > 0 && (
+        {Array.isArray(product?.condition) && product.condition.length > 0 && (
           <div>
             <span className="font-semibold">Condition:</span>{" "}
             {product.condition.join(", ")}
@@ -133,12 +168,19 @@ export default function DetailsPage({ params }: { params: Params }) {
       </div>
 
       {/* Description */}
-      {product.shortDesc && (
+      {product?.shortDesc && (
         <div className="mt-6 bg-white p-4 rounded shadow">
           <h2 className="text-lg font-semibold mb-2">Description</h2>
           <p className="text-gray-700 text-sm">{product.shortDesc}</p>
         </div>
       )}
+
+      <div>
+        {groups.map((group: any) => renderGroup(group, "key_features"))}
+        {groups.map((group: any) =>
+          renderGroup(group, "product_specifications")
+        )}
+      </div>
     </div>
   );
 }
