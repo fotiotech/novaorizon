@@ -7,6 +7,8 @@ import DetailImages from "@/components/DetailImages";
 import AddToCart from "@/components/AddToCart";
 import CheckoutButton from "@/components/CheckoutButton";
 import { findGroup } from "@/app/actions/attributegroup";
+import ImageRenderer from "@/components/ImageRenderer";
+import Link from "next/link";
 
 // Types
 interface Params {
@@ -77,7 +79,7 @@ export default function DetailsPage({ params }: { params: Params }) {
           {group.name && <h3 className="font-semibold mb-2">{group.name}</h3>}
           <div>
             {group.attributes.length > 0 &&
-              group.attributes.map((a: any) => {
+              group.attributes?.map((a: any) => {
                 if (!a?.code) return null;
                 const { code, name } = a;
                 const value = product?.[code];
@@ -168,10 +170,9 @@ export default function DetailsPage({ params }: { params: Params }) {
       </div>
 
       {/* Description */}
-      {product?.shortDesc && (
+      {product?.short_desc && (
         <div className="mt-6 bg-white p-4 rounded shadow">
-          <h2 className="text-lg font-semibold mb-2">Description</h2>
-          <p className="text-gray-700 text-sm">{product.shortDesc}</p>
+          <p className="text-gray-700 text-sm">{product.short_desc}</p>
         </div>
       )}
 
@@ -180,6 +181,31 @@ export default function DetailsPage({ params }: { params: Params }) {
         {groups.map((group: any) =>
           renderGroup(group, "product_specifications")
         )}
+      </div>
+
+      {product?.long_desc && (
+        <div className="mt-6 bg-white p-4 rounded shadow">
+          <h2 className="text-lg font-semibold mb-2">Description</h2>
+          <p className="text-gray-700 text-sm">{product.long_desc}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        {product?.related_products?.map((p: any) => {
+          const { _id, url_slug, title, main_image, list_price } = p;
+
+          return (
+            <Link
+              key={_id}
+              href={`/${url_slug || "product"}/details/${_id}`}
+              className="flex flex-col gap-2"
+            >
+              <ImageRenderer image={main_image} />
+              <h2>{title}</h2>
+              <h2>{list_price}</h2>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
