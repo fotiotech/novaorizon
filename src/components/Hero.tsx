@@ -96,7 +96,7 @@ const HeaderScroll: React.FC = () => {
             onClick={() => dotIndex(idx)}
             aria-label={`Go to slide ${idx + 1}`}
             className={`h-3 w-3 rounded-full transition-all duration-300 ${
-              idx === currentImageIndex ? "bg-thiR" : "bg-[#eee]"
+              idx === currentImageIndex ? "bg-blue-600" : "bg-[#eee]"
             }`}
           />
         ))}

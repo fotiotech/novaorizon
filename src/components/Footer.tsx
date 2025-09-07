@@ -3,7 +3,7 @@ import React from "react";
 
 const Footer = () => {
   return (
-    <div className="flex relative justify-between flex-col-reverse lg:flex-row p-3 text-white w-full   bg-[#00000f]">
+    <div className="flex relative justify-between flex-col-reverse lg:flex-row p-3 text-text w-full   bg-surface">
       <div className="flex-1 ">
         <div className=" flex justify-center items-center w-full h-44 ">
           <Image

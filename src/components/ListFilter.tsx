@@ -52,7 +52,7 @@ const ListFilter = ({
             ? "absolute z-10 bottom-0 top-20"
             : "hidden"
           : ""
-      } w-full lg:w-60 h-full rounded-t-xl lg:rounded-none bg-pri p-2 pb-8 border-thi lg:border-none border-4 transition-all`}
+      } w-full lg:w-60 h-full rounded-t-xl lg:rounded-none bg-surface p-2 pb-8 border-thi lg:border-none border-4 transition-all`}
     >
       <div>
         <h3 className="font-semibold text-lg">Filter List</h3>

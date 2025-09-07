@@ -83,7 +83,7 @@ export default function DetailsPage({ params }: { params: Params }) {
         )}
 
         <div className=" text-text">
-          <h1 className="text-lg font-bold mb-4">{product?.title}</h1>
+          <h1 className=" mb-4">{product?.title}</h1>
 
           {product?.list_price && (
             <div className="text-2xl font-semibold mb-2">
@@ -124,16 +124,6 @@ export default function DetailsPage({ params }: { params: Params }) {
 
       {/* Extra details */}
       <div className="mt-6 bg-white p-4 rounded shadow grid grid-cols-1 md:grid-cols-2 gap-4">
-        {product.model && (
-          <div>
-            <span className="font-semibold">Model:</span> {product.model}
-          </div>
-        )}
-        {product.sku && (
-          <div>
-            <span className="font-semibold">SKU:</span> {product.sku}
-          </div>
-        )}
         {product.condition && product.condition.length > 0 && (
           <div>
             <span className="font-semibold">Condition:</span>{" "}

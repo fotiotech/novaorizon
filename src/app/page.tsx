@@ -23,7 +23,7 @@ interface Product {
   title?: string;
   main_image?: string;
   shortDesc?: string;
-  price?: number;
+  list_price?: number;
   category_id?: string;
   model?: string;
   sku?: string;
@@ -79,7 +79,7 @@ export default function Home() {
   };
 
   const renderProductCardCol = (product: Product) => {
-    const { _id, url_slug, title, shortDesc, price, main_image } = product;
+    const { _id, url_slug, title, shortDesc, list_price, main_image } = product;
 
     return (
       <Link
@@ -89,7 +89,7 @@ export default function Home() {
       >
         <div
           onClick={handleProductClick}
-          className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow"
+          className="flex flex-col gap-1 mb-1  rounded cursor-pointer hover:shadow-lg transition-shadow"
         >
           <div className="w-full h-full relative flex-shrink-0 bg-gray-100 rounded">
             {main_image ? (
@@ -106,10 +106,10 @@ export default function Home() {
           {shortDesc && (
             <p className="text-sm text-gray-500 line-clamp-2">{shortDesc}</p>
           )}
-          {price !== undefined && (
+          {list_price !== undefined && (
             <div className="mt-1">
               <span className="font-bold">
-                <Prices amount={price} />
+                <Prices amount={list_price} />
               </span>
             </div>
           )}
@@ -201,14 +201,14 @@ export default function Home() {
         <meta property="twitter:card" content="summary_large_image" />
       </Head>
 
-      <main>
+      <main className="bg-background">
         <Hero />
 
-        <section className="w-full p-2 lg:px-10 lg:mt-1 mb-1 bg-pri border-y">
+        <section className="w-full bg-surface p-2 lg:px-10 lg:mt-1 mb-1 bg-pri border-y">
           <h2 className="lg:mb-4 mb-2 font-bold text-xl lg:text-3xl">
             New Arrivals
           </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 mx-auto gap-3 lg:gap-5">
+          <div className="grid grid-cols-2  lg:grid-cols-4 mx-auto gap-3 lg:gap-5">
             {productsState.allIds.length > 0 ? (
               productsState.allIds
                 .slice(0, 4)
