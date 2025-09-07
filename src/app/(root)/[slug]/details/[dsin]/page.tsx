@@ -92,9 +92,7 @@ export default function DetailsPage({ params }: { params: Params }) {
           )}
 
           {product.stock_status && product.stock_status.length > 0 && (
-            <div>
-              {product.stock_status.join(", ")}
-            </div>
+            <div>{product.stock_status.join(", ")}</div>
           )}
 
           <div className="flex gap-4 mt-4">

@@ -73,7 +73,7 @@ const DetailImages: React.FC<DetailImagesProps> = ({ file }) => {
       </div>
 
       {/* Dots Navigation */}
-      <div className="flex justify-center items-center gap-2 lg:gap-4 w-full h-14 bg-gray-200 bg-opacity-50">
+      <div className="flex justify-center items-center gap-2 lg:gap-4 w-full py-2 bg-gray-200 bg-opacity-50">
         {file &&
           file.map((image, index) => (
             <span
