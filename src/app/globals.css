@@ -22,7 +22,7 @@ textarea {
 }
 
 .btn {
-  @apply bg-secondary p-2 rounded-lg;
+  @apply bg-secondary rounded-lg;
 }
 
 th,

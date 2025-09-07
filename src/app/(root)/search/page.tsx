@@ -28,6 +28,8 @@ const Search = () => {
     priceRange: { min: 0, max: 0 },
   });
 
+  console.log({data});
+
   useEffect(() => {
     async function fetchResults() {
       setIsLoading(true);

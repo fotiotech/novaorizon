@@ -5,7 +5,7 @@ import ImageRenderer from "@/components/ImageRenderer";
 import Layout from "@/components/Layout";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Prices } from "@/components/cart/Prices";
 import { triggerNotification } from "./actions/notifications";
 import Head from "next/head";
@@ -30,29 +30,13 @@ interface Product {
   gallery?: string[];
 }
 
-interface Category {
-  _id: string;
-  categoryName: string;
-  imageUrl: string;
-}
-
-interface Collection {
-  _id: string;
-  name: string;
-  display: "carousel" | "category" | string;
-}
-
-interface CollectionWithProducts {
-  collection: Collection;
-  products: Product[];
-}
-
 export default function Home() {
   const dispatch = useAppDispatch();
   const session = useSession();
   const user = session?.data?.user as any;
   const productsState = useAppSelector((state) => state.product);
   const [collections, setCollections] = useState<any[]>([]);
+  const [visibleCount, setVisibleCount] = useState(8); // start with 8 products
 
   useEffect(() => {
     dispatch(fetchProducts());
@@ -78,7 +62,7 @@ export default function Home() {
       triggerNotification(user?.id, "A customer clicked on a product!");
   };
 
-  const renderProductCardCol = (product: Product) => {
+  const renderProductCard = (product: Product) => {
     const { _id, url_slug, title, shortDesc, list_price, main_image } = product;
 
     return (
@@ -118,56 +102,23 @@ export default function Home() {
     );
   };
 
-  const renderProductCard = (product: Product) => {
-    return renderProductCardCol(product);
-  };
-
-  const renderCollectionSection = (col: CollectionWithProducts) => {
-    if (col.collection.display === "carousel") {
-      return (
-        <section
-          key={col.collection._id}
-          className="w-full p-2 lg:px-10 lg:mt-6 mb-6 border-y border-gray-200"
-        >
-          <h2 className="lg:mb-4 mb-2 font-bold text-xl lg:text-2xl">
-            {col.collection.name}
-          </h2>
-          <div className="flex overflow-x-auto gap-3 lg:gap-5">
-            {col.products.map(renderProductCardCol)}
-          </div>
-        </section>
-      );
+  const handleScroll = useCallback(() => {
+    if (
+      window.innerHeight + window.scrollY >=
+      document.documentElement.scrollHeight - 300
+    ) {
+      setVisibleCount((prev) => prev + 8); // load 8 more products when scrolled near bottom
     }
+  }, []);
 
-    if (col.collection.display === "category") {
-      return (
-        <div key={col.collection._id} className="mb-5">
-          {col.products.map((p: any) => (
-            <CategoryCard
-              key={p._id}
-              name={p.category?.categoryName || "Category"}
-              imageUrl={p.category?.imageUrl || ""}
-              href={`/categories/${p.category?._id || ""}`}
-            />
-          ))}
-        </div>
-      );
-    }
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
 
-    return (
-      <section
-        key={col.collection._id}
-        className="w-full p-2 lg:px-10 lg:mt-6 mb-6 border-y border-gray-200"
-      >
-        <h2 className="lg:mb-4 mb-2 font-bold text-xl lg:text-2xl">
-          {col.collection.name}
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
-          {col.products.slice(0, 4).map(renderProductCardCol)}
-        </div>
-      </section>
-    );
-  };
+  const visibleProducts = productsState.allIds
+    .slice(0, visibleCount)
+    .map((id) => productsState.byId[id]);
 
   return (
     <Layout>
@@ -210,16 +161,17 @@ export default function Home() {
           </h2>
           <div className="grid grid-cols-2  lg:grid-cols-4 mx-auto gap-3 lg:gap-5">
             {productsState.allIds.length > 0 ? (
-              productsState.allIds
-                .slice(0, 4)
-                .map((id) => renderProductCard(productsState.byId[id]))
+              visibleProducts.map((product) => renderProductCard(product))
             ) : (
               <Spinner />
             )}
           </div>
+          {visibleCount < productsState.allIds.length && (
+            <div className="flex justify-center mt-4">
+              <Spinner />
+            </div>
+          )}
         </section>
-
-        {collections.map(renderCollectionSection)}
       </main>
     </Layout>
   );

@@ -139,7 +139,7 @@ const Header = () => {
               onChange={(e) => setSearchInput(e.target.value)}
               onFocus={() => setShowSearchBox(true)}
               className="flex-1 h-full bg-none py-2 focus:outline-none 
-                 border-none px-3 leading-tight text-sec
+                 border-none px-3 leading-tight text-sec bg-background
               "
             />
             <Link
@@ -149,7 +149,7 @@ const Header = () => {
               <button
                 type="submit"
                 title="Show search box"
-                className="btn py-1 px-3 m-1 rounded-xl bg-sec"
+                className="btn py-1 px-3 m-1 rounded-xl"
               >
                 <Search style={{ color: "#fff" }} />
               </button>
