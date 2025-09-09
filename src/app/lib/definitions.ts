@@ -36,6 +36,7 @@ export type FormState =
         name?: string[];
         email?: string[];
         password?: string[];
+        role?: string[];
       };
       message?: string;
     }
@@ -46,6 +47,8 @@ export type LoginFormState =
       errors: {
         email?: string[];
         password?: string[];
+        role?: string[];
+
       };
       message?: string;
     }

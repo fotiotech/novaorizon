@@ -1,17 +1,16 @@
 // middleware.ts
-import { auth } from "@/app/auth";
-import { signIn } from "next-auth/react";
+export { auth as middleware } from "@/app/auth";
 
-export default auth((req) => {
-  console.log(req);
-  if (!req.auth) signIn();
-});
-
-// Optionally, don't invoke Middleware on some paths
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-    "/profile/:path*",
-    "/checkout/:path*",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - auth/ (authentication pages)
+     * - public/ (public assets)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|auth/|public/).*)",
   ],
 };

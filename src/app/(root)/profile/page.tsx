@@ -5,22 +5,46 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useSession } from "next-auth/react";
 import { SignOut } from "@/components/auth/SignInButton";
 import { findOrders } from "@/app/actions/order";
+import { useRouter } from "next/navigation";
+import Spinner from "@/components/Spinner";
 
 const Profile = () => {
-  const session = useSession();
-  const user = session?.data?.user as any;
+  const { data: session, status } = useSession();
+  const user: any = session?.user;
+  const router = useRouter();
   const [orders, setOrders] = React.useState<any>([]);
 
-  console.log("user session:", user);
+  console.log({ session });
 
   useEffect(() => {
+    if (status === "loading") return;
+
+    if (!session) {
+      router.push("/auth/login");
+      return;
+    }
+
     async function fetchOrders() {
       if (!user?.id) return null;
       const response = await findOrders(undefined, user.id);
       setOrders(response);
     }
     fetchOrders();
-  }, [user]);
+  }, [session, user, status, router]);
+  
+
+  if (status === "loading") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!session || !user) {
+    return null;
+  }
+
   return (
     <>
       <div className="flex justify-between items-center p-2 ">
@@ -63,7 +87,7 @@ const Profile = () => {
       <ul className="flex flex-col gap-2 p-2">
         <li className="p-2 rounded-lg bg-gray-300">
           Welcome,
-          <span className="font-bold ml-1">{session?.data?.user?.email}</span>!
+          <span className="font-bold ml-1">{user?.email}</span>!
         </li>
         <Link href={`/checkout/chat?roomId=`}>
           <li className="p-2 rounded-lg bg-gray-300">Chats</li>

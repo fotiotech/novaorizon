@@ -48,7 +48,7 @@ const AddToCart = ({ product }: { product: any }) => {
           "A Customer Added a Product to the Cart!"
         );
       }}
-      className="border rounded-lg p-2 bg-blue-600 hover:bg-blue-700 w-1/2 shadow-lg font-semibold text-white transition"
+      className="border rounded-lg p-2 bg-blue-600 hover:bg-blue-700 w-full shadow-lg font-semibold text-white transition"
     >
       Add To Cart
     </button>

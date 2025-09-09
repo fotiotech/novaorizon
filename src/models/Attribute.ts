@@ -55,7 +55,6 @@ const AttributeSchema = new Schema<IAttribute>({
 });
 
 AttributeSchema.index({ code: 1 });
-AttributeSchema.index({ name: 1 });
 
 // Attribute Model
 const Attribute =
