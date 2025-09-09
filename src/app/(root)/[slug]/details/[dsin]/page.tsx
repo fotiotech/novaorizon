@@ -11,6 +11,7 @@ import { findGroup } from "@/app/actions/attributegroup";
 import ImageRenderer from "@/components/ImageRenderer";
 import Link from "next/link";
 import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
+import { find_category_attribute_groups } from "@/app/actions/category";
 
 // Types
 interface Params {
@@ -98,7 +99,7 @@ export default function DetailsPage({ params }: { params: Params }) {
 
     (async () => {
       try {
-        const res = await findGroup();
+        const res = await find_category_attribute_groups(product.category_id);
         if (Array.isArray(res)) {
           setGroups(res);
           const initialExpanded: Record<string, boolean> = {};
@@ -205,11 +206,11 @@ export default function DetailsPage({ params }: { params: Params }) {
     const sectionId: string = `section-${code}`;
 
     return (
-      <div className="mb-1 md:mb-2 bg-white rounded shadow overflow-hidden">
+      <div className="mb-1 md:mb-2 rounded overflow-hidden">
         <div
           role="button"
           tabIndex={0}
-          className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+          className="w-full flex justify-between items-center hover:bg-gray-100 transition-colors cursor-pointer"
           onClick={() => toggleSection(code)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") toggleSection(code);
@@ -305,13 +306,12 @@ export default function DetailsPage({ params }: { params: Params }) {
                 {/* Variant selection */}
                 {Array.isArray(variants) && variants.length > 0 && (
                   <div className="mb-4">
-                    <span className="font-semibold">Variants:</span>
                     <div className="flex gap-2 mt-2">
                       {variants.map((v: any, i: number) => (
                         <button
                           key={i}
                           onClick={() => handleVariantSelect(v)}
-                          className="px-3 py-1 border rounded hover:bg-gray-100"
+                          className="p-3 py-1 border rounded hover:bg-gray-100"
                         >
                           {v.sku || `Variant ${i + 1}`}
                         </button>
@@ -345,7 +345,7 @@ export default function DetailsPage({ params }: { params: Params }) {
               </div>
             </div>
 
-            <div className="mt-6 bg-gray-50 p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="my-6 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
               {Array.isArray(condition) && condition.length > 0 && (
                 <div>
                   <span className="font-semibold">Condition:</span>{" "}
@@ -355,8 +355,7 @@ export default function DetailsPage({ params }: { params: Params }) {
             </div>
 
             {short_desc && (
-              <div className="mt-6 bg-gray-50 p-4 rounded">
-                <h2 className="text-lg font-semibold mb-2">Description</h2>
+              <div className="my-6 rounded">
                 <p className="text-gray-700">{short_desc}</p>
               </div>
             )}

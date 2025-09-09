@@ -7,7 +7,6 @@ import "@/models/User";
 import "@/models/Brand";
 import { Collection } from "@/models/Collection";
 import "@/models/Category";
-import AttributeGroup from "@/models/AttributesGroup";
 import "@/models/Attribute";
 
 export async function getCollectionsWithProducts() {

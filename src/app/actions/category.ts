@@ -3,7 +3,8 @@
 import slugify from "slugify";
 import { connection } from "@/utils/connection";
 import Category from "@/models/Category";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
+import AttributeGroup from "@/models/AttributesGroup";
 
 function generateSlug(name: string) {
   return slugify(name, { lower: true });
@@ -65,66 +66,93 @@ export async function getCategory(
   }
 }
 
-export async function createCategory(
-  formData: {
-    _id?: string;
-    categoryName?: string;
-    description?: string;
-    imageUrl?: string[];
-  },
-  id?: string | null
+export async function find_category_attribute_groups(
+  categoryId: string,
+  groupId?: string | null
 ) {
-  try {
-    const { _id, categoryName, description, imageUrl } = formData;
+  if (!categoryId) return [];
+  await connection();
 
-    if (!categoryName) return { error: "Category name is required." };
+  const catObjectId = new Types.ObjectId(categoryId);
 
-    const url_slug = generateSlug(categoryName + (description || ""));
+  // --- 1) build attributeIds as before (defensive aggregation) ---
+  const categories = await Category.aggregate([
+    { $match: { _id: catObjectId } },
+    {
+      $graphLookup: {
+        from: "categories",
+        startWith: "$parent_id",
+        connectFromField: "parent_id",
+        connectToField: "_id",
+        as: "ancestors",
+      },
+    },
+    {
+      $project: {
+        allAttributes: {
+          $setUnion: [
+            { $ifNull: ["$attributes", []] },
+            {
+              $reduce: {
+                input: {
+                  $map: {
+                    input: { $ifNull: ["$ancestors", []] },
+                    as: "a",
+                    in: { $ifNull: ["$$a.attributes", []] },
+                  },
+                },
+                initialValue: [],
+                in: { $setUnion: ["$$value", "$$this"] },
+              },
+            },
+          ],
+        },
+      },
+    },
+  ]);
 
-    await connection();
+  const attributeIds = Array.isArray(categories?.[0]?.allAttributes)
+    ? categories[0].allAttributes
+    : [];
+  if (attributeIds.length === 0) return [];
 
-    const parent_id = _id ? new mongoose.Types.ObjectId(_id) : undefined;
-
-    if (id) {
-      const updatedCategory = await Category.updateOne(
-        { _id: new mongoose.Types.ObjectId(id) },
-        {
-          $set: {
-            url_slug,
-            categoryName,
-            parent_id,
-            description,
-            imageUrl: imageUrl || undefined,
-          },
-        }
-      );
-    } else {
-      const newCategory = new Category({
-        url_slug,
-        categoryName,
-        parent_id,
-        description,
-        imageUrl: imageUrl || undefined,
-      });
-      await newCategory.save();
-    }
-  } catch (error: any) {
-    console.error(
-      "Error while processing the request:\n",
-      error.message,
-      error.stack
-    );
-    return { error: "Something went wrong." };
+  if (groupId) {
+    const group = await AttributeGroup.find({
+      _id: new mongoose.Types.ObjectId(groupId),
+      attributes: { $in: attributeIds },
+    })
+      .populate("attributes") // populate attributes here
+      .lean();
+    return buildGroupTreeWithValues([group[0]]);
   }
+
+  const groups = await AttributeGroup.find({
+    attributes: { $in: attributeIds },
+  })
+    .populate("attributes") // populate attributes here
+    .lean();
+
+  return buildGroupTreeWithValues(groups);
 }
 
-export async function deleteCategory(id: string) {
-  try {
-    await connection();
-    await Category.findByIdAndDelete(id);
-    return { success: true, message: "Category deleted successfully" };
-  } catch (error) {
-    console.error("Error deleting category:", error);
-    return { error: "Could not delete the category." };
-  }
-}
+const buildGroupTreeWithValues = (
+  groups: any[],
+  parentId: string | null = null
+): any[] => {
+  return groups
+    .filter(
+      (group) =>
+        (!parentId && !group.parent_id) ||
+        (parentId && group.parent_id?.toString() === parentId)
+    )
+    .sort((a, b) => a.group_order - b.group_order)
+    .map((group) => ({
+      _id: group._id?.toString(),
+      code: group.code,
+      name: group.name,
+      parent_id: group.parent_id?.toString(),
+      group_order: group.group_order,
+      attributes: group.attributes,
+      children: buildGroupTreeWithValues(groups, group._id?.toString()),
+    }));
+};
