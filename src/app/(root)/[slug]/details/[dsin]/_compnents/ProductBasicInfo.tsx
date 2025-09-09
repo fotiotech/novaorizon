@@ -38,7 +38,7 @@ interface ProductBasicInfoProps {
         )}
 
         <div className="md:w-1/2 text-text">
-          <h1 className="text-2xl font-bold mb-4">
+          <h1 className="text-lg font-bold text-gray-800 mb-4">
             {title} {model}
           </h1>
 
