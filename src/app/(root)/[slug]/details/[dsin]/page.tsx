@@ -38,12 +38,23 @@ interface RelatedProduct {
   list_price?: number;
 }
 
+// Helper to merge variant into product
+function applyVariant(product: any, variant: any) {
+  if (!product || !variant) return product;
+  const merged = JSON.parse(JSON.stringify(product));
+  for (const key of Object.keys(variant)) {
+    merged[key] = variant[key];
+  }
+  return merged;
+}
+
 export default function DetailsPage({ params }: { params: Params }) {
   const dispatch = useAppDispatch();
   const session = useSession();
   const user = session?.data?.user as any;
-  const product = useAppSelector((s) => s.product?.byId?.[params?.dsin]);
-  const [loading, setLoading] = useState(!product);
+  const baseProduct = useAppSelector((s) => s.product?.byId?.[params?.dsin]);
+  const [product, setProduct] = useState<any>(baseProduct);
+  const [loading, setLoading] = useState(!baseProduct);
   const [error, setError] = useState<string | null>(null);
   const [groups, setGroups] = useState<AttributeGroup[]>([]);
   const [expandedSections, setExpandedSections] = useState<
@@ -61,11 +72,19 @@ export default function DetailsPage({ params }: { params: Params }) {
     }));
   };
 
+  // Variant selection handler
+  const handleVariantSelect = (variant: any) => {
+    if (baseProduct) {
+      const merged = applyVariant(baseProduct, variant);
+      setProduct(merged);
+    }
+  };
+
   // Load product only if not already in store
   useEffect(() => {
     if (!params?.dsin) return;
 
-    if (!product) {
+    if (!baseProduct) {
       setLoading(true);
       dispatch(fetchProducts(params.dsin))
         .catch((err) => {
@@ -73,6 +92,8 @@ export default function DetailsPage({ params }: { params: Params }) {
           setError("Failed to load product");
         })
         .finally(() => setLoading(false));
+    } else {
+      setProduct(baseProduct);
     }
 
     (async () => {
@@ -80,8 +101,6 @@ export default function DetailsPage({ params }: { params: Params }) {
         const res = await findGroup();
         if (Array.isArray(res)) {
           setGroups(res);
-
-          // Initialize expanded state for all groups
           const initialExpanded: Record<string, boolean> = {};
           res.forEach((group) => {
             initialExpanded[group.code] = expandedSections[group.code] || false;
@@ -96,7 +115,7 @@ export default function DetailsPage({ params }: { params: Params }) {
         setGroups([]);
       }
     })();
-  }, [dispatch, params?.dsin, product]);
+  }, [dispatch, params?.dsin, baseProduct]);
 
   // Analytics event (view)
   useEffect(() => {
@@ -127,14 +146,11 @@ export default function DetailsPage({ params }: { params: Params }) {
             </p>
           </div>
         );
-
       case "related_products":
         const relatedProducts = value as RelatedProduct[];
-
         if (!Array.isArray(relatedProducts) || relatedProducts.length === 0) {
           return null;
         }
-
         return (
           <div key={code} className="mt-6">
             <h2 className="text-lg font-semibold mb-4">{name}</h2>
@@ -163,10 +179,8 @@ export default function DetailsPage({ params }: { params: Params }) {
             </div>
           </div>
         );
-
       default:
         if (value === undefined || value === null) return null;
-
         return (
           <div key={code} className="py-2">
             <span className="font-medium">{name}: </span>
@@ -180,12 +194,12 @@ export default function DetailsPage({ params }: { params: Params }) {
     code,
     children,
     name,
-    level = 0, // Add level prop with default value
+    level = 0,
   }: {
     code: string;
     name?: string;
     children: React.ReactNode;
-    level?: number; // Add level property
+    level?: number;
   }) => {
     const isExpanded: boolean = expandedSections[code];
     const sectionId: string = `section-${code}`;
@@ -201,12 +215,9 @@ export default function DetailsPage({ params }: { params: Params }) {
             if (e.key === "Enter" || e.key === " ") toggleSection(code);
           }}
         >
-          {/* Apply different font weight based on level */}
           <h2
             className={`text-left ${
-              level === 0
-                ? "text-xl font-semibold" // Parent groups - bold
-                : "text-md font-normal" // Child groups - normal weight
+              level === 0 ? "text-xl font-semibold" : "text-md font-normal"
             }`}
           >
             {name || ""}
@@ -252,6 +263,7 @@ export default function DetailsPage({ params }: { params: Params }) {
           main_image = "",
           condition = [],
           short_desc = "",
+          variants = [],
         } = product || {};
 
         return (
@@ -290,6 +302,24 @@ export default function DetailsPage({ params }: { params: Params }) {
                   </div>
                 )}
 
+                {/* Variant selection */}
+                {Array.isArray(variants) && variants.length > 0 && (
+                  <div className="mb-4">
+                    <span className="font-semibold">Variants:</span>
+                    <div className="flex gap-2 mt-2">
+                      {variants.map((v: any, i: number) => (
+                        <button
+                          key={i}
+                          onClick={() => handleVariantSelect(v)}
+                          className="px-3 py-1 border rounded hover:bg-gray-100"
+                        >
+                          {v.sku || `Variant ${i + 1}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4 mt-6 w-full">
                   <CheckoutButton
                     product={{
@@ -315,7 +345,6 @@ export default function DetailsPage({ params }: { params: Params }) {
               </div>
             </div>
 
-            {/* Extra details */}
             <div className="mt-6 bg-gray-50 p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
               {Array.isArray(condition) && condition.length > 0 && (
                 <div>
@@ -325,7 +354,6 @@ export default function DetailsPage({ params }: { params: Params }) {
               )}
             </div>
 
-            {/* Description */}
             {short_desc && (
               <div className="mt-6 bg-gray-50 p-4 rounded">
                 <h2 className="text-lg font-semibold mb-2">Description</h2>
@@ -334,7 +362,6 @@ export default function DetailsPage({ params }: { params: Params }) {
             )}
           </>
         );
-
       case "key_features":
         return (
           <CollapsibleSection key={code} code={code} name={name}>
@@ -344,7 +371,6 @@ export default function DetailsPage({ params }: { params: Params }) {
             </div>
           </CollapsibleSection>
         );
-
       case "product_specifications":
         return (
           <div>
@@ -358,13 +384,11 @@ export default function DetailsPage({ params }: { params: Params }) {
                 {attributes?.length > 0 &&
                   attributes?.map((attribute) => renderAttribute(attribute))}
               </div>
-
               {children.length > 0 &&
                 children.map((child) => renderGroup(child, level + 1))}
             </CollapsibleSection>
           </div>
         );
-
       default:
         if (
           code === "identification_branding" ||
@@ -385,11 +409,8 @@ export default function DetailsPage({ params }: { params: Params }) {
     }
   };
 
-  if (loading) {
-    return <Loading loading={true} />;
-  }
-
-  if (error) {
+  if (loading) return <Loading loading={true} />;
+  if (error)
     return (
       <div className="w-full p-8 text-center">
         <div className="text-red-500 mb-4">{error}</div>
@@ -401,9 +422,7 @@ export default function DetailsPage({ params }: { params: Params }) {
         </button>
       </div>
     );
-  }
-
-  if (!product) {
+  if (!product)
     return (
       <div className="w-full p-8 text-center">
         <div className="text-xl mb-4">Product not found</div>
@@ -415,7 +434,6 @@ export default function DetailsPage({ params }: { params: Params }) {
         </Link>
       </div>
     );
-  }
 
   return (
     <div className="w-full bg-gray-100 p-4 md:p-8">
