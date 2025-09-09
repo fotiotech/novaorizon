@@ -67,18 +67,53 @@ export async function findProducts(id?: string) {
     await connection();
 
     if (id) {
-      const product: any = await Product.findById(id).lean().exec();
+      const product: any = await Product.findById(id)
+        .populate("brand", "name") // Populate brand name
+        .populate("category_id", "name") // Populate category name
+        .populate({
+          path: "related_products.ids",
+          select: "name price image slug", // Select fields for related products
+        })
+        .lean()
+        .exec();
+
       if (!product) {
         return { success: false, error: "Product not found" };
       }
-      return {
+
+      // Convert MongoDB ObjectIds to strings for the main product
+      const result = {
         ...product,
         _id: product._id?.toString(),
-        category_id: product.category_id?.toString(),
+        category_id:
+          product.category_id?._id?.toString() ||
+          product.category_id?.toString(),
+        brand: product.brand?._id?.toString() || product.brand?.toString(),
       };
+
+      // If related products exist, convert their IDs to strings
+      if (result.related_products?.ids) {
+        result.related_products.ids = result.related_products.ids.map(
+          (relatedProduct: any) => ({
+            ...relatedProduct,
+            _id: relatedProduct._id?.toString(),
+            category_id: relatedProduct.category_id?.toString(),
+          })
+        );
+      }
+
+      console.log({ result });
+
+      return result;
     }
 
-    const products = await Product.find().sort({ createdAt: -1 }).lean().exec();
+    const products = await Product.find()
+      .populate("brand", "name")
+      .populate("category_id", "name")
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
     if (!products) {
       console.error("No products found");
     }
@@ -86,7 +121,9 @@ export async function findProducts(id?: string) {
     return products.map((product: any) => ({
       ...product,
       _id: product._id?.toString(),
-      category_id: product.category_id?.toString(),
+      category_id:
+        product.category_id?._id?.toString() || product.category_id?.toString(),
+      brand: product.brand?._id?.toString() || product.brand?.toString(),
     }));
   } catch (error) {
     console.error("Error finding products:", error);

@@ -148,15 +148,18 @@ export default function DetailsPage({ params }: { params: Params }) {
           </div>
         );
       case "related_products":
-        const relatedProducts = value as RelatedProduct[];
-        if (!Array.isArray(relatedProducts) || relatedProducts.length === 0) {
+        const relatedProducts = value;
+        if (
+          !Array.isArray(relatedProducts?.ids) ||
+          relatedProducts?.ids?.length === 0
+        ) {
           return null;
         }
         return (
           <div key={code} className="mt-6">
             <h2 className="text-lg font-semibold mb-4">{name}</h2>
             <div className="grid grid-cols-2 gap-4">
-              {relatedProducts.map((relatedProduct) => (
+              {relatedProducts?.ids?.map((relatedProduct: any) => (
                 <Link
                   key={relatedProduct._id}
                   href={`/${relatedProduct.url_slug || "product"}/details/${

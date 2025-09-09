@@ -162,7 +162,7 @@ const Header = () => {
           {category &&
             category.map((cat, index) => (
               <li key={index} className="inline-block pt-2 px-2">
-                {cat.categoryName}
+                {cat.name}
               </li>
             ))}
         </ul>

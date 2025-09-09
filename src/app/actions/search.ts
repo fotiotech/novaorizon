@@ -15,7 +15,7 @@ async function detectCategory(query: string) {
   const q = query.toLowerCase();
   const categories = await Category.find();
   for (const c of categories) {
-    if (q.includes(c.categoryName?.toLowerCase())) return c?._id?.toString();
+    if (q.includes(c.name?.toLowerCase())) return c?._id?.toString();
   }
   return null;
 }
@@ -55,7 +55,7 @@ export async function searchProducts(
               {
                 multi_match: {
                   query,
-                  fields: ["name^3", "description"],
+                  fields: ["title^3", "description"],
                   fuzziness: "AUTO",
                 },
               },
@@ -86,7 +86,7 @@ export async function searchProducts(
           if (catDoc)
             category = {
               _id: catDoc._id.toString(),
-              name: catDoc.categoryName,
+              name: catDoc.name,
             };
         }
 

@@ -16,15 +16,10 @@ export type Category = {
   _id?: string;
   parent_id?: string;
   url_slug?: string;
-  categoryName?: string;
+  name?: string;
   description?: string;
   imageUrl?: string[];
-  attributes?: [
-    {
-      attrName: string;
-      attrValue: string[];
-    }
-  ];
+  attributes?: string[];
   seo_title?: string;
   seo_desc?: string;
   keywords?: string;

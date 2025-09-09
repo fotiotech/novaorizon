@@ -61,7 +61,7 @@ export async function ensureProductIndex(): Promise<void> {
       },
       mappings: {
         properties: {
-          name: {
+          title: {
             type: "text",
             fields: {
               keyword: { type: "keyword" },
