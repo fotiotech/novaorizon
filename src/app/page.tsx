@@ -299,7 +299,31 @@ export default function Home() {
 
       <main className="bg-background">
         <Hero />
+        {/* New Arrivals Section */}
+        <section className="w-full bg-surface p-4 lg:px-10 lg:mt-1 mb-1 bg-blue-50 border-y border-gray-200">
+          <h2 className="lg:mb-6 mb-4 font-bold text-2xl lg:text-3xl text-gray-800">
+            New Arrivals
+          </h2>
 
+          {loadingProducts ? (
+            <div className="flex justify-center py-12">
+              <Spinner size={40} text="Loading products..." />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-4 lg:gap-6">
+                {visibleProducts.map((product) => renderProductCard(product))}
+              </div>
+
+              {visibleCount < productsState.allIds.length && (
+                <div className="flex justify-center mt-8">
+                  <Spinner size={32} text="Loading more products..." />
+                </div>
+              )}
+            </>
+          )}
+        </section>
+        
         {/* Product Collections Section */}
         {productCollections.length > 0 && (
           <section className="w-full bg-white p-4 lg:px-10 lg:py-8 mb-6">
@@ -353,31 +377,6 @@ export default function Home() {
             )}
           </section>
         )}
-
-        {/* New Arrivals Section */}
-        <section className="w-full bg-surface p-4 lg:px-10 lg:mt-1 mb-1 bg-blue-50 border-y border-gray-200">
-          <h2 className="lg:mb-6 mb-4 font-bold text-2xl lg:text-3xl text-gray-800">
-            New Arrivals
-          </h2>
-
-          {loadingProducts ? (
-            <div className="flex justify-center py-12">
-              <Spinner size={40} text="Loading products..." />
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-4 lg:gap-6">
-                {visibleProducts.map((product) => renderProductCard(product))}
-              </div>
-
-              {visibleCount < productsState.allIds.length && (
-                <div className="flex justify-center mt-8">
-                  <Spinner size={32} text="Loading more products..." />
-                </div>
-              )}
-            </>
-          )}
-        </section>
       </main>
     </Layout>
   );

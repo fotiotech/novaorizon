@@ -93,16 +93,24 @@ export async function getCollectionsWithProducts() {
   try {
     await connection();
 
+    console.log("Fetching collections with products...");
+
     const collections = await ProductCollection.find({})
       .populate("category_id", "name")
       .sort({ created_at: -1 })
       .lean();
+
+    console.log(`Found ${collections.length} collections`);
 
     const results = [];
 
     for (const collection of collections) {
       // Build query from rules
       const query = buildQueryFromRules(collection.rules);
+
+      console.log(`Collection: ${collection.name}`);
+      console.log(`Rules: ${JSON.stringify(collection.rules)}`);
+      console.log(`Built query: ${JSON.stringify(query)}`);
 
       let matchingProducts: any = [];
 
@@ -111,6 +119,14 @@ export async function getCollectionsWithProducts() {
           .populate("category_id", "name")
           .limit(50) // Limit products to avoid overloading
           .lean();
+
+        console.log(
+          `Found ${matchingProducts.length} products for collection ${collection.name}`
+        );
+      } else {
+        console.log(
+          `No rules defined for collection ${collection.name}, returning empty product list`
+        );
       }
 
       results.push({
