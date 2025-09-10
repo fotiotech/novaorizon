@@ -10,16 +10,15 @@ const AddToCart = ({ product }: { product: any }) => {
 
   if (!product) return null;
 
-  // 1. Title (from identification_branding.name)
-  const title: string = product.identification_branding?.name || "";
+  const title: string = product?.name || "";
 
   // 2. Image URL (prefer main_image, otherwise first gallery image)
-  const mainImage: string | undefined = product.media_visuals?.main_image;
-  const gallery: string[] = product.media_visuals?.gallery || [];
+  const mainImage: string | undefined = product?.main_image;
+  const gallery: string[] = product?.gallery || [];
   const imageUrl: string = mainImage || gallery[0] || "";
 
   // 3. Price (from pricing_availability.price)
-  const salePrice: number = product.pricing_availability?.price ?? 0;
+  const salePrice: number = product?.price ?? 0;
 
   // 4. Product ID
   const productId: string = product._id || "";

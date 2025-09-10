@@ -95,7 +95,7 @@ interface ProductBasicInfoProps {
               product={{
                 _id,
                 name: title,
-                main_image,
+                image: main_image,
                 price: list_price,
               }}
             />
