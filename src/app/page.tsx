@@ -328,7 +328,9 @@ export default function Home() {
           ) : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-4 lg:gap-6">
-                {visibleProducts.map((product) => renderProductCard(product))}
+                {visibleProducts
+                  .slice(0, 4)
+                  ?.map((product) => renderProductCard(product))}
               </div>
 
               {visibleCount < productsState.allIds.length && (
@@ -380,9 +382,9 @@ export default function Home() {
                     <h3 className="text-xl font-semibold mb-3 text-gray-800">
                       {collection.name}
                     </h3>
-                    <p className="text-gray-600 mb-4">
+                    {/* <p className="text-gray-600 mb-4">
                       {collection.description}
-                    </p>
+                    </p> */}
 
                     <div className="space-y-4">
                       {collection.groups?.map(renderCollectionGroup)}
