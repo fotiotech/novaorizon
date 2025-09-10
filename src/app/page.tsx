@@ -189,7 +189,7 @@ export default function Home() {
         >
           <div
             onClick={handleProductClick}
-            className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow duration-300 bg-white p-3 h-full"
+            className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow duration-300 bg-white h-full"
           >
             <div className="w-full relative  bg-gray-100 rounded">
               {main_image ? (
@@ -204,7 +204,7 @@ export default function Home() {
               {title || "No Title"}
             </h3>
             {shortDesc && (
-              <p className="text-sm text-gray-500 line-clamp-2">{shortDesc}</p>
+              <p className="text-sm text-gray-500 line-clamp-2 ">{shortDesc}</p>
             )}
             {list_price !== undefined && (
               <div className="mt-1">
@@ -223,7 +223,8 @@ export default function Home() {
   // Render collection group
   const renderCollectionGroup = useCallback((group: CollectionGroup) => {
     return (
-      <div
+      <Link
+        href={group.ctaUrl}
         key={group._id}
         className="relative rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 bg-white"
       >
@@ -248,7 +249,7 @@ export default function Home() {
             {group.ctaText}
           </Link> */}
         </div>
-      </div>
+      </Link>
     );
   }, []);
 
@@ -316,7 +317,7 @@ export default function Home() {
       <main className="bg-background">
         <Hero />
         {/* New Arrivals Section */}
-        <section className="w-full bg-surface p-4 lg:px-10 lg:mt-1 mb-1 bg-blue-50 border-y border-gray-200">
+        <section className="w-full bg-surface p-2 lg:px-10 lg:mt-1 mb-1 border-y border-gray-200">
           <h2 className="lg:mb-6 mb-4 font-bold text-2xl lg:text-3xl text-gray-800">
             New Arrivals
           </h2>
@@ -327,7 +328,7 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-4 lg:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-2 lg:gap-6">
                 {visibleProducts
                   .slice(0, 4)
                   ?.map((product) => renderProductCard(product))}
@@ -363,7 +364,7 @@ export default function Home() {
 
         {/* Regular Collections Section */}
         {collections.length > 0 && (
-          <section className="w-full bg-white p-4 lg:px-10 lg:py-8 mb-6">
+          <section className="w-full bg-white p-2 lg:px-10 lg:py-8 mb-6">
             <h2 className="text-2xl lg:text-3xl font-bold mb-6 text-center text-gray-800">
               Featured Collections
             </h2>
@@ -386,7 +387,7 @@ export default function Home() {
                       {collection.description}
                     </p> */}
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-4 lg:gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-2 lg:gap-6">
                       {collection.groups?.map(renderCollectionGroup)}
                     </div>
                   </div>
