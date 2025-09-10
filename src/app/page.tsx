@@ -5,7 +5,7 @@ import ImageRenderer from "@/components/ImageRenderer";
 import Layout from "@/components/Layout";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Prices } from "@/components/cart/Prices";
 import { triggerNotification } from "./actions/notifications";
 import Head from "next/head";
@@ -13,10 +13,11 @@ import { useAppDispatch, useAppSelector } from "./hooks";
 import { fetchUserEvents } from "@/fetch/fetchUser";
 import { fetchProducts } from "@/fetch/fetchProducts";
 import { useSession } from "next-auth/react";
-import { getCollectionsWithProducts } from "./actions/products";
 import Spinner from "@/components/Spinner";
-import CategoryCard from "@/components/categoryCard";
+import { getAllCollections } from "./actions/collection";
+import { getCollectionsWithProducts } from "./actions/prodcollection";
 
+// Move interfaces to separate file if possible, or keep here if necessary
 interface Product {
   _id: string;
   url_slug?: string;
@@ -30,84 +31,119 @@ interface Product {
   gallery?: string[];
 }
 
+interface CollectionGroup {
+  _id: string;
+  ctaText: string;
+  ctaUrl: string;
+  description: string;
+  imageUrl: string;
+  name: string;
+  position: number;
+}
+
+interface Collection {
+  _id: string;
+  createdAt: string;
+  description: string;
+  display: string;
+  groups: CollectionGroup[];
+  name: string;
+  status: string;
+  updatedAt: string;
+  __v: number;
+}
+
+interface ProductCollection {
+  collection: {
+    _id: string;
+    name: string;
+    description: string;
+    display: string;
+    category: string;
+    created_at: string;
+    updated_at: string;
+  };
+  products: Product[];
+  productCount: number;
+}
+
 export default function Home() {
   const dispatch = useAppDispatch();
   const session = useSession();
   const user = session?.data?.user as any;
   const productsState = useAppSelector((state) => state.product);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [visibleCount, setVisibleCount] = useState(8); // start with 8 products
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [productCollections, setProductCollections] = useState<
+    ProductCollection[]
+  >([]);
+  const [visibleCount, setVisibleCount] = useState(8);
+  const [loadingCollections, setLoadingCollections] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
+  // Memoized product data
+  const visibleProducts = useMemo(
+    () =>
+      productsState.allIds
+        .slice(0, visibleCount)
+        .map((id) => productsState.byId[id]),
+    [productsState.allIds, productsState.byId, visibleCount]
+  );
+
+  // Fetch data on component mount
   useEffect(() => {
-    dispatch(fetchProducts());
-
-    const fetchCollections = async () => {
+    const loadData = async () => {
       try {
-        const response = await getCollectionsWithProducts();
-        if (!response.success) throw new Error("Failed to fetch collections");
-        setCollections(response.data || []);
+        setLoadingProducts(true);
+        setLoadingCollections(true);
+
+        // Fetch products and collections in parallel
+        await Promise.all([
+          dispatch(fetchProducts()),
+          (async () => {
+            try {
+              const [collectionsResponse, productCollectionsResponse] =
+                await Promise.all([
+                  getCollectionsWithProducts(),
+                  getCollectionsWithProducts(),
+                ]);
+
+              if (collectionsResponse.success) {
+                setCollections((collectionsResponse.data as any) || []);
+              }
+
+              if (productCollectionsResponse.success) {
+                setProductCollections(
+                  (productCollectionsResponse.data as any) || []
+                );
+              }
+            } catch (error) {
+              console.error("Error fetching collections:", error);
+            } finally {
+              setLoadingCollections(false);
+            }
+          })(),
+        ]);
       } catch (error) {
-        console.error("Error fetching collections:", error);
+        console.error("Error loading data:", error);
+      } finally {
+        setLoadingProducts(false);
       }
     };
-    fetchCollections();
+
+    loadData();
 
     if (user?.id) {
       dispatch(fetchUserEvents(user?.id, "click", 10));
     }
   }, [dispatch, user]);
 
-  const handleProductClick = () => {
-    if (user?.id)
-      triggerNotification(user?.id, "A customer clicked on a product!");
-  };
-
-  const renderProductCard = (product: Product) => {
-    const { _id, url_slug, title, shortDesc, list_price, main_image } = product;
-
-    return (
-      <Link
-        href={`/${url_slug || "product"}/details/${_id}`}
-        key={_id}
-        aria-label="collection product"
-      >
-        <div
-          onClick={handleProductClick}
-          className="flex flex-col gap-1 mb-1  rounded cursor-pointer hover:shadow-lg transition-shadow"
-        >
-          <div className="w-full h-full relative flex-shrink-0 bg-gray-100 rounded">
-            {main_image ? (
-              <ImageRenderer image={main_image} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                No Image
-              </div>
-            )}
-          </div>
-          <h3 className="mt-2 w-full line-clamp-2 font-medium">
-            {title || "No Title"}
-          </h3>
-          {shortDesc && (
-            <p className="text-sm text-gray-500 line-clamp-2">{shortDesc}</p>
-          )}
-          {list_price !== undefined && (
-            <div className="mt-1">
-              <span className="font-bold">
-                <Prices amount={list_price} />
-              </span>
-            </div>
-          )}
-        </div>
-      </Link>
-    );
-  };
-
+  // Handle infinite scroll
   const handleScroll = useCallback(() => {
     if (
       window.innerHeight + window.scrollY >=
       document.documentElement.scrollHeight - 300
     ) {
-      setVisibleCount((prev) => prev + 8); // load 8 more products when scrolled near bottom
+      setVisibleCount((prev) => prev + 8);
     }
   }, []);
 
@@ -116,9 +152,118 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
-  const visibleProducts = productsState.allIds
-    .slice(0, visibleCount)
-    .map((id) => productsState.byId[id]);
+  // Product click handler
+  const handleProductClick = useCallback(() => {
+    if (user?.id) {
+      triggerNotification(user?.id, "A customer clicked on a product!");
+    }
+  }, [user]);
+
+  // Render product card
+  const renderProductCard = useCallback(
+    (product: Product) => {
+      const { _id, url_slug, title, shortDesc, list_price, main_image } =
+        product;
+
+      return (
+        <Link
+          href={`/${url_slug || "product"}/details/${_id}`}
+          key={_id}
+          aria-label={`View ${title || "product"}`}
+        >
+          <div
+            onClick={handleProductClick}
+            className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow duration-300 bg-white p-3 h-full"
+          >
+            <div className="w-full relative  bg-gray-100 rounded">
+              {main_image ? (
+                <ImageRenderer image={main_image} />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  No Image
+                </div>
+              )}
+            </div>
+            <h3 className="mt-2 w-full line-clamp-2 font-medium text-gray-800">
+              {title || "No Title"}
+            </h3>
+            {shortDesc && (
+              <p className="text-sm text-gray-500 line-clamp-2">{shortDesc}</p>
+            )}
+            {list_price !== undefined && (
+              <div className="mt-1">
+                <span className="font-bold text-gray-900">
+                  <Prices amount={list_price} />
+                </span>
+              </div>
+            )}
+          </div>
+        </Link>
+      );
+    },
+    [handleProductClick]
+  );
+
+  // Render collection group
+  const renderCollectionGroup = useCallback((group: CollectionGroup) => {
+    return (
+      <div
+        key={group._id}
+        className="relative rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 bg-white"
+      >
+        <div className="w-full relative bg-gray-100">
+          <Image
+            src={group.imageUrl}
+            alt={group.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+        </div>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold mb-2 text-gray-800">
+            {group.name}
+          </h3>
+          <p className="text-gray-600 text-sm mb-3">{group.description}</p>
+          <Link
+            href={group.ctaUrl}
+            className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors duration-200"
+          >
+            {group.ctaText}
+          </Link>
+        </div>
+      </div>
+    );
+  }, []);
+
+  // Render product collection
+  const renderProductCollection = useCallback(
+    (productCollection: ProductCollection) => {
+      const { collection, products } = productCollection;
+
+      return (
+        <div key={collection._id} className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-gray-800">
+              {collection.name}
+            </h3>
+            <Link
+              href={`/collection/${collection._id}`}
+              className="text-blue-600 hover:underline text-sm font-medium"
+            >
+              View All
+            </Link>
+          </div>
+          <p className="text-gray-600 mb-4">{collection.description}</p>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {products.slice(0, 4).map((product) => renderProductCard(product))}
+          </div>
+        </div>
+      );
+    },
+    [renderProductCard]
+  );
 
   return (
     <Layout>
@@ -155,21 +300,82 @@ export default function Home() {
       <main className="bg-background">
         <Hero />
 
-        <section className="w-full bg-surface p-2 lg:px-10 lg:mt-1 mb-1 bg-pri border-y">
-          <h2 className="lg:mb-4 mb-2 font-bold text-xl lg:text-3xl">
+        {/* Product Collections Section */}
+        {productCollections.length > 0 && (
+          <section className="w-full bg-white p-4 lg:px-10 lg:py-8 mb-6">
+            <h2 className="text-2xl lg:text-3xl font-bold mb-6 text-center text-gray-800">
+              Shop by Collection
+            </h2>
+
+            {loadingCollections ? (
+              <div className="flex justify-center py-12">
+                <Spinner size={40} text="Loading collections..." />
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {productCollections.map(renderProductCollection)}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Regular Collections Section */}
+        {collections.length > 0 && (
+          <section className="w-full bg-white p-4 lg:px-10 lg:py-8 mb-6">
+            <h2 className="text-2xl lg:text-3xl font-bold mb-6 text-center text-gray-800">
+              Featured Collections
+            </h2>
+
+            {loadingCollections ? (
+              <div className="flex justify-center py-12">
+                <Spinner size={40} text="Loading collections..." />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {collections.map((collection) => (
+                  <div
+                    key={collection._id}
+                    className="bg-gray-50 rounded-lg p-4 shadow-sm border border-gray-100"
+                  >
+                    <h3 className="text-xl font-semibold mb-3 text-gray-800">
+                      {collection.name}
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      {collection.description}
+                    </p>
+
+                    <div className="space-y-4">
+                      {collection.groups?.map(renderCollectionGroup)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* New Arrivals Section */}
+        <section className="w-full bg-surface p-4 lg:px-10 lg:mt-1 mb-1 bg-blue-50 border-y border-gray-200">
+          <h2 className="lg:mb-6 mb-4 font-bold text-2xl lg:text-3xl text-gray-800">
             New Arrivals
           </h2>
-          <div className="grid grid-cols-2  lg:grid-cols-4 mx-auto gap-3 lg:gap-5">
-            {productsState.allIds.length > 0 ? (
-              visibleProducts.map((product) => renderProductCard(product))
-            ) : (
-              <Spinner />
-            )}
-          </div>
-          {visibleCount < productsState.allIds.length && (
-            <div className="flex justify-center mt-4">
-              <Spinner />
+
+          {loadingProducts ? (
+            <div className="flex justify-center py-12">
+              <Spinner size={40} text="Loading products..." />
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-4 lg:gap-6">
+                {visibleProducts.map((product) => renderProductCard(product))}
+              </div>
+
+              {visibleCount < productsState.allIds.length && (
+                <div className="flex justify-center mt-8">
+                  <Spinner size={32} text="Loading more products..." />
+                </div>
+              )}
+            </>
           )}
         </section>
       </main>
