@@ -373,7 +373,7 @@ export default function Home() {
                 <Spinner size={40} text="Loading collections..." />
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-4">
                 {collections.map((collection) => (
                   <div
                     key={collection._id}
@@ -386,7 +386,7 @@ export default function Home() {
                       {collection.description}
                     </p> */}
 
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-4 lg:gap-6">
                       {collection.groups?.map(renderCollectionGroup)}
                     </div>
                   </div>
