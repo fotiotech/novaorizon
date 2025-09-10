@@ -89,44 +89,60 @@ export default function Home() {
     [productsState.allIds, productsState.byId, visibleCount]
   );
 
-  // Fetch data on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoadingProducts(true);
         setLoadingCollections(true);
 
-        // Fetch products and collections in parallel
-        await Promise.all([
-          dispatch(fetchProducts()),
-          (async () => {
-            try {
-              const [collectionsResponse, productCollectionsResponse] =
-                await Promise.all([
-                  getCollectionsWithProducts(),
-                  getCollectionsWithProducts(),
-                ]);
+        // Fetch products first
+        await dispatch(fetchProducts());
 
-              if (collectionsResponse.success) {
-                setCollections((collectionsResponse.data as any) || []);
-              }
+        // Then fetch collections separately
+        try {
+          console.log("Fetching collections...");
+          const collectionsResponse = await getAllCollections();
+          console.log("Collections response:", collectionsResponse);
 
-              if (productCollectionsResponse.success) {
-                setProductCollections(
-                  (productCollectionsResponse.data as any) || []
-                );
-              }
-            } catch (error) {
-              console.error("Error fetching collections:", error);
-            } finally {
-              setLoadingCollections(false);
-            }
-          })(),
-        ]);
+          if (collectionsResponse.success) {
+            setCollections((collectionsResponse.data as any) || []);
+          } else {
+            console.error(
+              "Failed to fetch collections:",
+              collectionsResponse.error
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching collections:", error);
+        }
+
+        // Then fetch product collections separately
+        try {
+          console.log("Fetching product collections...");
+          const productCollectionsResponse = await getCollectionsWithProducts();
+          console.log(
+            "Product collections response:",
+            productCollectionsResponse
+          );
+
+          if (productCollectionsResponse.success) {
+            setProductCollections(
+              (productCollectionsResponse.data as any) || []
+            );
+          } else {
+            console.error(
+              "Failed to fetch product collections:",
+              productCollectionsResponse.error
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching product collections:", error);
+        }
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
         setLoadingProducts(false);
+        setLoadingCollections(false);
       }
     };
 
@@ -211,26 +227,26 @@ export default function Home() {
         key={group._id}
         className="relative rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 bg-white"
       >
-        <div className="w-full relative bg-gray-100">
-          <Image
-            src={group.imageUrl}
-            alt={group.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
+        <div className="w-full relative  bg-gray-100 rounded">
+          {group?.imageUrl ? (
+            <ImageRenderer image={group?.imageUrl} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-400">
+              No Image
+            </div>
+          )}
         </div>
         <div className="p-4">
           <h3 className="text-lg font-semibold mb-2 text-gray-800">
             {group.name}
           </h3>
-          <p className="text-gray-600 text-sm mb-3">{group.description}</p>
+          {/* <p className="text-gray-600 text-sm mb-3">{group.description}</p>
           <Link
             href={group.ctaUrl}
             className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors duration-200"
           >
             {group.ctaText}
-          </Link>
+          </Link> */}
         </div>
       </div>
     );
@@ -254,7 +270,7 @@ export default function Home() {
               View All
             </Link>
           </div>
-          <p className="text-gray-600 mb-4">{collection.description}</p>
+          {/* <p className="text-gray-600 mb-4">{collection.description}</p> */}
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {products.slice(0, 4).map((product) => renderProductCard(product))}
@@ -323,7 +339,7 @@ export default function Home() {
             </>
           )}
         </section>
-        
+
         {/* Product Collections Section */}
         {productCollections.length > 0 && (
           <section className="w-full bg-white p-4 lg:px-10 lg:py-8 mb-6">
