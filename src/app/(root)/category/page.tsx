@@ -79,7 +79,7 @@ const ShopCategoryPage = () => {
 
       setProductsLoading(true);
       try {
-        const productsData = await findProductByCategory(selectedCategory.id);
+        const productsData = await findProductByCategory(selectedCategory._id);
         setProducts(productsData || []);
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -98,7 +98,7 @@ const ShopCategoryPage = () => {
     setSelectedCategory(category);
     setShowCategoryDropdown(false);
     // Update URL without page refresh
-    router.push(`/shop/category?id=${category._id}`, { scroll: false });
+    router.push(`/category?id=${category._id}`, { scroll: false });
   };
 
   // Filter and sort products
@@ -108,12 +108,13 @@ const ShopCategoryPage = () => {
     // Filter by price range
     result = result.filter(
       (product) =>
-        product.price >= priceRange[0] && product.price <= priceRange[1]
+        product.list_price >= priceRange[0] &&
+        product.list_price <= priceRange[1]
     );
 
     // Filter by stock status
     if (inStockOnly) {
-      result = result.filter((product) => product.inStock);
+      result = result.filter((product) => product.stock_status.join(", "));
     }
 
     // Filter by ratings
@@ -129,19 +130,21 @@ const ShopCategoryPage = () => {
     switch (sortBy) {
       case "price-low":
         result.sort(
-          (a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price)
+          (a, b) =>
+            (a.sale_price || a.list_price) - (b.sale_price || b.list_price)
         );
         break;
       case "price-high":
         result.sort(
-          (a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price)
+          (a, b) =>
+            (b.sale_price || b.list_price) - (a.sale_price || a.list_price)
         );
         break;
       case "rating":
         result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
-      case "name":
-        result.sort((a, b) => a.name.localeCompare(b.name));
+      case "title":
+        result.sort((a, b) => a.title.localeCompare(b.title));
         break;
       default: // featured
         result.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
@@ -466,7 +469,7 @@ const ShopCategoryPage = () => {
                 >
                   {filteredAndSortedProducts.map((product) => (
                     <div
-                      key={product.id}
+                      key={product._id}
                       className={
                         viewMode === "grid"
                           ? "bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
@@ -481,12 +484,12 @@ const ShopCategoryPage = () => {
                         }
                       >
                         <Image
-                          src={product.imageUrl || "/placeholder-product.jpg"}
-                          alt={product.name}
+                          src={product.main_image || "/placeholder-product.jpg"}
+                          alt={product.title}
                           fill
                           className="object-cover"
                         />
-                        {!product.inStock && (
+                        {!product.stock_status && (
                           <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
                             Out of Stock
                           </div>
@@ -500,7 +503,7 @@ const ShopCategoryPage = () => {
 
                       <div className="p-4 flex-1">
                         <h3 className="font-semibold text-lg mb-1">
-                          {product.name}
+                          {product.title}
                         </h3>
 
                         <div className="flex items-center mb-2">
@@ -513,17 +516,18 @@ const ShopCategoryPage = () => {
                         </div>
 
                         <div className="flex items-center mt-3">
-                          {product.discountPrice ? (
+                          {product.sale_price ? (
                             <>
                               <span className="text-xl font-bold">
-                                ${product.discountPrice}
+                                ${product.sale_price}
                               </span>
                               <span className="text-gray-500 line-through ml-2">
-                                ${product.price}
+                                ${product.list_price}
                               </span>
                               <span className="text-red-500 font-medium ml-2 text-sm">
                                 {Math.round(
-                                  (1 - product.discountPrice / product.price) *
+                                  (1 -
+                                    product.sale_price / product.list_price) *
                                     100
                                 )}
                                 % off
@@ -531,21 +535,23 @@ const ShopCategoryPage = () => {
                             </>
                           ) : (
                             <span className="text-xl font-bold">
-                              ${product.price}
+                              ${product.list_price}
                             </span>
                           )}
                         </div>
 
                         <div className="mt-4">
                           <button
-                            disabled={!product.inStock}
+                            disabled={!product.stock_status}
                             className={`w-full py-2 rounded-md text-sm ${
-                              product.inStock
+                              product.stock_status === "In Stock"
                                 ? "bg-blue-600 hover:bg-blue-700 text-white"
                                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
                             }`}
                           >
-                            {product.inStock ? "Add to Cart" : "Out of Stock"}
+                            {product.stock_status
+                              ? "Add to Cart"
+                              : "Out of Stock"}
                           </button>
                         </div>
                       </div>

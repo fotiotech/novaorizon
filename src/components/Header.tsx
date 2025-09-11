@@ -225,9 +225,9 @@ const Header = () => {
 
   // Memoize categories to prevent unnecessary re-renders
   const categoryList = useMemo(() => {
-    return category.map((cat, index) => (
+    return category.slice(0, 10).map((cat, index) => (
       <li key={index} className="inline-block pt-2 px-2">
-        {cat.name}
+        <Link href={`/category?id=${cat._id}`}>{cat.name}</Link>
       </li>
     ));
   }, [category]);
@@ -315,7 +315,7 @@ const Header = () => {
         </div>
 
         {/* Categories */}
-        <div className="mt-2 hidden lg:block">
+        <div className="mt-2">
           <ul className="whitespace-nowrap overflow-auto scrollbar-none">
             {categoryList}
           </ul>
