@@ -227,7 +227,7 @@ const ShopCategoryPage = () => {
             <ArrowDropDown />
           </button>
 
-          {showCategoryDropdown && (
+          {/* {showCategoryDropdown && (
             <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-300 rounded-md shadow-lg z-10 max-h-80 overflow-y-auto">
               {categories.map((category) => (
                 <button
@@ -245,7 +245,7 @@ const ShopCategoryPage = () => {
                 </button>
               ))}
             </div>
-          )}
+          )} */}
         </div>
 
         {selectedCategory && (

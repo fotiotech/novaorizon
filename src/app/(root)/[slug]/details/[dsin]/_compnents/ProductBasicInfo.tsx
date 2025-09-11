@@ -1,18 +1,20 @@
 import AddToCart from "@/components/AddToCart";
 import CheckoutButton from "@/components/CheckoutButton";
 import DetailImages from "@/components/DetailImages";
+import Link from "next/link";
 
 interface ProductBasicInfoProps {
   product: any;
   onVariantSelect: (variant: any) => void;
 }
 
- const ProductBasicInfo: React.FC<ProductBasicInfoProps> = ({
+const ProductBasicInfo: React.FC<ProductBasicInfoProps> = ({
   product,
   onVariantSelect,
 }) => {
   const {
     _id = "",
+    brand,
     title = "Untitled Product",
     model = "",
     list_price = 0,
@@ -27,6 +29,7 @@ interface ProductBasicInfoProps {
   return (
     <>
       <div className="flex flex-col md:flex-row gap-6">
+        <Link href={`/brandStore?brandId=${_id}`}> visit{brand?.name}</Link>
         {Array.isArray(gallery) && gallery.length > 0 ? (
           <div className="md:w-1/2">
             <DetailImages file={gallery} />
