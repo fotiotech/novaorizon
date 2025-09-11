@@ -4,6 +4,7 @@ import { connection } from "@/utils/connection";
 import Brand from "@/models/Brand";
 import Category from "@/models/Category";
 import { Client } from "@elastic/elasticsearch";
+import Product from "@/models/Product";
 
 const client = new Client({
   node: process.env.ELASTIC_NODE,
@@ -36,73 +37,59 @@ export async function searchProducts(
   page = 1,
   size = 10
 ) {
-  const from = (page - 1) * size;
+  await connection();
 
-  // Detect category and brand from query
-  const detectedCategory = await detectCategory(query);
-  const detectedBrand = await detectBrand(query);
+  // Convert Elasticsearch filters to MongoDB format
+  const mongoFilters: any = {};
 
-  if (detectedCategory)
-    filters.push({ term: { category_id: detectedCategory } });
-  if (detectedBrand) filters.push({ term: { brand: detectedBrand } });
+  filters.forEach((filter) => {
+    if (filter.term) {
+      Object.assign(mongoFilters, filter.term);
+    }
+    if (filter.range) {
+      Object.keys(filter.range).forEach((key) => {
+        mongoFilters[key] = { ...mongoFilters[key], ...filter.range[key] };
+      });
+    }
+  });
 
-  // Only include filter if non-empty
-  const esQuery =
-    query && query.trim() !== ""
-      ? {
-          bool: {
-            must: [
-              {
-                multi_match: {
-                  query,
-                  fields: ["title^3", "description"],
-                  fuzziness: "AUTO",
-                },
-              },
-            ],
-            ...(filters.length > 0 ? { filter: filters } : {}),
-          },
-        }
-      : { match_all: {} };
+  // Build MongoDB query
+  const mongoQuery: any = {};
+
+  if (query && query.trim() !== "") {
+    mongoQuery.$text = { $search: query };
+  }
+
+  if (Object.keys(mongoFilters).length > 0) {
+    mongoQuery.$and = [mongoFilters];
+  }
 
   try {
-    const result = await client.search({
-      index: process.env.ELASTIC_INDEX,
-      from,
-      size,
-      query: esQuery,
-      sort: [{ _score: { order: "desc" } }, { createdAt: { order: "desc" } }],
-    });
+    const products = await Product.find(mongoQuery)
+      .skip((page - 1) * size)
+      .limit(size)
+      .populate("category_id")
+      .populate("brand")
+      .exec();
 
-    // Populate category and brand
-    const hitsWithDetails = await Promise.all(
-      result.hits.hits.map(async (hit: any) => {
-        const source = hit._source;
-        let category = null;
-        let brand = null;
+    // Transform results to match expected format
+    const hits = products.map((product) => ({
+      _id: product._id.toString(),
+      _source: {
+        ...product.toObject(),
+        category: product.category_id,
+        brand: product.brand,
+      },
+    }));
 
-        if (source.category_id) {
-          const catDoc = await Category.findById(source.category_id);
-          if (catDoc)
-            category = {
-              _id: catDoc._id.toString(),
-              name: catDoc.name,
-            };
-        }
-
-        if (source.brand) {
-          const brandDoc = await Brand.findById(source.brand);
-          if (brandDoc)
-            brand = { _id: brandDoc._id.toString(), name: brandDoc.name };
-        }
-
-        return { ...hit, _source: { ...source, category, brand } };
-      })
-    );
-
-    return { ...result.hits, hits: hitsWithDetails };
+    return {
+      hits,
+      total: {
+        value: hits.length,
+      },
+    };
   } catch (err) {
-    console.error("Elasticsearch search error:", err);
+    console.error("MongoDB search error:", err);
     throw err;
   }
 }

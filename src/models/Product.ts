@@ -42,7 +42,7 @@ async function indexToES(doc: any) {
     await esClient.index({
       index: process.env.ELASTIC_INDEX || "",
       id: doc._id.toString(),
-      document: {
+      body: {
         category_id: doc.category_id.toString(),
         ...indexedFields, // Spread all other fields
         createdAt: doc.createdAt,

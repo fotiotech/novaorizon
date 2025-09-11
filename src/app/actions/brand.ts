@@ -1,4 +1,3 @@
-// app/actions/brand.ts
 "use server";
 
 import { connection } from "@/utils/connection";
@@ -41,6 +40,8 @@ export async function findProductsByBrand(brandId: string) {
     if (!products || products.length === 0) {
       return [];
     }
+
+    console.log({ products });
 
     return products.map((product) => ({
       ...product.toObject(),
