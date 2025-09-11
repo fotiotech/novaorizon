@@ -86,7 +86,8 @@ const Footer = () => {
                   height={20}
                   className="mr-2"
                 />
-                <span>123 Commerce Street, City, Country</span>
+                <span>Ngousso, Yaounde, Cameroun</span>
+                <span>Bonaberie, Douala, Cameroun</span>
               </div>
               <div className="flex items-center">
                 <Image
@@ -96,7 +97,7 @@ const Footer = () => {
                   height={20}
                   className="mr-2"
                 />
-                <span>+1 (555) 123-4567</span>
+                <span>+ (237) 696-210-939</span>
               </div>
               <div className="flex items-center">
                 <Image

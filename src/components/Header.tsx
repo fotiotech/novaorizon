@@ -135,7 +135,10 @@ const Sidebar = React.memo(
           }`}
         >
           <div className="p-4 flex justify-between items-center border-b border-gray-200">
-            <h2 className="text-xl font-semibold">Categories</h2>
+            <Link href={`/category`}>
+              <h2 className="text-xl font-semibold">Categories</h2>
+            </Link>
+
             <button
               title="category "
               type="button"
@@ -148,10 +151,10 @@ const Sidebar = React.memo(
 
           <div className="overflow-y-auto h-full pb-20">
             <ul className="py-4">
-              {categories.slice(0, 10).map((category, index) => (
+              {categories.slice(0, 15).map((category, index) => (
                 <li key={index} className="border-b border-gray-100">
                   <Link
-                    href={`/category/${category.url_slug || category._id}`}
+                    href={`/category?id=${category._id}`}
                     className="block py-3 px-6 hover:bg-gray-100 transition-colors"
                     onClick={onClose}
                   >

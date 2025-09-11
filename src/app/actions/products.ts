@@ -8,6 +8,16 @@ import "@/models/Brand";
 import "@/models/Category";
 import "@/models/Attribute";
 
+export async function findProductByCategory(id: string) {
+  await connection();
+
+  try {
+    const res = await Product.find({ category_id: id });
+    return res;
+  } catch (error) {
+    console.log(error);
+  }
+}
 
 export async function findProducts(id?: string) {
   try {

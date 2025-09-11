@@ -200,7 +200,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-            <h3 className="mt-2 w-full line-clamp-2 font-medium text-gray-800">
+            <h3 className="mt-2 w-full line-clamp-2 p-1 font-medium text-gray-800">
               {title || "No Title"}
             </h3>
             {shortDesc && (
@@ -237,7 +237,7 @@ export default function Home() {
             </div>
           )}
         </div>
-        <div className="p-4">
+        <div className="p-1">
           <h3 className="text-lg font-semibold mb-2 text-gray-800">
             {group.name}
           </h3>
@@ -345,7 +345,7 @@ export default function Home() {
 
         {/* Product Collections Section */}
         {productCollections.length > 0 && (
-          <section className="w-full bg-white p-4 lg:px-10 lg:py-8 mb-6">
+          <section className="w-full bg-white p-2 lg:px-10 lg:py-8 mb-6">
             <h2 className="text-2xl lg:text-3xl font-bold mb-6 text-center text-gray-800">
               Shop by Collection
             </h2>
@@ -378,7 +378,7 @@ export default function Home() {
                 {collections.map((collection) => (
                   <div
                     key={collection._id}
-                    className="bg-gray-50 rounded-lg p-4 shadow-sm border border-gray-100"
+                    className=" rounded-lg "
                   >
                     <h3 className="text-xl font-semibold mb-3 text-gray-800">
                       {collection.name}
