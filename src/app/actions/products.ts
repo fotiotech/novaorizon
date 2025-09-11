@@ -45,7 +45,7 @@ export async function findProducts(id?: string) {
         category_id:
           product.category_id?._id?.toString() ||
           product.category_id?.toString(),
-        brand: product.brand?._id?.toString() || product.brand?.toString(),
+        brand: { ...product.brand, _id: product.brand?._id?.toString() },
       };
 
       // If related products exist, convert their IDs to strings
@@ -80,7 +80,6 @@ export async function findProducts(id?: string) {
       _id: product._id?.toString(),
       category_id:
         product.category_id?._id?.toString() || product.category_id?.toString(),
-      brand: product.brand?._id?.toString() || product.brand?.toString(),
     }));
   } catch (error) {
     console.error("Error finding products:", error);

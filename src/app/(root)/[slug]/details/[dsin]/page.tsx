@@ -257,6 +257,8 @@ export default function DetailsPage({ params }: { params: Params }) {
   const groups = useAttributeGroups(product?.category_id);
   const { expandedSections, toggleSection } = useExpandedSections(groups);
 
+  console.log({ product });
+
   // Analytics event (view)
   useEffect(() => {
     if (product && user?.id) {

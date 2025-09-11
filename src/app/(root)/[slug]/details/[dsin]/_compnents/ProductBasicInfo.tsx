@@ -29,9 +29,13 @@ const ProductBasicInfo: React.FC<ProductBasicInfoProps> = ({
   return (
     <>
       <div className="flex flex-col md:flex-row gap-6">
-        <Link href={`/brandStore?brandId=${_id}`}> visit{brand?.name}</Link>
         {Array.isArray(gallery) && gallery.length > 0 ? (
           <div className="md:w-1/2">
+            {brand?.name && (
+              <Link href={`/brandStore?brandId=${_id}`} className="mb-2">
+                visit <span className="text-blue-600">{brand?.name}</span>
+              </Link>
+            )}
             <DetailImages file={gallery} />
           </div>
         ) : (
