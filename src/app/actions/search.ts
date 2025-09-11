@@ -64,6 +64,8 @@ export async function searchProducts(
     mongoQuery.$and = [mongoFilters];
   }
 
+  console.log({mongoQuery})
+
   try {
     const products = await Product.find(mongoQuery)
       .skip((page - 1) * size)
@@ -81,6 +83,8 @@ export async function searchProducts(
         brand: product.brand,
       },
     }));
+
+    console.log({hits, products })
 
     return {
       hits,
