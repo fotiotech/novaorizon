@@ -87,21 +87,19 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
 export async function createOrUpdateOrder(
   payment_ref: string,
   data: OrderData
-) {
+): Promise<{ success: boolean; order?: any; error?: string }> {
   await connection();
-
-  console.log("data", data);
 
   if (!payment_ref || !data) {
     console.error("[createOrUpdateOrder] Missing payment_ref or data");
-    return false;
+    return { success: false, error: "Missing payment_ref or data" };
   }
 
   console.log(
     `[createOrUpdateOrder] Creating/updating order with orderNumber: ${payment_ref}`
   );
 
-  // Destructure defaults for optional fields
+  // Destructure with defaults
   const {
     tax = 0,
     shippingCost = 0,
@@ -115,12 +113,11 @@ export async function createOrUpdateOrder(
       region: "",
       address: "",
       country: "",
-      carrier: "Novaorizon", // Default carrier
+      carrier: "Novaorizon",
     },
     ...rest
   } = data;
 
-  // Build payload including defaults and only valid shippingAddress
   const payload: any = {
     ...rest,
     orderNumber: payment_ref,
@@ -135,7 +132,7 @@ export async function createOrUpdateOrder(
       region: shippingAddress.region || "",
       city: shippingAddress.city || "",
       address: shippingAddress.address || "",
-      carrier: shippingAddress.carrier || "Novaorizon", // Default carrier
+      carrier: shippingAddress.carrier || "Novaorizon",
       country: shippingAddress.country || "",
     },
   };
@@ -145,50 +142,66 @@ export async function createOrUpdateOrder(
       { orderNumber: payment_ref },
       payload,
       {
-        upsert: true, // create if not found
-        new: true, // return the updated/created document
-        runValidators: true, // apply schema validation
-        setDefaultsOnInsert: true, // apply schema defaults on insert
+        upsert: true,
+        new: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
       }
     );
 
     console.log(
-      `[createOrUpdateOrder] Order ${savedOrder} saved/updated successfully`
+      `[createOrUpdateOrder] Order ${savedOrder._id} saved/updated successfully`
     );
 
-    if (
-      savedOrder &&
-      savedOrder.orderNumber === payment_ref &&
-      savedOrder.paymentStatus === "cancelled"
-    ) {
-      const createShipping = new Shipping({
-        orderId: savedOrder._id,
-        userId: savedOrder.userId,
-        address: {
-          street: savedOrder.shippingAddress.street,
-          city: savedOrder.shippingAddress.city,
-          region: savedOrder.shippingAddress.region,
-          address: savedOrder.shippingAddress.address,
-          country: savedOrder.shippingAddress.country,
-          carrier: savedOrder.shippingAddress.carrier || "Novaorizon",
-        },
-        trackingNumber: savedOrder.orderNumber,
-        shippingCost: savedOrder.shippingCost || 2,
-        status: "pending",
-      });
-      const res = await createShipping.save();
-
-      console.log(
-        savedOrder.shippingAddress,
-        `Shipping created for order ${savedOrder.orderNumber}:`,
-        res
-      );
+    // Create shipping record for PAID orders, not cancelled ones
+    if (savedOrder && savedOrder.paymentStatus === "paid") {
+      try {
+        const createShipping = new Shipping({
+          orderId: savedOrder._id,
+          userId: savedOrder.userId,
+          address: {
+            street: savedOrder.shippingAddress.street,
+            city: savedOrder.shippingAddress.city,
+            region: savedOrder.shippingAddress.region,
+            address: savedOrder.shippingAddress.address,
+            country: savedOrder.shippingAddress.country,
+            carrier: savedOrder.shippingAddress.carrier || "Novaorizon",
+          },
+          trackingNumber: await generateTrackingNumber(), // You should implement this
+          shippingCost: savedOrder.shippingCost || 0,
+          status: "processing", // Start with processing, not pending
+        });
+        
+        const shippingRes = await createShipping.save();
+        console.log(
+          `Shipping created for order ${savedOrder.orderNumber}:`,
+          shippingRes
+        );
+        
+        // Update order with shipping reference if needed
+        await Order.findByIdAndUpdate(savedOrder._id, {
+          shippingId: shippingRes._id
+        });
+      } catch (shippingError) {
+        console.error(
+          "[createOrUpdateOrder] Error creating shipping:",
+          shippingError
+        );
+        // Don't fail the whole operation if shipping creation fails
+      }
     }
-    return true;
+
+    return { success: true, order: savedOrder };
   } catch (err: any) {
     console.error("[createOrUpdateOrder] Error saving order:", err);
-    return false;
+    return { success: false, error: err.message };
   }
+}
+
+// Helper function to generate tracking numbers
+async function generateTrackingNumber(): Promise<string> {
+  const count = await Shipping.countDocuments();
+  return `NOV${String(count + 1).padStart(8, '0')}`;
 }
 
 export async function deleteOrder(orderNumber: string) {

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 // Define the Shipping Document Interface
 export interface IShipping extends Document {
@@ -13,9 +13,15 @@ export interface IShipping extends Document {
   };
   trackingNumber?: string;
   driver: string;
-  shippingMethod: 'standard' | 'express' | 'overnight';
+  shippingMethod: "standard" | "express" | "overnight";
   shippingCost: number;
-  status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'returned' | 'cancelled';
+  status:
+    | "pending"
+    | "assigned"
+    | "in_transit"
+    | "delivered"
+    | "returned"
+    | "cancelled";
   shippedAt?: Date;
   deliveredAt?: Date;
   createdAt: Date;
@@ -25,8 +31,13 @@ export interface IShipping extends Document {
 // Define the Shipping Schema
 const ShippingSchema = new Schema<IShipping>(
   {
-    orderId: { type: Schema.Types.ObjectId, ref: 'Order', required: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    orderId: {
+      type: Schema.Types.ObjectId,
+      ref: "Order",
+      required: true,
+      unique: true,
+    },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     address: {
       street: { type: String, required: true },
       city: { type: String, required: true },
@@ -34,19 +45,26 @@ const ShippingSchema = new Schema<IShipping>(
       address: { type: String, required: true },
       country: { type: String, required: true },
     },
-    trackingNumber: { type: String },
-    driver: { type: String, required: true, default: 'Novaorizon' },
+    trackingNumber: { type: String, unique: true },
+    driver: { type: String, required: true, default: "Novaorizon" },
     shippingMethod: {
       type: String,
-      enum: ['standard', 'express', 'overnight'],
+      enum: ["standard", "express", "overnight"],
       required: true,
-      default: 'standard',
+      default: "standard",
     },
     shippingCost: { type: Number, required: true, min: 0 },
     status: {
       type: String,
-      enum: ['pending', 'assigned', 'in_transit', 'delivered', 'returned', 'cancelled'],
-      default: 'pending',
+      enum: [
+        "pending",
+        "assigned",
+        "in_transit",
+        "delivered",
+        "returned",
+        "cancelled",
+      ],
+      default: "pending",
     },
     shippedAt: { type: Date },
     deliveredAt: { type: Date },
@@ -55,6 +73,8 @@ const ShippingSchema = new Schema<IShipping>(
 );
 
 // Export the Shipping Model
-const Shipping = mongoose.models.Shipping || mongoose.model<IShipping>('Shipping', ShippingSchema);
+const Shipping =
+  mongoose.models.Shipping ||
+  mongoose.model<IShipping>("Shipping", ShippingSchema);
 
 export default Shipping;

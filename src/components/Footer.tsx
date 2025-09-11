@@ -4,7 +4,7 @@ import React from "react";
 const Footer = () => {
   return (
     <footer className="bg-surface text-text w-full">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-2 py-8">
         {/* Main footer content */}
         <div className="flex flex-col lg:flex-row justify-between gap-8">
           {/* Brand/Logo Section */}
@@ -62,7 +62,7 @@ const Footer = () => {
                   placeholder="Your email address"
                   className="flex-1 px-4 py-2 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition-colors">
+                <button className="bg-blue-600 text-white px-2 py-2 rounded-r-lg hover:bg-blue-700 transition-colors">
                   Subscribe
                 </button>
               </div>
