@@ -13,7 +13,7 @@ const AddToCart = ({ product }: { product: any }) => {
   const title: string = product?.name || "";
 
   // 2. Image URL (prefer main_image, otherwise first gallery image)
-  const mainImage: string | undefined = product?.main_image;
+  const mainImage: string | undefined = product?.image;
   const gallery: string[] = product?.gallery || [];
   const imageUrl: string = mainImage || gallery[0] || "";
 
