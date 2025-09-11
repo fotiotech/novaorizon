@@ -28,18 +28,28 @@ export async function getBrands(brandId?: string) {
 }
 
 export async function findProductsByBrand(brandId: string) {
-  await connection();
+  if (!brandId) {
+    console.error("[findProductsByBrand] Missing brandId");
+    return [];
+  }
 
-  if (brandId) {
+  try {
+    await connection();
+
     const products = await Product.find({ brand: brandId });
-    if (products) {
-      return products.map((product) => ({
-        ...product.toObject(),
-        _id: product._id?.toString(),
-        category_id: product.category_id?.toString(),
-        
-      }));
+
+    if (!products || products.length === 0) {
+      return [];
     }
+
+    return products.map((product) => ({
+      ...product.toObject(),
+      _id: product._id?.toString() || "",
+      category_id: product.category_id?.toString() || "",
+    }));
+  } catch (error) {
+    console.error("[findProductsByBrand] Error:", error);
+    return [];
   }
 }
 
