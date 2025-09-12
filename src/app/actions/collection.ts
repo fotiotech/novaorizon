@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { connection } from "@/utils/connection";
 import mongoose from "mongoose";
 import Product from "@/models/Product";
@@ -199,7 +198,7 @@ export async function getCollectionById(id: string) {
 
     await connection();
 
-    const collection = await Collection.findById(id)
+    const collection: any = await Collection.findById(id)
       .populate("category_id", "name")
       .lean();
 
@@ -207,9 +206,40 @@ export async function getCollectionById(id: string) {
       return { success: false, error: "Collection not found" };
     }
 
-    return { success: true, data: collection };
-  } catch (error) {
+    // Build query from rules
+    const query = buildQueryFromRules(collection.rules);
+
+    let matchingProducts: any = [];
+
+    if (Object.keys(query).length > 0) {
+      matchingProducts = await Product.find(query)
+        .populate("category_id", "name")
+        .limit(50) // Limit products to avoid overloading
+        .lean();
+    }
+
+    const results = {
+      collection: {
+        _id: collection._id,
+        name: collection.name,
+        description: collection.description,
+        category: collection.category_id,
+        imageUrl: collection.imageUrl,
+        rules: collection.rules,
+        status: collection.status,
+        created_at: collection.created_at,
+        updated_at: collection.updated_at,
+      },
+      products: matchingProducts,
+      productCount: matchingProducts.length,
+    };
+
+    return { success: true, data: results };
+  } catch (error: any) {
     console.error("Error fetching collection:", error);
-    return { success: false, error: "Failed to fetch collection" };
+    return {
+      success: false,
+      error: error.message || "Failed to fetch collection",
+    };
   }
 }

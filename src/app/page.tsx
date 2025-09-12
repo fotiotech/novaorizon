@@ -129,9 +129,11 @@ CollectionCard.displayName = "CollectionCard";
 // Menu Section Component
 const MenuSection = memo(({ menu }: { menu: Menu }) => {
   return (
-    <section className="mb-8 ">
-      <div className=" p-2 rounded-lg mb-4">
-        <h3 className="text-xl font-semibold text-gray-800">{menu.name}</h3>
+    <section className="mb-1 ">
+      <div className="rounded-lg mb-4">
+        <h3 className="lg:mb-6 mb-4 font-bold text-2xl lg:text-3xl text-gray-800">
+          {menu.name}
+        </h3>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
