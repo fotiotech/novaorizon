@@ -60,6 +60,8 @@ export async function getAllMenuWithCollections() {
       .populate("collections")
       .sort({ createdAt: -1 });
 
+    console.log(menus.map((c: any) => c.collections));
+
     return {
       success: true,
       data: JSON.parse(JSON.stringify(menus)),

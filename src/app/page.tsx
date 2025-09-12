@@ -145,6 +145,8 @@ const MenuSection = memo(({ menu }: { menu: Menu }) => {
 
 MenuSection.displayName = "MenuSection";
 
+
+
 export default function Home() {
   const dispatch = useAppDispatch();
   const session = useSession();

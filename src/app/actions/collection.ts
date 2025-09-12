@@ -168,9 +168,7 @@ export async function getCollectionsWithProducts() {
         collection: {
           _id: collection._id,
           name: collection.name,
-          display: collection.display,
           description: collection.description,
-          parent: collection.parent,
           category: collection.category_id,
           imageUrl: collection.imageUrl,
           rules: collection.rules,
