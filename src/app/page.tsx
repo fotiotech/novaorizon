@@ -13,7 +13,7 @@ import { fetchUserEvents } from "@/fetch/fetchUser";
 import { fetchProducts } from "@/fetch/fetchProducts";
 import { useSession } from "next-auth/react";
 import Spinner from "@/components/Spinner";
-import { getAllCollections } from "./actions/collection";
+import { getAllMenuWithCollections } from "@/app/actions/menu";
 
 // Move interfaces to separate file if possible
 interface Product {
@@ -41,6 +41,17 @@ interface Collection {
   __v: number;
   parent?: string;
   children?: Collection[];
+}
+
+interface Menu {
+  _id: string;
+  name: string;
+  description: string;
+  collections: Collection[];
+  ctaUrl: string;
+  ctaText: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Memoized Product Card Component
@@ -94,63 +105,54 @@ const ProductCard = memo(
 
 ProductCard.displayName = "ProductCard";
 
-// Memoized Collection Node Component
-const CollectionNode = memo(
-  ({ collection, level = 0 }: { collection: Collection; level?: number }) => {
-    return (
-      <div className="mb-4" style={{ marginLeft: `${level * 20}px` }}>
-        <div className="rounded-lg bg-gray-50 p-4 border border-gray-200">
-          <h3 className="text-xl font-semibold mb-3 text-gray-800">
-            {collection.name}
-            {level > 0 && (
-              <span className="ml-2 text-sm text-gray-500">
-                (Child collection)
-              </span>
-            )}
-          </h3>
-
-          {collection?.imageUrl ? (
-            <div className="w-full relative aspect-video mb-3">
-              <ImageRenderer image={collection.imageUrl} />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-32 text-gray-400 mb-3">
-              No Image
-            </div>
-          )}
-
-          {collection.description && (
-            <p className="text-gray-600">{collection.description}</p>
-          )}
+// Collection Card Component
+const CollectionCard = memo(({ collection }: { collection: Collection }) => {
+  return (
+    <Link
+      href={`/collection?id=${collection._id}`}
+      className="block rounded-lg bg-white p-4 shadow-md hover:shadow-lg transition-shadow h-full"
+    >
+      {collection.imageUrl && (
+        <div className="w-full relative aspect-square mb-3">
+          <ImageRenderer image={collection.imageUrl} />
         </div>
+      )}
+      <h4 className="text-lg font-semibold mb-2 text-gray-800">
+        {collection.name}
+      </h4>
+    </Link>
+  );
+});
 
-        {/* Render child collections */}
-        {collection.children && collection.children.length > 0 && (
-          <div className="mt-2">
-            {collection.children.map((child) => (
-              <CollectionNode
-                key={child._id}
-                collection={child}
-                level={level + 1}
-              />
-            ))}
-          </div>
-        )}
+CollectionCard.displayName = "CollectionCard";
+
+// Menu Section Component
+const MenuSection = memo(({ menu }: { menu: Menu }) => {
+  return (
+    <section className="mb-8">
+      <div className="bg-gray-50 p-4 rounded-lg mb-4">
+        <h3 className="text-xl font-semibold text-gray-800">{menu.name}</h3>
       </div>
-    );
-  }
-);
 
-CollectionNode.displayName = "CollectionNode";
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {menu.collections.map((collection) => (
+          <CollectionCard key={collection._id} collection={collection} />
+        ))}
+      </div>
+    </section>
+  );
+});
+
+MenuSection.displayName = "MenuSection";
 
 export default function Home() {
   const dispatch = useAppDispatch();
   const session = useSession();
   const user = session?.data?.user as any;
   const productsState = useAppSelector((state) => state.product);
-  const [collectionTree, setCollectionTree] = useState<Collection[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
   const [visibleCount, setVisibleCount] = useState(8);
-  const [loadingCollections, setLoadingCollections] = useState(true);
+  const [loadingMenus, setLoadingMenus] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   // Memoized product data
@@ -174,24 +176,21 @@ export default function Home() {
     const loadData = async () => {
       try {
         setLoadingProducts(true);
-        setLoadingCollections(true);
+        setLoadingMenus(true);
 
-        // Fetch products and collections in parallel
+        // Fetch products and menus in parallel
         await Promise.all([
           dispatch(fetchProducts()),
           (async () => {
             try {
-              const collectionsResponse = await getAllCollections();
-              if (collectionsResponse.success) {
-                setCollectionTree(collectionsResponse.data);
+              const menusResponse = await getAllMenuWithCollections();
+              if (menusResponse.success) {
+                setMenus(menusResponse.data);
               } else {
-                console.error(
-                  "Failed to fetch collections:",
-                  collectionsResponse.error
-                );
+                console.error("Failed to fetch menus:", menusResponse.error);
               }
             } catch (error) {
-              console.error("Error fetching collections:", error);
+              console.error("Error fetching menus:", error);
             }
           })(),
         ]);
@@ -199,7 +198,7 @@ export default function Home() {
         console.error("Error loading data:", error);
       } finally {
         setLoadingProducts(false);
-        setLoadingCollections(false);
+        setLoadingMenus(false);
       }
     };
 
@@ -241,13 +240,10 @@ export default function Home() {
     [visibleProducts, handleProductClick]
   );
 
-  // Memoized collection nodes
-  const collectionNodes = useMemo(
-    () =>
-      collectionTree.map((collection) => (
-        <CollectionNode key={collection._id} collection={collection} />
-      )),
-    [collectionTree]
+  // Memoized menu sections
+  const menuSections = useMemo(
+    () => menus.map((menu) => <MenuSection key={menu._id} menu={menu} />),
+    [menus]
   );
 
   return (
@@ -310,19 +306,15 @@ export default function Home() {
           )}
         </section>
 
-        {/* Collections Section with Hierarchy */}
-        {collectionTree.length > 0 && (
+        {/* Menus with Collections Section */}
+        {menus.length > 0 && (
           <section className="w-full bg-white p-2 lg:px-10 lg:py-8 mb-6">
-            <h2 className="text-2xl lg:text-3xl font-bold mb-6 text-center text-gray-800">
-              Our Collections
-            </h2>
-
-            {loadingCollections ? (
+            {loadingMenus ? (
               <div className="flex justify-center py-12">
-                <Spinner size={40} text="Loading collections..." />
+                <Spinner />
               </div>
             ) : (
-              <div className="space-y-4">{collectionNodes}</div>
+              <div className="space-y-8">{menuSections}</div>
             )}
           </section>
         )}
