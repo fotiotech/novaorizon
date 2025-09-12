@@ -110,14 +110,14 @@ const CollectionCard = memo(({ collection }: { collection: Collection }) => {
   return (
     <Link
       href={`/collection?id=${collection._id}`}
-      className="block rounded-lg bg-white p-4 shadow-md hover:shadow-lg transition-shadow h-full"
+      className="block rounded-lg bg-white shadow-md hover:shadow-lg transition-shadow h-full"
     >
       {collection.imageUrl && (
-        <div className="w-full relative aspect-square mb-3">
+        <div className="w-full relative aspect-square mb-1 bg-gray-50">
           <ImageRenderer image={collection.imageUrl} />
         </div>
       )}
-      <h4 className="text-lg font-semibold mb-2 text-gray-800">
+      <h4 className="text-lg p-2 font-semibold mb-1 text-gray-800">
         {collection.name}
       </h4>
     </Link>
@@ -129,12 +129,12 @@ CollectionCard.displayName = "CollectionCard";
 // Menu Section Component
 const MenuSection = memo(({ menu }: { menu: Menu }) => {
   return (
-    <section className="mb-8">
-      <div className="bg-gray-50 p-4 rounded-lg mb-4">
+    <section className="mb-8 ">
+      <div className=" p-2 rounded-lg mb-4">
         <h3 className="text-xl font-semibold text-gray-800">{menu.name}</h3>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {menu.collections.map((collection) => (
           <CollectionCard key={collection._id} collection={collection} />
         ))}
@@ -144,8 +144,6 @@ const MenuSection = memo(({ menu }: { menu: Menu }) => {
 });
 
 MenuSection.displayName = "MenuSection";
-
-
 
 export default function Home() {
   const dispatch = useAppDispatch();
