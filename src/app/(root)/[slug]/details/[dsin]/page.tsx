@@ -2,15 +2,9 @@
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import Loading from "@/app/loading";
 import React, { useEffect, useState, useCallback } from "react";
-import { fetchProducts } from "@/fetch/fetchProducts";
 import { useSession } from "next-auth/react";
-import { find_category_attribute_groups } from "@/app/actions/category";
 import Link from "next/link";
 import ImageRenderer from "@/components/ImageRenderer";
-import AddToCart from "@/components/AddToCart";
-import CheckoutButton from "@/components/CheckoutButton";
-import DetailImages from "@/components/DetailImages";
-import { ChevronUpIcon, ChevronDownIcon } from "lucide-react";
 import ProductBasicInfo from "./_compnents/ProductBasicInfo";
 import CollapsibleSection from "./_compnents/CollapsibleSection";
 import {
@@ -18,6 +12,7 @@ import {
   useAttributeGroups,
   useExpandedSections,
 } from "./_compnents/hooks";
+import Spinner from "@/components/Spinner";
 
 // Types
 interface Params {
@@ -257,8 +252,6 @@ export default function DetailsPage({ params }: { params: Params }) {
   const groups = useAttributeGroups(product?.category_id);
   const { expandedSections, toggleSection } = useExpandedSections(groups);
 
-  console.log({ product });
-
   // Analytics event (view)
   useEffect(() => {
     if (product && user?.id) {
@@ -280,10 +273,10 @@ export default function DetailsPage({ params }: { params: Params }) {
         setProduct(merged);
       }
     },
-    [product, setProduct]
+    [product]
   );
 
-  if (loading) return <Loading loading={true} />;
+  if (loading) return <Spinner size={32} />;
   if (error)
     return (
       <div className="w-full p-8 text-center">
@@ -310,7 +303,7 @@ export default function DetailsPage({ params }: { params: Params }) {
     );
 
   return (
-    <div className="w-full bg-gray-100 p-4 md:p-8">
+    <div className="w-full bg-white border-b-2 border-gray-300 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {groups.map((group) => (
           <AttributeGroupRenderer
