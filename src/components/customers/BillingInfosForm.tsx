@@ -172,13 +172,19 @@ const BillingAddresses: React.FC = () => {
 
         <div className="flex flex-col sm:col-span-2">
           <label className="mb-1">Payment Method</label>
-          <input
-            type="text"
+
+          <select
             name="methodType"
             defaultValue={paymentMeth}
             className="input input-bordered"
+            autoComplete="address-level1"
             title="Payment Method"
-          />
+          >
+            <option value="">-Select your Payment Method-</option>
+
+            <option value="Mobile Money">Mobile Money</option>
+            <option value="PayPal">PayPal</option>
+          </select>
         </div>
 
         <div className="sm:col-span-2 text-center mt-6">

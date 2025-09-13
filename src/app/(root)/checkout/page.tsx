@@ -114,7 +114,7 @@ const CheckoutPage = () => {
                 <ShippingForm shippingAddressCheck={shippingAddressCheck} />
               </div>
             )}
-            <GoogleMapBox />
+            {/* <GoogleMapBox /> */}
           </div>
         </div>
         <div className="flex flex-col gap-3 my-2">
@@ -147,7 +147,7 @@ const CheckoutPage = () => {
       <div onClick={saveCart} className="mt-4">
         <Link href={`/checkout/chat?roomId=${roomId}`}>
           <button className="bg-blue-600 w-full text-white px-4 py-2 rounded">
-            Chat with Support
+            Chat
           </button>
         </Link>
       </div>
