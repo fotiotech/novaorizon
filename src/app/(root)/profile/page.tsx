@@ -166,7 +166,7 @@ const Profile = () => {
 
               <div className="p-4 space-y-3">
                 <Link
-                  href={`/checkout/chat?roomId=`}
+                  href={`/checkout/chat`}
                   className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
                 >
                   <svg

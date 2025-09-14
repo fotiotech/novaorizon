@@ -92,21 +92,18 @@ export default function ChatWidget({ user, roomId }: ChatWidgetProps) {
   };
 
   useEffect(() => {
+    // In ChatWidget, improve the fetchRoom function:
     async function fetchRoom() {
-      if (!user) return;
-      const roomsRef = collection(db, "chatRooms"); // use collection, not doc
-      const q = query(roomsRef, where("roomId", "==", roomId));
-      const snap = await getDocs(q);
+      if (!roomId) return;
+      try {
+        const roomRef = doc(db, "chatRooms", roomId);
+        const roomSnap = await getDoc(roomRef);
 
-      if (!snap.empty) {
-        snap.forEach((docSnap) => {
-          setRoom({
-            roomId: docSnap.id,
-            ...(docSnap.data() as any),
-          });
-        });
-      } else {
-        console.log("No matching documents.");
+        if (roomSnap.exists()) {
+          setRoom({ id: roomSnap.id, ...roomSnap.data() });
+        }
+      } catch (error) {
+        console.error("Error fetching room:", error);
       }
     }
 

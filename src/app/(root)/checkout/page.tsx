@@ -19,7 +19,6 @@ export type CalcShippingPrice = {
   shippingPrice: number;
 };
 const CheckoutPage = () => {
-
   const { customerInfos } = useUser();
   const { cart } = useCart();
   const [shippingAddressCheck, setShippingAddressCheck] =
@@ -145,7 +144,7 @@ const CheckoutPage = () => {
         <OrderButton paymentMethod={customerInfos?.billingMethod?.methodType} />
       </div> */}
       <div onClick={saveCart} className="mt-4">
-        <Link href={`/checkout/chat?roomId=${roomId}`}>
+        <Link href={`/checkout/chat/${roomId}`}>
           <button className="bg-blue-600 w-full text-white px-4 py-2 rounded">
             Chat
           </button>
