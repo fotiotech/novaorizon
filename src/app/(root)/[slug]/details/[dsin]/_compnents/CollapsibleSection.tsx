@@ -24,7 +24,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       <div
         role="button"
         tabIndex={0}
-        className="w-full flex justify-between items-center hover:bg-gray-100 transition-colors cursor-pointer py-4"
+        className="w-full flex justify-between items-center transition-colors cursor-pointer py-4"
         onClick={() => onToggle(code)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") onToggle(code);
@@ -50,7 +50,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
           isExpanded ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        <div className="p-4">{children}</div>
+        <div className="">{children}</div>
       </div>
     </div>
   );

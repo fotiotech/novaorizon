@@ -13,6 +13,7 @@ import {
   useExpandedSections,
 } from "./_compnents/hooks";
 import Spinner from "@/components/Spinner";
+import ProductViewAnalytics from "./_compnents/ProductViewAnalytics";
 
 // Types
 interface Params {
@@ -142,8 +143,8 @@ const AttributeGroupRenderer: React.FC<AttributeGroupRendererProps> = ({
 
   // Skip these groups as they're handled elsewhere
   if (
-    code === "identification_branding" ||
-    code === "pricing_availability" ||
+    code === "product_identification" ||
+    code === "pricing_inventory" ||
     code === "variants_options"
   )
     return null;
@@ -245,26 +246,9 @@ const AttributeGroupRenderer: React.FC<AttributeGroupRendererProps> = ({
 
 // Main component
 export default function DetailsPage({ params }: { params: Params }) {
-  const dispatch = useAppDispatch();
-  const session = useSession();
-  const user = session?.data?.user as any;
   const { product, loading, error, setProduct } = useProductData(params?.dsin);
   const groups = useAttributeGroups(product?.category_id);
   const { expandedSections, toggleSection } = useExpandedSections(groups);
-
-  // Analytics event (view)
-  useEffect(() => {
-    if (product && user?.id) {
-      dispatch({
-        type: "userEvent/add",
-        payload: {
-          userId: user.id,
-          productId: params?.dsin,
-          eventType: "view",
-        },
-      });
-    }
-  }, [dispatch, product, user?.id, params?.dsin]);
 
   const handleVariantSelect = useCallback(
     (variant: any) => {
@@ -273,7 +257,7 @@ export default function DetailsPage({ params }: { params: Params }) {
         setProduct(merged);
       }
     },
-    [product]
+    [product, setProduct]
   );
 
   if (loading) return <Spinner size={32} />;
@@ -304,6 +288,7 @@ export default function DetailsPage({ params }: { params: Params }) {
 
   return (
     <div className="w-full bg-white border-b-2 border-gray-300 p-4 md:p-8">
+      <ProductViewAnalytics productId={params.dsin} />
       <div className="max-w-6xl mx-auto">
         {groups.map((group) => (
           <AttributeGroupRenderer
