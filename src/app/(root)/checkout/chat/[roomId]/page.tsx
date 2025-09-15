@@ -207,7 +207,7 @@ export default function ChatWidgetPage() {
 
         {/* Cart Summary */}
         {room?.cart && room.cart.length > 0 && (
-          <div className="p-4 bg-gray-600 text-white">
+          <div className="p-4 bg-gray-300 my-2 rounded-lg ">
             <h3 className="font-semibold mb-2 text-lg">Order Summary</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -232,6 +232,23 @@ export default function ChatWidgetPage() {
                     </li>
                   ))}
                 </ul>
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Summary</h4>
+                <div className="text-sm space-y-1">
+                  <p>
+                    Shipping: {room?.shipping_price?.shippingPrice || 0} CFA
+                  </p>
+                  <p className="font-bold mt-2">
+                    Total:{" "}
+                    {room.cart.reduce(
+                      (total: number, item: any) =>
+                        total + item.price * item.quantity,
+                      0
+                    ) + (room?.shipping_price?.shippingPrice || 0)}{" "}
+                    CFA
+                  </p>
+                </div>
               </div>
             </div>
           </div>
