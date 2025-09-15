@@ -56,7 +56,6 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
           <p className="text-gray-600 mt-1">
-            Price:{" "}
             <span className="font-bold ml-1">
               <Prices amount={item.price} />
             </span>
@@ -95,7 +94,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
         >
           <Delete fontSize="small" />
         </button>
-        <div className="text-lg font-bold text-gray-900 whitespace-nowrap">
+        <div className="text-lg hidden lg:block font-bold text-gray-900 whitespace-nowrap">
           <Prices amount={item.price * item.quantity} />
         </div>
       </div>
@@ -157,7 +156,7 @@ const Cart = () => {
   }
 
   return (
-    <div className="p-4">
+    <div className="p-2">
       <div className="flex justify-between items-center mb-4">
         <span className="text-gray-600">
           {cart.length} {cart.length === 1 ? "item" : "items"}
@@ -182,8 +181,6 @@ const Cart = () => {
             <Prices amount={total} />
           </span>
         </div>
-
-        
       </div>
     </div>
   );

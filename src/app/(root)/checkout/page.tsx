@@ -62,7 +62,7 @@ const CheckoutPage = () => {
 
   return (
     <div className="p-2 lg:p-4 max-w-5xl mx-auto g">
-      <h1 className="text-2xl font-bold">Checkout Page</h1>
+      <h1 className="text-2xl font-bold">Checkout</h1>
       <div className="lg:flex lg:justify-between lg:items-start mb-6">
         <div className="flex flex-col gap-3 my-2">
           <div>
