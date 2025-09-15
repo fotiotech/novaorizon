@@ -94,9 +94,7 @@ export default function ChatRoomListPage() {
         <div className="p-6 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Your Chat Rooms
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-800">Chats</h1>
               <p className="text-gray-600">
                 Select a chat to continue conversation
               </p>

@@ -233,23 +233,6 @@ export default function ChatWidgetPage() {
                   ))}
                 </ul>
               </div>
-              <div>
-                <h4 className="font-medium mb-1">Summary</h4>
-                <div className="text-sm space-y-1">
-                  <p>
-                    Shipping: {room?.shipping_price?.shippingPrice || 0} CFA
-                  </p>
-                  <p className="font-bold mt-2">
-                    Total:{" "}
-                    {room.cart.reduce(
-                      (total: number, item: any) =>
-                        total + item.price * item.quantity,
-                      0
-                    ) + (room?.shipping_price?.shippingPrice || 0)}{" "}
-                    CFA
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         )}
