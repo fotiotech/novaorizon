@@ -173,7 +173,7 @@ export default function ChatWidgetPage() {
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center">
             <Link
-              href="/chat"
+              href="/checkout/chat"
               className="mr-3 p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
               <svg

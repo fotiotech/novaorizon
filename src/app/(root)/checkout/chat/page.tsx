@@ -145,7 +145,7 @@ export default function ChatRoomListPage() {
                   className="p-4 hover:bg-blue-50 transition-colors duration-200 flex justify-between items-center"
                 >
                   <Link
-                    href={`/chat/${room.roomId}`}
+                    href={`/checkout/chat/${room.roomId}`}
                     className="flex-1 min-w-0"
                   >
                     <div className="flex justify-between items-start">
