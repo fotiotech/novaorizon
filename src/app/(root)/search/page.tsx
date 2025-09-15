@@ -152,7 +152,7 @@ const Search = () => {
       return (
         <Link
           key={item._id}
-          href={`/product/${item._id}`}
+          href={`/${title.slice(0, 15)}/details/${item._id}`}
           className="bg-white shadow rounded-2xl overflow-hidden hover:shadow-lg transition duration-200"
         >
           {imageUrl && (
