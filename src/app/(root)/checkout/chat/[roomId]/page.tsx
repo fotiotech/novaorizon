@@ -192,7 +192,7 @@ export default function ChatWidgetPage() {
             </Link>
             <div>
               <h1 className="text-xl font-semibold text-gray-800">
-                Chat with NovaOrizon
+                NovaOrizon
               </h1>
               <p className="text-sm text-gray-500">Room ID: {roomId}</p>
             </div>
@@ -207,7 +207,7 @@ export default function ChatWidgetPage() {
 
         {/* Cart Summary */}
         {room?.cart && room.cart.length > 0 && (
-          <div className="p-4 bg-gray-800 text-white">
+          <div className="p-4 bg-gray-600 text-white">
             <h3 className="font-semibold mb-2 text-lg">Order Summary</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
