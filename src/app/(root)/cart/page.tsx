@@ -5,7 +5,7 @@ import React from "react";
 const CartPage = () => {
   return (
     <>
-      <div className="p-2 bg-slate-50">
+      <div className="p-2 ">
         <h2 className=" font-bold text-xl">Your Cart</h2>
         <div className="text-center p-2">
           <CheckoutButton width="full" height="10">
