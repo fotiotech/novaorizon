@@ -1,4 +1,4 @@
-// pages/chat/[roomId].tsx (Chat Widget Page)
+// app/chat/[roomId]/page.tsx (Chat Widget Page)
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { db } from "@/utils/firebaseConfig";
@@ -8,20 +8,17 @@ import {
   deleteDoc,
   doc,
   getDoc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
-  where,
 } from "firebase/firestore";
 import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { TotalPrice } from "@/components/cart/Prices";
 
 interface Message {
   id: string;
@@ -64,7 +61,7 @@ export default function ChatWidgetPage() {
           from: user.name,
           to: "novaorizon",
           lastMessage: draft,
-          sentAt: serverTimestamp(),
+          lastUpdated: serverTimestamp(),
         },
         { merge: true }
       );
@@ -173,31 +170,39 @@ export default function ChatWidgetPage() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex items-center">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center">
+            <Link
+              href="/chat"
+              className="mr-3 p-2 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <svg
+                className="w-5 h-5 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </Link>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-800">
+                Chat with NovaOrizon
+              </h1>
+              <p className="text-sm text-gray-500">Room ID: {roomId}</p>
+            </div>
+          </div>
           <Link
             href="/chat"
-            className="mr-3 p-2 rounded-full hover:bg-gray-100 transition-colors"
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
           >
-            <svg
-              className="w-5 h-5 text-gray-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            All Chats
           </Link>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-800">
-              Chat with NovaOrizon
-            </h1>
-            <p className="text-sm text-gray-500">Room ID: {roomId}</p>
-          </div>
         </div>
 
         {/* Cart Summary */}
@@ -236,10 +241,11 @@ export default function ChatWidgetPage() {
                   </p>
                   <p className="font-bold mt-2">
                     Total:{" "}
-                    <TotalPrice
-                      cart={room?.cart}
-                      shippingPrice={room?.shipping_price?.shippingPrice}
-                    />{" "}
+                    {room.cart.reduce(
+                      (total: number, item: any) =>
+                        total + item.price * item.quantity,
+                      0
+                    ) + (room?.shipping_price?.shippingPrice || 0)}{" "}
                     CFA
                   </p>
                 </div>
