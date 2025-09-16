@@ -4,12 +4,12 @@ import React from "react";
 const Footer = () => {
   return (
     <footer className="bg-surface text-text w-full">
-      <div className="max-w-7xl mx-auto px-2 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Main footer content */}
-        <div className="flex flex-col lg:flex-row justify-between gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand/Logo Section */}
-          <div className="flex-1 flex flex-col items-center lg:items-start">
-            <div className="w-32 h-32 relative mb-4">
+          <div className="flex flex-col items-center md:items-start">
+            <div className="w-24 h-24 lg:w-32 lg:h-32 relative mb-4">
               <Image
                 src="/logo.png"
                 alt="Dyfk Logo"
@@ -17,13 +17,13 @@ const Footer = () => {
                 className="object-contain"
               />
             </div>
-            <p className="text-center lg:text-left mb-6">
+            <p className="text-center md:text-left mb-6 max-w-xs">
               Faites vos Achats en un <br />
               Clik sur Dyfk
             </p>
 
             {/* Social Media */}
-            <div className="flex items-center justify-center lg:justify-start mb-6">
+            <div className="flex items-center justify-center md:justify-start mb-6">
               <a href="#" className="mx-2 transition-transform hover:scale-110">
                 <Image
                   src="/perso/twitter-x-line.png"
@@ -56,13 +56,13 @@ const Footer = () => {
             {/* Newsletter Subscription */}
             <div className="w-full max-w-xs">
               <p className="font-medium mb-2">Subscribe to our newsletter</p>
-              <div className="flex">
+              <div className="flex flex-col sm:flex-row">
                 <input
                   type="email"
                   placeholder="Your email address"
-                  className="flex-1 px-4 py-2 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-4 py-2 rounded-t-lg sm:rounded-l-lg sm:rounded-t-none border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button className="bg-blue-600 text-white px-2 py-2 rounded-r-lg hover:bg-blue-700 transition-colors">
+                <button className="bg-blue-600 text-white px-4 py-2 rounded-b-lg sm:rounded-r-lg sm:rounded-b-none hover:bg-blue-700 transition-colors">
                   Subscribe
                 </button>
               </div>
@@ -70,7 +70,7 @@ const Footer = () => {
           </div>
 
           {/* Company Information */}
-          <div className="flex-1">
+          <div className="md:ml-4">
             <h3 className="text-xl font-semibold mb-4">Dyfk.com</h3>
             <p className="mb-4">
               Dyfk is your premier destination for quality products at
@@ -78,16 +78,20 @@ const Footer = () => {
               customer service and a seamless shopping experience.
             </p>
             <div className="space-y-2">
-              <div className="flex items-center">
-                <Image
-                  src="/perso/map-pin-line.png"
-                  alt="Address"
-                  width={20}
-                  height={20}
-                  className="mr-2"
-                />
-                <span>Ngousso, Yaounde, Cameroun</span>
-                <span>Bonaberie, Douala, Cameroun</span>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center">
+                <div className="flex items-center mb-1 sm:mb-0">
+                  <Image
+                    src="/perso/map-pin-line.png"
+                    alt="Address"
+                    width={20}
+                    height={20}
+                    className="mr-2"
+                  />
+                  <span>Ngousso, Yaounde, Cameroun</span>
+                </div>
+                <div className="flex items-center sm:ml-4">
+                  <span>Bonaberie, Douala, Cameroun</span>
+                </div>
               </div>
               <div className="flex items-center">
                 <Image
@@ -113,36 +117,36 @@ const Footer = () => {
           </div>
 
           {/* Products Section */}
-          <div className="flex-1">
+          <div className="lg:ml-4">
             <h3 className="text-xl font-semibold mb-4">Dyfk Products</h3>
-            <ul className="space-y-2">
+            <ul className="grid grid-cols-2 gap-2">
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Electronics
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Fashion & Apparel
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Home & Kitchen
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Beauty & Health
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Sports & Outdoors
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Books & Media
                 </a>
               </li>
@@ -150,41 +154,41 @@ const Footer = () => {
           </div>
 
           {/* Customer Support */}
-          <div className="flex-1">
+          <div className="lg:ml-4">
             <h3 className="text-xl font-semibold mb-4">Customer Support</h3>
-            <ul className="space-y-2">
+            <ul className="grid grid-cols-2 gap-2">
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Contact Us
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   FAQs
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Shipping Information
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Returns & Refunds
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Track Order
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Privacy Policy
                 </a>
               </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 transition-colors">
+              <li className="col-span-2">
+                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
                   Terms of Service
                 </a>
               </li>
@@ -195,7 +199,7 @@ const Footer = () => {
         {/* Payment Methods */}
         <div className="mt-8 pt-6 border-t border-gray-300">
           <h3 className="text-lg font-semibold mb-4 text-center">We Accept</h3>
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
             <Image
               src="/payment/visa.png"
               alt="Visa"
@@ -235,7 +239,7 @@ const Footer = () => {
         </div>
 
         {/* Copyright */}
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center text-sm md:text-base">
           <p>© 2023 Dyfk. All rights reserved. | fotiodev@gmail.com</p>
         </div>
       </div>
