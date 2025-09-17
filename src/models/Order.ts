@@ -19,7 +19,7 @@ export interface OrderDocument extends Document {
   tax: number;
   shippingCost: number;
   total: number;
-  paymentStatus: "pending" | "paid" | "failed" | "cancelled";
+  paymentStatus: "pending" | "paid" | "failed" | "cancelled" | "refunded";
   paymentMethod: string;
   transaction_id?: string;
   billingAddress: {
@@ -78,7 +78,7 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
     total: { type: Number, required: true },
     paymentStatus: {
       type: String,
-      enum: ["pending", "paid", "failed", "cancelled"],
+      enum: ["pending", "paid", "failed", "cancelled", "refunded"],
       default: "pending",
     },
     paymentMethod: { type: String, required: true },

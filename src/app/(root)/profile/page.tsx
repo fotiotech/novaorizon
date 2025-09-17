@@ -105,7 +105,7 @@ const Profile = () => {
                         </div>
                       </div>
                     </Link>
-                    {order.status !== "paid" && (
+                    {order.paymentStatus !== "paid" && (
                       <div className="px-5 pb-5">
                         <Link
                           href={`/checkout/payment?payment_ref=${order.orderNumber}&paymentMethod=${order.paymentMethod}`}

@@ -16,7 +16,7 @@ export interface IShipping extends Document {
   shippingMethod: "standard" | "express" | "overnight";
   shippingCost: number;
   status:
-    | "pending"
+    | "processing"
     | "assigned"
     | "in_transit"
     | "delivered"
@@ -57,14 +57,14 @@ const ShippingSchema = new Schema<IShipping>(
     status: {
       type: String,
       enum: [
-        "pending",
+        "processing",
         "assigned",
         "in_transit",
         "delivered",
         "returned",
         "cancelled",
       ],
-      default: "pending",
+      default: "processing",
     },
     shippedAt: { type: Date },
     deliveredAt: { type: Date },
