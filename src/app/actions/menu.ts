@@ -12,6 +12,15 @@ export interface MenuData {
   collections: string[];
   ctaUrl?: string;
   ctaText?: string;
+  type?: string;
+  position?: string;
+  columns?: number;
+  maxDepth?: number;
+  showImages?: boolean;
+  backgroundColor?: string;
+  backgroundImage?: string;
+  isSticky?: boolean;
+  sectionTitle?: string;
 }
 
 // Get menu by ID
@@ -50,13 +59,30 @@ export async function getAllMenus() {
   }
 }
 
+// Get menus by type
+export async function getMenusByType(type: string) {
+  try {
+    await connection();
+    const menus = await Menu.find({ type })
+      .populate("collections")
+      .sort({ createdAt: -1 });
+
+    return {
+      success: true,
+      data: JSON.parse(JSON.stringify(menus)),
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 // Get all menus with their collections populated
-export async function getAllMenuWithCollections() {
+export async function getAllMenuWithCollections(type:string) {
   try {
     await connection();
 
     // Fetch menus with populated collections
-    const menus = await Menu.find()
+    const menus = await Menu.find({type})
       .populate("collections")
       .sort({ createdAt: -1 });
 

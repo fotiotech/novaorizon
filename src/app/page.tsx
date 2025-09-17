@@ -185,7 +185,7 @@ export default function Home() {
           dispatch(fetchProducts()),
           (async () => {
             try {
-              const menusResponse = await getAllMenuWithCollections();
+              const menusResponse = await getAllMenuWithCollections("section");
               if (menusResponse.success) {
                 setMenus(menusResponse.data);
               } else {
