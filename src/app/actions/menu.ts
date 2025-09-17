@@ -76,23 +76,4 @@ export async function getMenusByType(type: string) {
   }
 }
 
-// Get all menus with their collections populated
-export async function getAllMenuWithCollections(type:string) {
-  try {
-    await connection();
 
-    // Fetch menus with populated collections
-    const menus = await Menu.find({type})
-      .populate("collections")
-      .sort({ createdAt: -1 });
-
-    console.log(menus.map((c: any) => c.collections));
-
-    return {
-      success: true,
-      data: JSON.parse(JSON.stringify(menus)),
-    };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-}

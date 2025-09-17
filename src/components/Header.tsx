@@ -16,6 +16,7 @@ import { useCart } from "@/app/context/CartContext";
 import { getCategory } from "@/app/actions/category";
 import { SignIn } from "./auth/SignInButton";
 import { useSession } from "next-auth/react";
+import { getMenusByType, MenuData } from "@/app/actions/menu";
 
 // Extracted Search Component
 const SearchBar = React.memo(
@@ -211,19 +212,55 @@ const Header = () => {
   const [searchInput, setSearchInput] = useState("");
   const [category, setCategory] = useState<Category[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [navMenus, setNavMenus] = useState<MenuData[]>([]);
+  const [catMenus, setCatMenus] = useState<MenuData[]>([]);
 
   useEffect(() => {
     async function findCategories() {
       const res = await getCategory();
       setCategory(res);
     }
+    
+    (async () => {
+      try {
+        const navMenusRes = await getMenusByType("navigation");
+        const catMenusRes = await getMenusByType("category");
+        if (navMenusRes.success) {
+          setNavMenus(navMenusRes.data);
+        }
+        if (catMenusRes.success) {
+          setCatMenus(catMenusRes.data);
+        }
+      } catch (error) {
+        console.error("Error fetching menus:", error);
+      }
+    })();
+    
     findCategories();
   }, []);
 
   const domNode = useClickOutside(() => setShowSearchBox(false));
   const sidebarRef = useClickOutside(() => setIsSidebarOpen(false));
 
-  // Memoize categories to prevent unnecessary re-renders
+  // Get collections from the first navigation menu
+  const navigationMenuItems = useMemo(() => {
+    if (navMenus.length > 0 && navMenus[0].collections) {
+      return navMenus[0].collections;
+    }
+    // Fallback to empty array if no navigation menu exists
+    return [];
+  }, [navMenus]);
+
+  // Memoize navigation menu items to prevent unnecessary re-renders
+  const navigationMenuList = useMemo(() => {
+    return navigationMenuItems.map((item:any, index) => (
+      <li key={index} className="inline-block pt-2 px-2">
+        <Link href={`/collection?id=${item._id}`}>{item.name}</Link>
+      </li>
+    ));
+  }, [navigationMenuItems]);
+
+  // Memoize categories for the sidebar
   const categoryList = useMemo(() => {
     return category.slice(0, 10).map((cat, index) => (
       <li key={index} className="inline-block pt-2 px-2">
@@ -314,15 +351,20 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Categories */}
+        {/* Navigation Menu (if available) or Categories (fallback) */}
         <div className="mt-2">
           <ul className="whitespace-nowrap overflow-auto scrollbar-none">
-            {categoryList}
+            {navigationMenuItems.length > 0 ? (
+              navigationMenuList
+            ) : (
+              // Fallback to categories if no navigation menu
+              categoryList
+            )}
           </ul>
         </div>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - Keep showing categories */}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={closeSidebar}

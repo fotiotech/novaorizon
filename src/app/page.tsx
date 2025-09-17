@@ -13,7 +13,7 @@ import { fetchUserEvents } from "@/fetch/fetchUser";
 import { fetchProducts } from "@/fetch/fetchProducts";
 import { useSession } from "next-auth/react";
 import Spinner from "@/components/Spinner";
-import { getAllMenuWithCollections } from "@/app/actions/menu";
+import { getMenusByType } from "@/app/actions/menu";
 
 // Move interfaces to separate file if possible
 interface Product {
@@ -185,7 +185,7 @@ export default function Home() {
           dispatch(fetchProducts()),
           (async () => {
             try {
-              const menusResponse = await getAllMenuWithCollections("section");
+              const menusResponse = await getMenusByType("section");
               if (menusResponse.success) {
                 setMenus(menusResponse.data);
               } else {
