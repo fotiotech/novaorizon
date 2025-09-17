@@ -154,7 +154,7 @@ export async function createOrUpdateOrder(
     );
 
     // Create shipping record for PAID orders, not cancelled ones
-    if (savedOrder && savedOrder.paymentStatus === "paid") {
+    if (savedOrder) {
       try {
         const createShipping = new Shipping({
           orderId: savedOrder._id,
@@ -198,11 +198,7 @@ export async function createOrUpdateOrder(
   }
 }
 
-// Helper function to generate tracking numbers
-async function generateTrackingNumber(): Promise<string> {
-  const count = await Shipping.countDocuments();
-  return `NOV${String(count + 1).padStart(8, '0')}`;
-}
+
 
 export async function deleteOrder(orderNumber: string) {
   await connection();
@@ -227,4 +223,11 @@ export async function deleteOrder(orderNumber: string) {
     console.error("Error deleting order:", error.message);
     return null;
   }
+}
+
+
+// Helper function to generate tracking numbers
+async function generateTrackingNumber(): Promise<string> {
+  const count = await Shipping.countDocuments();
+  return `NOV${String(count + 1).padStart(8, '0')}`;
 }
