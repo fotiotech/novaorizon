@@ -212,7 +212,7 @@ const Profile = () => {
                 </Link>
 
                 <Link
-                  href="/novaorizon-seller.vercel.app"
+                  href="https://novaorizon-seller.vercel.app"
                   className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
                 >
                   <svg
