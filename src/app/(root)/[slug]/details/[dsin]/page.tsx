@@ -145,6 +145,7 @@ const AttributeGroupRenderer: React.FC<AttributeGroupRendererProps> = ({
   if (
     code === "product_identification" ||
     code === "pricing_inventory" ||
+    code === "marketing" ||
     code === "variants_options"
   )
     return null;

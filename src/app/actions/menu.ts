@@ -61,6 +61,7 @@ export async function getAllMenus() {
 
 // Get menus by type
 export async function getMenusByType(type: string) {
+  console.log(`Querying for menus with type: ${type}`);
   try {
     await connection();
     const menus = await Menu.find({ type })

@@ -186,6 +186,7 @@ export default function Home() {
           (async () => {
             try {
               const menusResponse = await getMenusByType("section");
+              console.log({ menusResponse });
               if (menusResponse.success) {
                 setMenus(menusResponse.data);
               } else {
