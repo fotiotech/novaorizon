@@ -220,8 +220,8 @@ const Header = () => {
       const res = await getCategory();
       setCategory(res);
     }
-    
-    (async () => {
+
+    async function f() {
       try {
         const navMenusRes = await getMenusByType("navigation");
         const catMenusRes = await getMenusByType("category");
@@ -234,8 +234,9 @@ const Header = () => {
       } catch (error) {
         console.error("Error fetching menus:", error);
       }
-    })();
-    
+    }
+    f();
+
     findCategories();
   }, []);
 
@@ -253,7 +254,7 @@ const Header = () => {
 
   // Memoize navigation menu items to prevent unnecessary re-renders
   const navigationMenuList = useMemo(() => {
-    return navigationMenuItems.map((item:any, index) => (
+    return navigationMenuItems.map((item: any, index) => (
       <li key={index} className="inline-block pt-2 px-2">
         <Link href={`/collection?id=${item._id}`}>{item.name}</Link>
       </li>
@@ -354,12 +355,10 @@ const Header = () => {
         {/* Navigation Menu (if available) or Categories (fallback) */}
         <div className="mt-2">
           <ul className="whitespace-nowrap overflow-auto scrollbar-none">
-            {navigationMenuItems.length > 0 ? (
-              navigationMenuList
-            ) : (
-              // Fallback to categories if no navigation menu
-              categoryList
-            )}
+            {navigationMenuItems.length > 0
+              ? navigationMenuList
+              : // Fallback to categories if no navigation menu
+                categoryList}
           </ul>
         </div>
       </div>

@@ -28,59 +28,52 @@ export async function addProductReview({
     throw new Error("Product not found");
   }
   console.log("→ [ServerAction] Found product:", productId);
-  console.log(
-    "→ [ServerAction] Before push, reviews_ratings:",
-    product.reviews_ratings
-  );
+  console.log("→ [ServerAction] Before push, reviews:", product.reviews);
 
-  // 3. Ensure `reviews_ratings` is an array
-  if (!Array.isArray(product.reviews_ratings)) {
-    product.reviews_ratings = [];
+  // 3. Ensure `reviews` is an array
+  if (!Array.isArray(product.reviews)) {
+    product.reviews = [];
   }
 
   // 4. Push the new review
-  product.reviews_ratings.push({
+  product.reviews.push({
     user_id: userId,
-    rating,
+    rating, // Store rating in the review object
     comment,
     created_at: new Date(),
   });
-  console.log(
-    "→ [ServerAction] After push, reviews_ratings:",
-    product.reviews_ratings
-  );
 
-  // 5. Ensure `ratings_summary` exists and preserve any existing attributes
-  let existingAttrs: any[] = [];
+  console.log("→ [ServerAction] After push, reviews:", product.reviews);
+
+  // 5. Ensure `ratings_summary` exists
   if (!product.ratings_summary) {
     product.ratings_summary = {
       average: 0,
       count: 0,
-      attributes: [],
     };
-  } else {
-    existingAttrs = Array.isArray(product.ratings_summary.attributes)
-      ? product.ratings_summary.attributes
-      : [];
   }
 
-  // 6. Recalculate `ratings_summary`
-  const allRatings = product.reviews_ratings.map((r: any) => r.rating);
-  const total = allRatings.reduce((sum: any, r: any) => sum + r, 0);
+  // 6. Recalculate `ratings_summary` from all reviews
+  const allRatings = product.reviews.map((r: any) => r.rating);
+  const total = allRatings.reduce((sum: number, r: number) => sum + r, 0);
   const count = allRatings.length;
+  const average = count > 0 ? total / count : 0;
+
   product.ratings_summary = {
-    average: count > 0 ? total / count : 0,
+    average,
     count,
-    attributes: existingAttrs,
   };
+
+  // 7. Update root rating field (optional - you can remove if you only want ratings_summary)
+  product.rating = average;
 
   console.log("→ [ServerAction] New ratings_summary:", product.ratings_summary);
 
-  // 7. Save the updated product
+  // 8. Save the updated product
   const saved = await product.save();
   console.log("→ [ServerAction] Saved product:", saved._id);
-  console.log("→ [ServerAction] Saved reviews_ratings:", saved.reviews_ratings);
+  console.log("→ [ServerAction] Saved reviews:", saved.reviews);
 
-  // 8. Return the entire saved product document (or just ratings_summary)
+  // 9. Return the entire saved product document
   return saved.toObject();
 }

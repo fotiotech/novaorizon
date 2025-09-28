@@ -14,6 +14,11 @@ import { fetchProducts } from "@/fetch/fetchProducts";
 import { useSession } from "next-auth/react";
 import Spinner from "@/components/Spinner";
 import { getMenusByType } from "@/app/actions/menu";
+import {
+  fetchUserEvent,
+  getRecommendations,
+  createUserEvents,
+} from "@/app/actions/user_events";
 
 // Move interfaces to separate file if possible
 interface Product {
@@ -54,14 +59,24 @@ interface Menu {
   updatedAt: string;
 }
 
+interface Recommendation {
+  product_id: string;
+  category: string;
+  brand: string;
+  score: number;
+  rank: number;
+}
+
 // Memoized Product Card Component
 const ProductCard = memo(
   ({
     product,
     onProductClick,
+    showRecommendationBadge = false,
   }: {
     product: Product;
     onProductClick: () => void;
+    showRecommendationBadge?: boolean;
   }) => {
     const { _id, url_slug, title, shortDesc, list_price, main_image } = product;
 
@@ -73,8 +88,13 @@ const ProductCard = memo(
       >
         <div
           onClick={onProductClick}
-          className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow duration-300 bg-white h-full"
+          className="flex flex-col gap-1 mb-1 rounded cursor-pointer hover:shadow-lg transition-shadow duration-300 bg-white h-full relative"
         >
+          {showRecommendationBadge && (
+            <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full z-10">
+              Recommended
+            </div>
+          )}
           <div className="w-full relative aspect-square bg-gray-100 rounded">
             {main_image ? (
               <ImageRenderer image={main_image} />
@@ -147,6 +167,55 @@ const MenuSection = memo(({ menu }: { menu: Menu }) => {
 
 MenuSection.displayName = "MenuSection";
 
+// Recommendation Section Component
+const RecommendationSection = memo(
+  ({
+    recommendations,
+    products,
+    onProductClick,
+  }: {
+    recommendations: Recommendation[];
+    products: Product[];
+    onProductClick: (productId: string) => void;
+  }) => {
+    // Map recommendations to products
+    const recommendedProducts = useMemo(() => {
+      return recommendations
+        .map((rec) => {
+          const product = products.find((p) => p._id === rec.product_id);
+          return product ? { ...product, recommendation: rec } : null;
+        })
+        .filter(Boolean) as (Product & { recommendation: Recommendation })[];
+    }, [recommendations, products]);
+
+    if (recommendedProducts.length === 0) return null;
+
+    return (
+      <section className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 p-2 lg:px-10 lg:py-8 mb-6 rounded-lg">
+        <h2 className="lg:mb-6 mb-4 font-bold text-2xl lg:text-3xl text-gray-800">
+          Recommended For You
+        </h2>
+        <p className="text-gray-600 mb-6">
+          Products you might like based on your activity
+        </p>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-2 lg:gap-6">
+          {recommendedProducts.map((product) => (
+            <ProductCard
+              key={product._id}
+              product={product}
+              onProductClick={() => onProductClick(product._id)}
+              showRecommendationBadge={true}
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+);
+
+RecommendationSection.displayName = "RecommendationSection";
+
 export default function Home() {
   const dispatch = useAppDispatch();
   const session = useSession();
@@ -156,6 +225,9 @@ export default function Home() {
   const [visibleCount, setVisibleCount] = useState(8);
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [userHistory, setUserHistory] = useState<any[]>([]);
 
   // Memoized product data
   const visibleProducts = useMemo(
@@ -166,10 +238,56 @@ export default function Home() {
     [productsState.allIds, productsState.byId, visibleCount]
   );
 
-  // Product click handler
-  const handleProductClick = useCallback(() => {
-    if (user?.id) {
-      triggerNotification(user?.id, "A customer clicked on a product!");
+  const handleProductClick = useCallback(
+    async (productId: string) => {
+      if (user?.id) {
+        try {
+          // Track the product view event
+          await createUserEvents({
+            userId: user.id,
+            product_id: productId,
+            event_type: "view",
+            metadata: {
+              page: "home",
+              timestamp: new Date().toISOString(),
+              user_agent: navigator.userAgent,
+            },
+          });
+
+          // Trigger notification
+          triggerNotification(user.id, "A customer clicked on a product!");
+        } catch (error) {
+          console.error("Error tracking product click:", error);
+        }
+      }
+    },
+    [user]
+  );
+
+  // Load user recommendations
+  const loadRecommendations = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoadingRecommendations(true);
+      const recs = await getRecommendations(user.id, 8);
+      setRecommendations(recs);
+    } catch (error) {
+      console.error("Error loading recommendations:", error);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  }, [user]);
+
+  // Load user history
+  const loadUserHistory = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const history = await fetchUserEvent(user.id, "view", 10);
+      setUserHistory(history);
+    } catch (error) {
+      console.error("Error loading user history:", error);
     }
   }, [user]);
 
@@ -207,10 +325,13 @@ export default function Home() {
 
     loadData();
 
+    // Load user-specific data if user is logged in
     if (user?.id) {
-      dispatch(fetchUserEvents(user?.id, "click", 10));
+      loadRecommendations();
+      loadUserHistory();
+      dispatch(fetchUserEvents(user.id, "click", 10));
     }
-  }, [dispatch, user]);
+  }, [dispatch, user, loadRecommendations, loadUserHistory]);
 
   // Infinite scroll handler
   const handleScroll = useCallback(() => {
@@ -237,7 +358,7 @@ export default function Home() {
           <ProductCard
             key={product._id}
             product={product}
-            onProductClick={handleProductClick}
+            onProductClick={() => handleProductClick(product._id)}
           />
         )),
     [visibleProducts, handleProductClick]
@@ -284,6 +405,15 @@ export default function Home() {
       <main className="bg-background">
         <Hero />
 
+        {/* Personalized Recommendations Section */}
+        {user?.id && (
+          <RecommendationSection
+            recommendations={recommendations}
+            products={productsState.allIds.map((id) => productsState.byId[id])}
+            onProductClick={handleProductClick}
+          />
+        )}
+
         {/* New Arrivals Section */}
         <section className="w-full bg-surface p-2 lg:px-10 lg:mt-1 mb-1 border-y border-gray-200">
           <h2 className="lg:mb-6 mb-4 font-bold text-2xl lg:text-3xl text-gray-800">
@@ -319,6 +449,29 @@ export default function Home() {
             ) : (
               <div className="space-y-8">{menuSections}</div>
             )}
+          </section>
+        )}
+
+        {/* Recently Viewed Section (for logged-in users) */}
+        {user?.id && userHistory.length > 0 && (
+          <section className="w-full bg-gray-50 p-2 lg:px-10 lg:py-8 mb-6 rounded-lg">
+            <h2 className="lg:mb-6 mb-4 font-bold text-2xl lg:text-3xl text-gray-800">
+              Recently Viewed
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-auto gap-2 lg:gap-6">
+              {userHistory.slice(0, 4).map((event) => {
+                const product = productsState.byId[event.product_id];
+                if (!product) return null;
+
+                return (
+                  <ProductCard
+                    key={event.id}
+                    product={product}
+                    onProductClick={() => handleProductClick(product._id)}
+                  />
+                );
+              })}
+            </div>
           </section>
         )}
       </main>

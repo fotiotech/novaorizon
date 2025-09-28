@@ -10,6 +10,7 @@ export interface IUserEvent extends Document {
   device?: string; // e.g., mobile, desktop
   location?: string; // e.g., Douala, Yaoundé
   metadata?: Record<string, any>; // Optional extra data (e.g., price at purchase)
+  synced?: boolean;
 }
 
 const UserEventSchema = new Schema<IUserEvent>(
@@ -44,6 +45,7 @@ const UserEventSchema = new Schema<IUserEvent>(
     metadata: {
       type: Schema.Types.Mixed,
     },
+    synced: { type: Boolean, default: false },
   },
   {
     timestamps: true, // adds createdAt and updatedAt

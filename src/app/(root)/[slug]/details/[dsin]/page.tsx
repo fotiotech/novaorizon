@@ -14,6 +14,8 @@ import {
 } from "./_compnents/hooks";
 import Spinner from "@/components/Spinner";
 import ProductViewAnalytics from "./_compnents/ProductViewAnalytics";
+import ReviewForm from "@/components/product/reviews/ProductReviews";
+import ExistingReviews from "@/components/product/reviews/ExistingReviews";
 
 // Types
 interface Params {
@@ -54,6 +56,8 @@ const AttributeRenderer: React.FC<AttributeRendererProps> = ({
   attribute,
   product,
 }) => {
+  const { data: session, status } = useSession();
+  const user = session?.user as any;
   if (!attribute) return null;
   const { code, name } = attribute;
   const value = product?.[code];
@@ -104,8 +108,15 @@ const AttributeRenderer: React.FC<AttributeRendererProps> = ({
           </div>
         </div>
       );
+    case "reviews":
+      return (
+        <div key={code} className="mt-6 bg-white p-4 rounded shadow">
+          <ReviewForm productId={product._id} userId={user?._id} />
+          <ExistingReviews reviews={product?.reviews} />
+        </div>
+      );
     default:
-      if (value === undefined || value === null) return null;
+      if (value === undefined || value === null|| code === 'rating') return null;
       return (
         <div key={code} className="py-2">
           <span className="font-medium">{name}: </span>

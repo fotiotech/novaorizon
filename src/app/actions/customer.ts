@@ -8,10 +8,10 @@ export async function findCustomer(_id: string) {
   if (_id) {
     const data = await Customer.findOne({ userId: _id });
     return {
-      ...data.toObject(),
-      _id: data._id.toString(),
-      userId: data.userId.toString(),
-      timestamps: data.timestamps?.toISOString(),
+      ...data?.toObject(),
+      _id: data?._id?.toString(),
+      userId: data?.userId?.toString(),
+      timestamps: data?.timestamps?.toISOString(),
     };
   }
 }

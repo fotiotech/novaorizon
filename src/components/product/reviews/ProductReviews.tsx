@@ -35,7 +35,7 @@ export default function ReviewForm({ productId, userId }: ReviewFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 bg-white p-4 rounded shadow">
+    <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded shadow">
       {error && <p className="text-red-500">{error}</p>}
 
       <div className="flex flex-col">
