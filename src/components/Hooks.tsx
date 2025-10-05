@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 // Hook to detect clicks outside of a specified DOM node
 export default function useClickOutside(handler: () => void) {
@@ -41,18 +41,20 @@ export const useClickAndHide = (handler: () => void) => {
 };
 
 // Hook to handle screen resize events
-export const useScreenSize = (handler: () => void) => {
+// In ./Hooks.tsx
+export const useScreenSize = () => {
+  const [screenSize, setScreenSize] = useState(0);
+  
   useEffect(() => {
-    const handleResize = () => {
-      handler();
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    handleResize(); // Call handler initially
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [handler]); // Include handler in the dependency array
+    if (typeof window === 'undefined') return;
+    
+    setScreenSize(window.innerWidth);
+    
+    const handleResize = () => setScreenSize(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  return screenSize;
 };

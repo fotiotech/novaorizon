@@ -38,3 +38,7 @@ td {
 .inactiveLink {
   @apply text-gray-300 mx-2 rounded-lg py-1  px-4 flex gap-3 items-center hover:bg-secondary;
 }
+
+.transform {
+  transition: transform 0.3s ease-in-out;
+}

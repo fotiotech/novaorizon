@@ -39,6 +39,17 @@ export async function searchProducts(
 ) {
   await connection();
 
+  const category = detectCategory(query);
+  const brand = detectBrand(query);
+
+  if (category) {
+    filters.push({ term: { category_id: category } });
+  }
+
+  if (brand) {
+    filters.push({ term: { brand: brand } });
+  }
+
   // Convert Elasticsearch filters to MongoDB format
   const mongoFilters: any = {};
 
@@ -64,7 +75,7 @@ export async function searchProducts(
     mongoQuery.$and = [mongoFilters];
   }
 
-  console.log({mongoQuery})
+  console.log({ mongoQuery });
 
   try {
     const products = await Product.find(mongoQuery)
@@ -84,7 +95,7 @@ export async function searchProducts(
       },
     }));
 
-    console.log({hits, products })
+    console.log({ hits, products });
 
     return {
       hits,
