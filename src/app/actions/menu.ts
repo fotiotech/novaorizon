@@ -1,4 +1,3 @@
-// app/actions/menu.ts
 "use server";
 
 import { connection } from "@/utils/connection";
@@ -67,6 +66,8 @@ export async function getMenusByType(type: string) {
     const menus = await Menu.find({ type })
       .populate("collections")
       .sort({ createdAt: -1 });
+
+      console.log(menus)
 
     return {
       success: true,
