@@ -3,30 +3,61 @@
 import { connection } from "@/utils/connection";
 import Brand from "@/models/Brand";
 import Category from "@/models/Category";
-import { Client } from "@elastic/elasticsearch";
 import Product from "@/models/Product";
 
-const client = new Client({
-  node: process.env.ELASTIC_NODE,
-  auth: { apiKey: process.env.ELASTIC_API_KEY! },
-});
-
+// Improved detection with word boundaries
 async function detectCategory(query: string) {
   await connection();
-  const q = query.toLowerCase();
+  const normalizedQuery = query.toLowerCase().trim();
   const categories = await Category.find();
-  for (const c of categories) {
-    if (q.includes(c.name?.toLowerCase())) return c?._id?.toString();
+
+  for (const category of categories) {
+    if (!category.name) continue;
+
+    const categoryName = category.name.toLowerCase();
+
+    // Use regex for word boundary matching to avoid partial matches
+    const regex = new RegExp(`\\b${categoryName}\\b`, "i");
+    if (regex.test(query)) {
+      return category._id?.toString();
+    }
+
+    // Also check for partial matches as fallback, but with spaces
+    if (
+      normalizedQuery.includes(` ${categoryName} `) ||
+      normalizedQuery.startsWith(`${categoryName} `) ||
+      normalizedQuery.endsWith(` ${categoryName}`)
+    ) {
+      return category._id?.toString();
+    }
   }
   return null;
 }
 
 async function detectBrand(query: string) {
   await connection();
-  const q = query.toLowerCase();
+  const normalizedQuery = query.toLowerCase().trim();
   const brands = await Brand.find();
-  for (const b of brands) {
-    if (q.includes(b.name?.toLowerCase())) return b?._id?.toString();
+
+  for (const brand of brands) {
+    if (!brand.name) continue;
+
+    const brandName = brand.name.toLowerCase();
+
+    // Use regex for word boundary matching
+    const regex = new RegExp(`\\b${brandName}\\b`, "i");
+    if (regex.test(query)) {
+      return brand._id?.toString();
+    }
+
+    // Partial match with space boundaries
+    if (
+      normalizedQuery.includes(` ${brandName} `) ||
+      normalizedQuery.startsWith(`${brandName} `) ||
+      normalizedQuery.endsWith(` ${brandName}`)
+    ) {
+      return brand._id?.toString();
+    }
   }
   return null;
 }
@@ -39,21 +70,28 @@ export async function searchProducts(
 ) {
   await connection();
 
-  const category = detectCategory(query);
-  const brand = detectBrand(query);
+  // Add await here
+  const category = await detectCategory(query);
+  const brand = await detectBrand(query);
+
+  console.log("Detected category:", category);
+  console.log("Detected brand:", brand);
+
+  // Create a copy of filters to avoid mutating the original
+  const updatedFilters = [...filters];
 
   if (category) {
-    filters.push({ term: { category_id: category } });
+    updatedFilters.push({ term: { category_id: category } });
   }
 
   if (brand) {
-    filters.push({ term: { brand: brand } });
+    updatedFilters.push({ term: { brand: brand } });
   }
 
   // Convert Elasticsearch filters to MongoDB format
   const mongoFilters: any = {};
 
-  filters.forEach((filter) => {
+  updatedFilters.forEach((filter) => {
     if (filter.term) {
       Object.assign(mongoFilters, filter.term);
     }
@@ -75,7 +113,7 @@ export async function searchProducts(
     mongoQuery.$and = [mongoFilters];
   }
 
-  console.log({ mongoQuery });
+  console.log("Final MongoDB query:", { mongoQuery });
 
   try {
     const products = await Product.find(mongoQuery)
@@ -94,8 +132,6 @@ export async function searchProducts(
         brand: product.brand,
       },
     }));
-
-    console.log({ hits, products });
 
     return {
       hits,
