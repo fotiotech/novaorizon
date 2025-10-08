@@ -372,35 +372,7 @@ export default function Home() {
 
   return (
     <Layout>
-      <Head>
-        <title>
-          dyfkCameroun.com | Your One-Stop E-Commerce Store in Cameroun
-        </title>
-        <meta
-          name="description"
-          content="Discover the best deals on a wide range of products including electronics, fashion, home essentials, and more. Shop now at dyfkCameroun.com!"
-        />
-        <meta name="canonical" content="https://novaorizon.vercel.app" />
-        <meta
-          property="og:title"
-          content="dyfkCameroun.com | Your One-Stop E-Commerce Store in Cameroun"
-        />
-        <meta
-          property="og:description"
-          content="Discover the best deals on a wide range of products including electronics, fashion, home essentials, and more. Shop now at dyfkCameroun.com!"
-        />
-        <meta property="og:url" content="https://novaorizon.vercel.app" />
-        <meta
-          property="og:image"
-          content="https://novaorizon.vercel.app/logo.png"
-        />
-        <meta
-          property="og:image:alt"
-          content="dyfkCameroun.com - Your One-Stop E-Commerce Store in Cameroun"
-        />
-        <meta property="og:type" content="website" />
-        <meta property="twitter:card" content="summary_large_image" />
-      </Head>
+    
 
       <main className="bg-background">
         <Hero />

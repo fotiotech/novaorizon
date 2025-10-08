@@ -74,8 +74,8 @@ function MonetbilPayment({ payment_ref }: { payment_ref?: string }) {
       lastName: customer?.billingAddress.lastName,
       email: customer?.billingAddress.email,
       operator: selectedOperator,
-      returnUrl: `${process.env.NEXT_PUBLIC_API_URL}/checkout/payment/success`,
-      notifyUrl: `${process.env.NEXT_PUBLIC_API_URL}/checkout/payment/notification`,
+      returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/payment/success`,
+      notifyUrl: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/payment/notification`,
     };
 
     try {
