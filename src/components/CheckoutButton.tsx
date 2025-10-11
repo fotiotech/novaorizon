@@ -55,6 +55,7 @@ const CheckoutButton: FC<CheckoutProps> = ({
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    if (!session) return signIn();
 
     if (product) addProductToCart();
 
