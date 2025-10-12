@@ -4,7 +4,7 @@ import React from "react";
 const Footer = () => {
   return (
     <footer className="bg-surface text-text w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className=" px-2 lg:px-10 py-8">
         {/* Main footer content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand/Logo Section */}
@@ -121,32 +121,50 @@ const Footer = () => {
             <h3 className="text-xl font-semibold mb-4">Dyfk Products</h3>
             <ul className="grid grid-cols-2 gap-2">
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Electronics
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Fashion & Apparel
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Home & Kitchen
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Beauty & Health
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Sports & Outdoors
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Books & Media
                 </a>
               </li>
@@ -158,37 +176,58 @@ const Footer = () => {
             <h3 className="text-xl font-semibold mb-4">Customer Support</h3>
             <ul className="grid grid-cols-2 gap-2">
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Contact Us
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   FAQs
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Shipping Information
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Returns & Refunds
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Track Order
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Privacy Policy
                 </a>
               </li>
               <li className="col-span-2">
-                <a href="#" className="hover:text-blue-500 transition-colors text-sm md:text-base">
+                <a
+                  href="#"
+                  className="hover:text-blue-500 transition-colors text-sm md:text-base"
+                >
                   Terms of Service
                 </a>
               </li>

@@ -68,13 +68,15 @@ function applyVariant(product: any, variant: any) {
 // Sub-components
 
 interface AttributeRendererProps {
-  attribute: Attribute;
+  group?: any;
   product: any;
+  attribute: Attribute;
 }
 
 const AttributeRenderer: React.FC<AttributeRendererProps> = ({
   attribute,
   product,
+  group,
 }) => {
   const { data: session, status } = useSession();
   const user = session?.user as any;
@@ -138,10 +140,20 @@ const AttributeRenderer: React.FC<AttributeRendererProps> = ({
     default:
       if (value === undefined || value === null || code === "rating")
         return null;
+
+      const specsId =
+        group?.code === "product_specifications" ? group?._id : "";
+      const sub =
+        group?.code === "product_specifications" ||
+        group?.parent_id === specsId;
+
       return (
-        <div key={code} className="py-2">
+        <div
+          key={code}
+          className={`${sub ? "grid grid-cols-2 gap-4" : ""} py-2`}
+        >
           <span className="font-medium">{name}: </span>
-          {Array.isArray(value) ? value.join(", ") : String(value)}
+          <span>{Array.isArray(value) ? value.join(", ") : String(value)}</span>
         </div>
       );
   }
@@ -217,13 +229,14 @@ const AttributeGroupRenderer: React.FC<AttributeGroupRendererProps> = ({
           isExpanded={expandedSections[code]}
           onToggle={onToggleSection}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="">
             {attributes?.length > 0 &&
               attributes.map((attribute) => (
                 <AttributeRenderer
                   key={attribute.code}
                   attribute={attribute}
                   product={product}
+                  group={group}
                 />
               ))}
           </div>
