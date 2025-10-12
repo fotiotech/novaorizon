@@ -293,7 +293,7 @@ const Header = () => {
 
   return (
     <>
-      <div className="p-2 bg-surface text-pri sticky top-0 z-30 shadow-md">
+      <div className="p-2 lg:px-10 bg-surface text-pri sticky top-0 z-30 shadow-md">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <button title="toggle " type="button" onClick={toggleSidebar}>

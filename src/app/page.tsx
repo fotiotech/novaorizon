@@ -374,10 +374,13 @@ export default function Home() {
     <Layout>
     
 
-      <main className="bg-background">
-        <Hero />
-
-        {/* Personalized Recommendations Section */}
+      <main className="">
+        <div className="bg-white ">
+          <Hero />
+        </div>
+        
+<div className="bg-background">
+  {/* Personalized Recommendations Section */}
         {user?.id && (
           <RecommendationSection
             recommendations={recommendations}
@@ -446,6 +449,8 @@ export default function Home() {
             </div>
           </section>
         )}
+</div>
+        
       </main>
     </Layout>
   );

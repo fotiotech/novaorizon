@@ -82,12 +82,13 @@ const HeaderScroll: React.FC = () => {
   return (
     <section
       aria-label="Hero carousel"
-      className="relative w-full h-60 md:h-72 lg:h-screen overflow-hidden"
+      className="relative  h-60 md:h-72 lg:h-96 overflow-hidden m-2 lg:m-10 rounded-lg "
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
+      
       <div
-        className="flex h-full transition-transform duration-700 ease-in-out"
+        className="flex h-full transition-transform duration-700 ease-in-out "
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {slides.map((hero, index) => {
