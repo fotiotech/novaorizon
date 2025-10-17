@@ -9,6 +9,10 @@ import {
   where,
   deleteDoc,
   doc,
+  orderBy,
+  Timestamp,
+  serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -22,6 +26,12 @@ interface ChatRoom {
   to?: string;
   cart?: any[];
   lastMessage?: string;
+  lastUpdated?: any;
+  lastRead?: any; // Add this field to track last read time
+}
+
+interface UnreadCounts {
+  [roomId: string]: number;
 }
 
 export default function ChatRoomListPage() {
@@ -29,6 +39,7 @@ export default function ChatRoomListPage() {
   const router = useRouter();
   const user = session?.data?.user as any;
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<UnreadCounts>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,13 +56,70 @@ export default function ChatRoomListPage() {
         id: doc.id,
         roomId: doc.id,
         ...doc.data(),
-      }));
+      })) as ChatRoom[];
       setRooms(parsedRooms);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [user]);
+
+  // Listen for messages and count unread ones
+  useEffect(() => {
+    if (!user?.id || rooms.length === 0) return;
+
+    const unsubscribes: (() => void)[] = [];
+
+    rooms.forEach((room) => {
+      const messagesRef = collection(db, "chats", room.roomId, "messages");
+      const messagesQuery = query(messagesRef, orderBy("sentAt", "asc"));
+
+      const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+        const messages = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as any[];
+
+        // Calculate unread count
+        const lastReadTime = room.lastRead?.toDate?.() || new Date(0);
+        const unreadCount = messages.filter((message) => {
+          const messageTime = message.sentAt?.toDate?.() || new Date(0);
+          return message.from !== user.name && messageTime > lastReadTime;
+        }).length;
+
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [room.roomId]: unreadCount,
+        }));
+      });
+
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [rooms, user?.id, user?.name]);
+
+  // Function to mark messages as read
+  const markAsRead = async (roomId: string) => {
+    if (!user?.id) return;
+
+    try {
+      const roomRef = doc(db, "chatRooms", roomId);
+      await updateDoc(roomRef, {
+        lastRead: serverTimestamp(),
+      });
+
+      // Clear unread count for this room
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [roomId]: 0,
+      }));
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
 
   const handleDeleteRoom = async (roomId: string) => {
     if (
@@ -62,12 +130,7 @@ export default function ChatRoomListPage() {
       return;
 
     try {
-      // Delete the chat room document
       await deleteDoc(doc(db, "chatRooms", roomId));
-
-      // Note: In a production app, you might also want to delete all messages in the room
-      // This would require additional logic to delete the subcollection
-
       console.log("Chat room deleted successfully");
     } catch (error) {
       console.error("Error deleting chat room:", error);
@@ -93,11 +156,18 @@ export default function ChatRoomListPage() {
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <div className="flex justify-between items-center">
-            <div>
+            <div className="flex items-center">
               <h1 className="text-2xl font-bold text-gray-800">Chats</h1>
-              <p className="text-gray-600">
-                Select a chat to continue conversation
-              </p>
+              {/* Total unread count badge */}
+              {Object.values(unreadCounts).some((count) => count > 0) && (
+                <span className="ml-3 bg-red-500 text-white rounded-full px-2 py-1 text-xs font-medium">
+                  {Object.values(unreadCounts).reduce(
+                    (total, count) => total + count,
+                    0
+                  )}{" "}
+                  unread
+                </span>
+              )}
             </div>
             <Link
               href="/"
@@ -106,6 +176,9 @@ export default function ChatRoomListPage() {
               Back to Home
             </Link>
           </div>
+          <p className="text-gray-600 mt-2">
+            Select a chat to continue conversation
+          </p>
         </div>
 
         <div className="p-4">
@@ -145,14 +218,23 @@ export default function ChatRoomListPage() {
                   <Link
                     href={`/checkout/chat/${room.roomId}`}
                     className="flex-1 min-w-0"
+                    onClick={() => markAsRead(room.roomId)}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1 min-w-0">
-                        <p className="text-lg font-medium text-gray-900 truncate">
-                          {room.to || "NovaOrizon Support"}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate">
-                          Last message: {room.lastMessage || "No messages yet"}
+                        <div className="flex items-center">
+                          <p className="text-lg font-medium text-gray-900 truncate">
+                            {room.to || "NovaOrizon Support"}
+                          </p>
+                          {/* Unread badge for individual room */}
+                          {unreadCounts[room.roomId] > 0 && (
+                            <span className="ml-2 bg-red-500 text-white rounded-full px-2 py-1 text-xs font-medium min-w-6 text-center">
+                              {unreadCounts[room.roomId]}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500 truncate mt-1">
+                          {room.lastMessage || "No messages yet"}
                         </p>
                         {room.cart && room.cart.length > 0 && (
                           <div className="mt-2 flex items-center text-sm text-gray-500">

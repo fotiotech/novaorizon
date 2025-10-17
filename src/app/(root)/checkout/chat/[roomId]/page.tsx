@@ -92,6 +92,25 @@ export default function ChatWidgetPage() {
     }
   };
 
+  // Add this useEffect to mark messages as read when component mounts
+useEffect(() => {
+  if (!user || !roomId) return;
+
+  // Mark messages as read when entering the chat
+  const markMessagesAsRead = async () => {
+    try {
+      const roomRef = doc(db, "chatRooms", roomId);
+      await updateDoc(roomRef, {
+        lastRead: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Error marking messages as read:", err);
+    }
+  };
+
+  markMessagesAsRead();
+}, [user, roomId]);
+
   useEffect(() => {
     async function fetchRoom() {
       if (!user || !roomId) return;
@@ -194,7 +213,6 @@ export default function ChatWidgetPage() {
               <h1 className="text-xl font-semibold text-gray-800">
                 NovaOrizon
               </h1>
-              <p className="text-sm text-gray-500">Room ID: {roomId}</p>
             </div>
           </div>
           <Link

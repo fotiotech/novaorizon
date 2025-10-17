@@ -17,6 +17,7 @@ import { getCategory } from "@/app/actions/category";
 import { SignIn } from "./auth/SignInButton";
 import { useSession } from "next-auth/react";
 import { getMenusByType, MenuData } from "@/app/actions/menu";
+import { useUnreadMessages } from "@/app/(root)/checkout/chat/_component/useUnreadMessages";
 
 // Extracted Search Component
 const SearchBar = React.memo(
@@ -65,6 +66,7 @@ SearchBar.displayName = "SearchBar";
 // Extracted User Profile Component
 const UserProfile = React.memo(() => {
   const session = useSession();
+  const unreadCount = useUnreadMessages();
   const user = session?.data?.user as any;
 
   return (
@@ -79,9 +81,16 @@ const UserProfile = React.memo(() => {
       <span>
         <NavigateNext style={{ fontSize: 16 }} />
       </span>
-      <Link href={"/profile"}>
-        <Person style={{ fontSize: 30 }} />
-      </Link>
+      <div className="relative">
+        {unreadCount > 0 && (
+          <p className="absolute right-0 -top-2 bg-red-500 text-xs rounded-full px-1 min-w-[18px] text-center">
+            {unreadCount}
+          </p>
+        )}
+        <Link href={"/profile"}>
+          <Person style={{ fontSize: 30 }} />
+        </Link>
+      </div>
     </div>
   );
 });
