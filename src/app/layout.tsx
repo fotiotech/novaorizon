@@ -11,8 +11,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "novaorizon.vercel.app | Your One-Stop E-commerce Solution",
-    template: "%s | novaorizon.vercel.app"
+    default: "Clickitcome Cameroun | Your One-Stop E-commerce Solution",
+    template: "%s | Clickitcome Cameroun",
   },
   description: "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
 };

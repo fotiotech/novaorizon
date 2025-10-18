@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://novaorizon.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://clickitcome.com";
   const environment = process.env.NODE_ENV;
 
   const robotsTxt = `User-agent: *
