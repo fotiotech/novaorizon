@@ -3,44 +3,24 @@ import React from "react";
 
 interface ImageRendererProps {
   image?: string;
+  alt?: string;
+  className?: string;
 }
 
-const ImageRenderer = ({ image }: ImageRendererProps) => {
+const ImageRenderer = ({ image, alt, className = "" }: ImageRendererProps) => {
   const defaultImage = "/placeholder.png"; // Fallback image path
 
-  // Determine class and rendering style based on file type
-  const getImageStyle = (image: string | undefined) => {
-    if (image?.includes(".png")) {
-      return {
-        className: "object-cover rounded-lg",
-        layout: "intrinsic",
-      };
-    } else if (
-      image?.includes(".jpg") ||
-      image?.includes(".jpeg") ||
-      image?.includes(".webp") ||
-      image?.includes(".avif")
-    ) {
-      return { className: "object-cover rounded-lg", layout: "responsive" };
-    }
-    return {
-      className: "object-cover rounded-lg",
-      layout: "intrinsic",
-    }; // Default style
-  };
-
-  const { className, layout } = getImageStyle(image);
-
   return (
-    <Image
-      src={image || defaultImage} // Use fallback if image is unavailable
-      width={500}
-      height={500}
-      alt={image ? `Rendered image: ${image}` : "Default placeholder image"}
-      loading="lazy"
-      className={`${className}`}
-      layout={layout}
-    />
+    <div className={`relative w-full h-full ${className}`}>
+      <Image
+        src={image || defaultImage}
+        alt={alt || (image ? `Image: ${image}` : "Placeholder image")}
+        fill
+        sizes="(max-width: 768px) 100vw, 50vw"
+        className="object-cover"
+        priority={false}
+      />
+    </div>
   );
 };
 

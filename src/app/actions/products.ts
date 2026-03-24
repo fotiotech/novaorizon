@@ -75,6 +75,8 @@ export async function findProducts(id?: string) {
       console.error("No products found");
     }
 
+    console.log(products)
+
     return products.map((product: any) => ({
       ...product,
       _id: product._id?.toString(),

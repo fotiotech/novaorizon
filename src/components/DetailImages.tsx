@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import Image from "next/image"; 
 import ImageRenderer from "./ImageRenderer";
 
 interface DetailImagesProps {
@@ -50,10 +51,8 @@ const DetailImages: React.FC<DetailImagesProps> = ({
 
   const handleTouchEnd = () => {
     if (touchStart - touchEnd > 50) {
-      // Swipe left
       slideToIndex("right");
     } else if (touchEnd - touchStart > 50) {
-      // Swipe right
       slideToIndex("left");
     }
   };
@@ -204,7 +203,7 @@ const DetailImages: React.FC<DetailImagesProps> = ({
         {file.map((image, index) => (
           <div
             key={index}
-            className="inline-block w-full h-full relative flex-shrink-0"
+            className="inline-block w-full h-full relative flex-shrink-0 aspect-square"
             style={{
               transform: `translateX(-${currentImageIndex * 100}%)`,
             }}
@@ -229,11 +228,15 @@ const DetailImages: React.FC<DetailImagesProps> = ({
                             : "border-gray-300 opacity-70"
                         }`}
             >
-              <img
-                src={image}
-                alt={`Thumbnail ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
+              <div className="relative w-full h-full">
+                <Image
+                  src={image}
+                  alt={`Thumbnail ${index + 1}`}
+                  fill
+                  className="object-cover"
+                  sizes="64px"
+                />
+              </div>
             </button>
           ))}
         </div>
