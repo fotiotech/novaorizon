@@ -28,9 +28,15 @@ function applyVariant(product: any, variant: any) {
   return merged;
 }
 
-// Helper to render a single attribute value
+// Helper to render a single attribute value, handling number+unit objects
 function renderAttributeValue(value: any): string {
   if (value === undefined || value === null) return "";
+  
+  // Check if it's an object with value and unit (number with unit)
+  if (typeof value === "object" && value !== null && "value" in value && "unit" in value) {
+    return `${value.value} ${value.unit}`;
+  }
+  
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
@@ -270,15 +276,16 @@ export default function Details({ params }: { params: Params }) {
         <ProductBasicInfo />
 
         {/* Long description */}
-{product.long_desc && (
-  <div className="mt-8 bg-white p-4 rounded shadow">
-    <h2 className="text-lg font-semibold mb-2">Description</h2>
-    <div
-      className="prose max-w-none text-gray-700"
-      dangerouslySetInnerHTML={{ __html: product.long_desc }}
-    />
-  </div>
-)}
+        {product.long_desc && (
+          <div className="mt-8 bg-white p-4 rounded shadow">
+            <h2 className="text-lg font-semibold mb-2">Description</h2>
+            <div
+              className="prose max-w-none text-gray-700"
+              dangerouslySetInnerHTML={{ __html: product.long_desc }}
+            />
+          </div>
+        )}
+
         {/* Product specifications - rendered from attribute groups */}
         {groups.length > 0 && (
           <SpecificationsRenderer groups={groups} product={product} />
