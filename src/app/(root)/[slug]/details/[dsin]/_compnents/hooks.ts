@@ -44,10 +44,12 @@ export function useProductData(dsin: string) {
 
 export function useAttributeGroups(categoryId: string) {
   const [groups, setGroups] = useState<AttributeGroup[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!categoryId) return;
 
+    setLoading(true);
     (async () => {
       try {
         const res = await find_category_attribute_groups(categoryId);
@@ -60,11 +62,13 @@ export function useAttributeGroups(categoryId: string) {
       } catch (err) {
         console.error("Failed to fetch groups", err);
         setGroups([]);
+      } finally {
+        setLoading(false);
       }
     })();
   }, [categoryId]);
 
-  return groups;
+  return { groups, loading };
 }
 
 export function useExpandedSections(groups: AttributeGroup[]) {

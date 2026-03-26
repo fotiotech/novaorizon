@@ -111,7 +111,9 @@ const SpecificationsRenderer: React.FC<SpecificationsRendererProps> = ({ groups,
 
 export default function Details({ params }: { params: Params }) {
   const { product, loading, error, setProduct } = useProductData(params?.dsin);
-  const groups = useAttributeGroups(product?.category_id);
+  // Ensure category_id is a string (in case it's an object with _id)
+  const categoryId = product?.category_id?._id ?? product?.category_id;
+  const { groups, loading: groupsLoading } = useAttributeGroups(categoryId);
   const { data: session } = useSession();
   const user = session?.user as any;
 
@@ -287,9 +289,13 @@ export default function Details({ params }: { params: Params }) {
         )}
 
         {/* Product specifications - rendered from attribute groups */}
-        {groups.length > 0 && (
+        {groupsLoading ? (
+          <div className="mt-8 flex justify-center">
+            <Spinner size={24} />
+          </div>
+        ) : groups.length > 0 ? (
           <SpecificationsRenderer groups={groups} product={product} />
-        )}
+        ) : null}
 
         {/* Related products */}
         {product.related_products?.ids?.length > 0 && (
