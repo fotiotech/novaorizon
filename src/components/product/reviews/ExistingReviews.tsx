@@ -18,7 +18,7 @@ type ExistingReviewsProps = {
 export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
   if (!reviews || reviews?.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg p-6">
         <h2 className="text-2xl font-semibold mb-4">Customer Reviews</h2>
         <p className="text-gray-600">No reviews yet. Be the first to review!</p>
       </div>
@@ -33,7 +33,7 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
   });
 
   return (
-    <div className="bg-white rounded-lg shadow py-6 space-y-6">
+    <div className="bg-white rounded-lg py-6 space-y-6">
       <h2 className="text-2xl font-semibold">Customer Reviews</h2>
       <ul className="space-y-6">
         {sorted?.map((review) => (

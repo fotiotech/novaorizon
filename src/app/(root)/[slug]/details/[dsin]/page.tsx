@@ -31,12 +31,12 @@ function applyVariant(product: any, variant: any) {
 // Helper to render a single attribute value, handling number+unit objects
 function renderAttributeValue(value: any): string {
   if (value === undefined || value === null) return "";
-  
+
   // Check if it's an object with value and unit (number with unit)
   if (typeof value === "object" && value !== null && "value" in value && "unit" in value) {
     return `${value.value} ${value.unit}`;
   }
-  
+
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
@@ -79,7 +79,7 @@ const SpecificationsRenderer: React.FC<SpecificationsRendererProps> = ({ groups,
   if (!specsGroup) return null;
 
   // Recursive render function for groups
-  const renderGroup = (group: AttributeGroup, level: number = 0) => {
+  const renderGroup = (group: AttributeGroup, skipOwnAttributes: boolean = false, level: number = 0) => {
     const hasAttributes = group.attributes && group.attributes.length > 0;
     const hasChildren = group.children && group.children.length > 0;
 
@@ -90,23 +90,37 @@ const SpecificationsRenderer: React.FC<SpecificationsRendererProps> = ({ groups,
         <h3 className={`font-semibold ${level === 0 ? "text-lg" : "text-md"} mb-2`}>
           {group.name}
         </h3>
-        {hasAttributes && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {group.attributes.map((attr) => (
-              <AttributeRenderer key={attr.code} attribute={attr} product={product} />
-            ))}
-          </div>
+        {!skipOwnAttributes && hasAttributes && (
+          <table className="min-w-full border-collapse border border-gray-200">
+            <tbody>
+              {group.attributes.map((attr) => {
+                const value = product?.[attr.code];
+                if (value === undefined || value === null) return null;
+                return (
+                  <tr key={attr.code} className="border-b border-gray-200">
+                    <th className="py-2 px-4 text-left font-medium capitalize w-1/3 bg-gray-50">
+                      {attr.name}
+                    </th>
+                    <td className="py-2 px-4 text-gray-700">
+                      {renderAttributeValue(value)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
         {hasChildren && (
-          <div className="mt-2">
-            {group.children.map((child) => renderGroup(child, level + 1))}
+          <div className="mt-4">
+            {group.children.map((child) => renderGroup(child, false, level + 1))}
           </div>
         )}
       </div>
     );
   };
 
-  return <div className="mt-8">{renderGroup(specsGroup)}</div>;
+  // Render the top-level group, skipping its own attributes (only children are shown)
+  return <div className="mt-8">{renderGroup(specsGroup, true)}</div>;
 };
 
 export default function Details({ params }: { params: Params }) {
@@ -277,16 +291,6 @@ export default function Details({ params }: { params: Params }) {
       <div className="max-w-6xl mx-auto">
         <ProductBasicInfo />
 
-        {/* Long description */}
-        {product.long_desc && (
-          <div className="mt-8 bg-white p-4 rounded shadow">
-            <h2 className="text-lg font-semibold mb-2">Description</h2>
-            <div
-              className="prose max-w-none text-gray-700"
-              dangerouslySetInnerHTML={{ __html: product.long_desc }}
-            />
-          </div>
-        )}
 
         {/* Product specifications - rendered from attribute groups */}
         {groupsLoading ? (
@@ -296,6 +300,18 @@ export default function Details({ params }: { params: Params }) {
         ) : groups.length > 0 ? (
           <SpecificationsRenderer groups={groups} product={product} />
         ) : null}
+
+                {/* Long description */}
+        {product.long_desc && (
+          <div className="mt-8 bg-white rounded">
+            <h2 className="text-lg font-semibold mb-2">Description</h2>
+            <div
+              className="prose max-w-none text-gray-700"
+              dangerouslySetInnerHTML={{ __html: product.long_desc }}
+            />
+          </div>
+        )}
+
 
         {/* Related products */}
         {product.related_products?.ids?.length > 0 && (
@@ -326,7 +342,7 @@ export default function Details({ params }: { params: Params }) {
         )}
 
         {/* Reviews section */}
-        <div className="mt-8 bg-white p-4 rounded shadow">
+        <div className="mt-8 bg-white rounded">
           <ReviewForm productId={product._id} userId={user?._id} />
           <ExistingReviews reviews={product?.reviews} />
         </div>
