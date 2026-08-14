@@ -1,12 +1,8 @@
 "use server";
 import { connection } from "@/utils/connection";
 import Attribute from "@/models/Attribute";
-import AttributeValue from "@/models/AttributeValue";
 import Category from "@/models/Category";
 import mongoose from "mongoose";
-
-
-
 
 // Function to fetch category attributes and values
 export async function findCategoryAttributesAndValues(categoryId: string) {
@@ -113,80 +109,4 @@ export async function findCategoryAttributesAndValues(categoryId: string) {
   ]);
 
   return response;
-}
-
-// Function to create or update attributes and their values
-export async function createAttribute(formData: FormData) {
-  await connection();
-
-  const categoryId = formData.get("catId") as string;
-  const groupName = formData.get("groupName") as string; // Group name
-  const attrNames: string[] = [];
-  const attrValues: string[][] = []; // Array of arrays to hold multiple values per attribute
-
-  // Collect attribute names and values
-  for (const [key, value] of formData.entries() as unknown as any) {
-    if (key.startsWith("attrName")) {
-      attrNames.push(value as string);
-    } else if (key.startsWith("attrValue")) {
-      const values = (value as string)
-        .split(",")
-        .map((v) => v.trim())
-        .filter((v) => v); // Filter out empty values
-      attrValues.push(values);
-    }
-  }
-
-  if (!categoryId || !groupName || !attrNames.length || !attrValues.length) {
-    console.error("Missing required data:", {
-      categoryId,
-      groupName,
-      attrNames,
-      attrValues,
-    });
-    return;
-  }
-
-  try {
-    for (let i = 0; i < attrNames.length; i++) {
-      const attributeName = attrNames[i];
-      const attributeValues = attrValues[i];
-
-      // Check if the attribute already exists
-      let attribute = await Attribute.findOne({
-        group: groupName,
-        name: attributeName,
-        category_id: new mongoose.Types.ObjectId(categoryId),
-      });
-
-      if (!attribute) {
-        // Create a new attribute if it doesn't exist
-        attribute = await Attribute.create({
-          group: groupName,
-          name: attributeName,
-          category_id: new mongoose.Types.ObjectId(categoryId),
-        });
-      }
-
-      // Add or update attribute values in the AttributeValue collection
-      for (const value of attributeValues) {
-        const existingValue = await AttributeValue.findOne({
-          attribute_id: attribute._id,
-          value,
-        });
-
-        if (!existingValue) {
-          // Create a new attribute value if it doesn't exist
-          await AttributeValue.create({
-            attribute_id: attribute._id,
-            value,
-          });
-        }
-      }
-    }
-
-    console.log("Attributes and their values successfully created or updated");
-  } catch (error) {
-    console.error("Error creating or updating attributes and values:", error);
-  }
 }

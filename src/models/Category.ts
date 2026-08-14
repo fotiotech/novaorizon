@@ -7,6 +7,7 @@ interface ICategory extends Document {
   parent_id?: mongoose.Types.ObjectId;
   description?: string;
   imageUrl?: string[];
+  property?: mongoose.Types.ObjectId; // Reference to CategoryProperty
   seo_title?: string;
   seo_desc?: string;
   keywords?: string;
@@ -29,6 +30,7 @@ const CategorySchema = new Schema<ICategory>({
     unique: true,
     required: [true, "Category name is required"],
   },
+
   parent_id: {
     type: mongoose.Types.ObjectId,
     ref: "Category",
@@ -39,10 +41,16 @@ const CategorySchema = new Schema<ICategory>({
       type: String,
       validate: {
         validator: (v: string) => /^https?:\/\/.+\..+$/.test(v),
-        message: (props: { value: string }) => `${props.value} is not a valid URL!`,
+        message: (props: { value: string }) =>
+          `${props.value} is not a valid URL!`,
       },
     },
   ],
+  property: {
+    type: Schema.Types.ObjectId,
+    ref: "CategoryProperty",
+  },
+
   seo_title: { type: String, maxLength: 60 },
   seo_desc: { type: String, maxLength: 160 },
   keywords: { type: String },
@@ -59,5 +67,6 @@ CategorySchema.pre("save", function (next) {
 });
 
 // Category Model
-const Category = models.Category || model<ICategory>("Category", CategorySchema);
+const Category =
+  models.Category || model<ICategory>("Category", CategorySchema);
 export default Category;

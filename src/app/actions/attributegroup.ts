@@ -1,6 +1,6 @@
 "use server";
 import { connection } from "@/utils/connection";
-import AttributeGroup from "@/models/AttributesGroup";
+import AttributeGroup from "@/models/AttributeGroup";
 import mongoose from "mongoose";
 import { revalidatePath } from "next/cache";
 
@@ -21,13 +21,13 @@ export async function findGroup(id?: string) {
 
     const buildGroupTreeWithValues = (
       groups: any[],
-      parentId: string | null = null
+      parentId: string | null = null,
     ): any[] => {
       return groups
         .filter(
           (group) =>
             (!parentId && !group.parent_id) ||
-            (parentId && group.parent_id?.toString() === parentId)
+            (parentId && group.parent_id?.toString() === parentId),
         )
         .sort((a, b) => a.group_order - b.group_order)
         .map((group) => ({

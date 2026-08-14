@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import AddToCart from "@/components/AddToCart";
 import CheckoutButton from "@/components/CheckoutButton";
 import DetailImages from "@/components/DetailImages";
@@ -11,14 +11,50 @@ import Spinner from "@/components/Spinner";
 import ProductViewAnalytics from "./_compnents/ProductViewAnalytics";
 import ReviewForm from "@/components/product/reviews/ProductReviews";
 import ExistingReviews from "@/components/product/reviews/ExistingReviews";
-import { useProductData, useAttributeGroups } from "./_compnents/hooks";
+import { useProductData } from "./_compnents/hooks";
+import { getCategoryAttributeSets } from "@/app/actions/category"; // adjust path
+
+// ---------- Types (matching those in category.ts) ----------
+interface AttributeUnitFamily {
+  id: string;
+  name: string;
+  baseUnit: string;
+}
+
+interface MappedAttribute {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  options: string[];
+  isRequired: boolean;
+  unitFamily: AttributeUnitFamily | null;
+  sortOrder: number;
+}
+
+interface GroupNode {
+  id: string;
+  code: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number;
+  attributes: MappedAttribute[];
+  children: GroupNode[];
+}
+
+interface AttributeSetResult {
+  id: string;
+  title: string;
+  code: string;
+  groups: GroupNode[];
+}
 
 interface Params {
   slug: string;
   dsin: string;
 }
 
-// Helper to merge variant into product
+// ---------- Helper to merge variant into product ----------
 function applyVariant(product: any, variant: any) {
   if (!product || !variant) return product;
   const merged = JSON.parse(JSON.stringify(product));
@@ -28,76 +64,48 @@ function applyVariant(product: any, variant: any) {
   return merged;
 }
 
-// Helper to render a single attribute value, handling number+unit objects
+// ---------- Helper to render a single attribute value ----------
 function renderAttributeValue(value: any): string {
   if (value === undefined || value === null) return "";
-
-  // Check if it's an object with value and unit (number with unit)
-  if (typeof value === "object" && value !== null && "value" in value && "unit" in value) {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "value" in value &&
+    "unit" in value
+  ) {
     return `${value.value} ${value.unit}`;
   }
-
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
 
-// Recursive component to render attribute groups (specifications only)
-interface AttributeRendererProps {
-  attribute: { code: string; name: string };
+// ---------- Component: Specifications Table (only for "specification" set) ----------
+const SpecificationTable: React.FC<{
+  set: AttributeSetResult;
   product: any;
-}
-
-const AttributeRenderer: React.FC<AttributeRendererProps> = ({ attribute, product }) => {
-  const { code, name } = attribute;
-  const value = product?.[code];
-  if (value === undefined || value === null) return null;
-
-  return (
-    <div className="py-2 border-b border-gray-100">
-      <span className="font-medium capitalize">{name}: </span>
-      <span className="text-gray-700">{renderAttributeValue(value)}</span>
-    </div>
-  );
-};
-
-interface AttributeGroup {
-  code: string;
-  name: string;
-  attributes: { code: string; name: string }[];
-  children: AttributeGroup[];
-}
-
-interface SpecificationsRendererProps {
-  groups: AttributeGroup[];
-  product: any;
-}
-
-const SpecificationsRenderer: React.FC<SpecificationsRendererProps> = ({ groups, product }) => {
-  // Find the group with code "product_specifications"
-  const specsGroup = groups.find((g) => g.code === "product_specifications");
-  if (!specsGroup) return null;
-
-  // Recursive render function for groups
-  const renderGroup = (group: AttributeGroup, skipOwnAttributes: boolean = false, level: number = 0) => {
+}> = ({ set, product }) => {
+  const renderGroup = (group: GroupNode, level: number = 0) => {
     const hasAttributes = group.attributes && group.attributes.length > 0;
     const hasChildren = group.children && group.children.length > 0;
 
     if (!hasAttributes && !hasChildren) return null;
 
     return (
-      <div key={group.code} className={`mb-6 ${level > 0 ? "ml-4 mt-4" : ""}`}>
-        <h3 className={`font-semibold ${level === 0 ? "text-lg" : "text-md"} mb-2`}>
+      <div key={group.id} className={`mb-6 ${level > 0 ? "ml-4 mt-4" : ""}`}>
+        <h3
+          className={`font-semibold ${level === 0 ? "text-lg" : "text-md"} mb-2`}
+        >
           {group.name}
         </h3>
-        {!skipOwnAttributes && hasAttributes && (
+        {hasAttributes && (
           <table className="min-w-full border-collapse border border-gray-200">
             <tbody>
               {group.attributes.map((attr) => {
                 const value = product?.[attr.code];
                 if (value === undefined || value === null) return null;
                 return (
-                  <tr key={attr.code} className="border-b border-gray-200">
+                  <tr key={attr.id} className="border-b border-gray-200">
                     <th className="py-2 px-4 text-left font-medium capitalize w-1/3 bg-gray-50">
                       {attr.name}
                     </th>
@@ -112,24 +120,49 @@ const SpecificationsRenderer: React.FC<SpecificationsRendererProps> = ({ groups,
         )}
         {hasChildren && (
           <div className="mt-4">
-            {group.children.map((child) => renderGroup(child, false, level + 1))}
+            {group.children.map((child) => renderGroup(child, level + 1))}
           </div>
         )}
       </div>
     );
   };
 
-  // Render the top-level group, skipping its own attributes (only children are shown)
-  return <div className="mt-8">{renderGroup(specsGroup, true)}</div>;
+  return (
+    <div className="mt-8">
+      <h2 className="text-xl font-semibold mb-4">{set.title}</h2>
+      {set.groups.map((group) => renderGroup(group, 0))}
+    </div>
+  );
 };
 
+// ---------- Main Page Component ----------
 export default function Details({ params }: { params: Params }) {
   const { product, loading, error, setProduct } = useProductData(params?.dsin);
-  // Ensure category_id is a string (in case it's an object with _id)
+  const [attributeSets, setAttributeSets] = useState<AttributeSetResult[]>([]);
+  const [setsLoading, setSetsLoading] = useState<boolean>(true);
+  const [setsError, setSetsError] = useState<string | null>(null);
+
   const categoryId = product?.category_id?._id ?? product?.category_id;
-  const { groups, loading: groupsLoading } = useAttributeGroups(categoryId);
   const { data: session } = useSession();
   const user = session?.user as any;
+
+  useEffect(() => {
+    if (!categoryId) {
+      setSetsLoading(false);
+      return;
+    }
+    setSetsLoading(true);
+    getCategoryAttributeSets(categoryId as string)
+      .then((sets) => {
+        setAttributeSets(sets);
+        setSetsError(null);
+      })
+      .catch((err) => {
+        console.error("Failed to load attribute sets:", err);
+        setSetsError("Could not load product specifications.");
+      })
+      .finally(() => setSetsLoading(false));
+  }, [categoryId]);
 
   const handleVariantSelect = useCallback(
     (variant: any) => {
@@ -138,9 +171,10 @@ export default function Details({ params }: { params: Params }) {
         setProduct(merged);
       }
     },
-    [product, setProduct]
+    [product, setProduct],
   );
 
+  // ----- Loading & Error states -----
   if (loading) return <Spinner size={32} />;
   if (error)
     return (
@@ -167,7 +201,7 @@ export default function Details({ params }: { params: Params }) {
       </div>
     );
 
-  // Basic info component (images, title, price, variants, cart)
+  // ----- ProductBasicInfo component (inline) -----
   const ProductBasicInfo = () => {
     const {
       _id = "",
@@ -207,7 +241,9 @@ export default function Details({ params }: { params: Params }) {
             </h1>
 
             {typeof list_price === "number" && (
-              <div className="text-2xl font-semibold mb-4">{list_price} CFA</div>
+              <div className="text-2xl font-semibold mb-4">
+                {list_price} CFA
+              </div>
             )}
 
             {Array.isArray(stock_status) && stock_status.length > 0 && (
@@ -285,23 +321,40 @@ export default function Details({ params }: { params: Params }) {
     );
   };
 
+  // ----- Main render -----
   return (
     <div className="w-full bg-white border-b-2 border-gray-300 p-4 md:p-8">
       <ProductViewAnalytics productId={params.dsin} />
       <div className="max-w-6xl mx-auto">
         <ProductBasicInfo />
 
-
-        {/* Product specifications - rendered from attribute groups */}
-        {groupsLoading ? (
+        {/* Attribute sets – only render the "specification" set */}
+        {setsLoading ? (
           <div className="mt-8 flex justify-center">
             <Spinner size={24} />
           </div>
-        ) : groups.length > 0 ? (
-          <SpecificationsRenderer groups={groups} product={product} />
+        ) : setsError ? (
+          <div className="mt-8 text-red-500">{setsError}</div>
+        ) : attributeSets.length > 0 ? (
+          <div className="mt-8 space-y-8">
+            {attributeSets.map((set) => {
+              // Only render the set with code "specification"
+              if (set.code === "specifications") {
+                return (
+                  <SpecificationTable
+                    key={set.id}
+                    set={set}
+                    product={product}
+                  />
+                );
+              }
+              // All other sets are hidden (return null)
+              return null;
+            })}
+          </div>
         ) : null}
 
-                {/* Long description */}
+        {/* Long description */}
         {product.long_desc && (
           <div className="mt-8 bg-white rounded">
             <h2 className="text-lg font-semibold mb-2">Description</h2>
@@ -311,7 +364,6 @@ export default function Details({ params }: { params: Params }) {
             />
           </div>
         )}
-
 
         {/* Related products */}
         {product.related_products?.ids?.length > 0 && (

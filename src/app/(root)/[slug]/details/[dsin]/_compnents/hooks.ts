@@ -1,4 +1,3 @@
-import { find_category_attribute_groups } from "@/app/actions/category";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchProducts } from "@/fetch/fetchProducts";
 import { useState, useEffect, useCallback } from "react";
@@ -40,35 +39,6 @@ export function useProductData(dsin: string) {
   }, [dispatch, dsin, baseProduct]);
 
   return { product, loading, error, setProduct };
-}
-
-export function useAttributeGroups(categoryId: string) {
-  const [groups, setGroups] = useState<AttributeGroup[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!categoryId) return;
-
-    setLoading(true);
-    (async () => {
-      try {
-        const res = await find_category_attribute_groups(categoryId);
-        if (Array.isArray(res)) {
-          setGroups(res);
-        } else {
-          console.warn("findGroup returned unexpected format", res);
-          setGroups([]);
-        }
-      } catch (err) {
-        console.error("Failed to fetch groups", err);
-        setGroups([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [categoryId]);
-
-  return { groups, loading };
 }
 
 export function useExpandedSections(groups: AttributeGroup[]) {

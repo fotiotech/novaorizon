@@ -1,9 +1,12 @@
 import mongoose, { Schema, model, models, Document } from "mongoose";
 
 // Attribute Interface
-interface IAttribute extends Document {
+export interface IAttribute extends Document {
   code: string;
+  unitFamily?: mongoose.Types.ObjectId | null; // Reference to UnitFamily, can be null
+  isRequired: boolean;
   name: string;
+  sort_order: number;
   option?: string[];
   type:
     | "text"
@@ -27,10 +30,22 @@ const AttributeSchema = new Schema<IAttribute>({
     unique: true,
     required: [true, "Attribute code is required"],
   },
+  unitFamily: {
+    type: Schema.Types.ObjectId,
+    ref: "UnitFamily",
+    default: null,
+  },
+  isRequired: {
+    type: Boolean,
+  },
   name: {
     type: String,
     unique: true,
     required: [true, "Attribute name is required"],
+  },
+  sort_order: {
+    type: Number,
+    required: [true, "Attribute sort_order is required"],
   },
   option: [{ type: String }],
 
@@ -53,8 +68,6 @@ const AttributeSchema = new Schema<IAttribute>({
     required: true,
   },
 });
-
-AttributeSchema.index({ code: 1 });
 
 // Attribute Model
 const Attribute =
