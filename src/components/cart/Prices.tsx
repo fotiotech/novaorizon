@@ -14,20 +14,18 @@ export function Prices({ amount, currency = "CFA" }: PricesProps) {
   }).format(amount);
 }
 
-
 export const TotalPrice = ({
   cart,
   shippingPrice,
   currency = "CFA",
 }: {
   cart: CartItem[];
-  shippingPrice: number;
+  shippingPrice: number | null;
   currency?: string;
 }) => {
   const amount = cart.reduce(
     (total, item) => total + item.price * item.quantity,
-    0
+    0,
   );
-  return <Prices amount={amount + shippingPrice} currency={currency} />;
+  return <Prices amount={amount + (shippingPrice || 0)} currency={currency} />;
 };
-

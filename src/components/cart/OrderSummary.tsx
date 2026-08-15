@@ -1,29 +1,25 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { CalcShippingPrice } from "@/app/(root)/checkout/page";
+import { CalcShippingPrice } from "@/app/(checkout)/checkout/page";
 import { useCart } from "@/app/context/CartContext";
 import { Prices, TotalPrice } from "@/components/cart/Prices";
 
 interface OrderSummaryProps {
-  shippingPrice: CalcShippingPrice;
+  shippingPrice: CalcShippingPrice | null;
 }
 
-const OrderSummary: React.FC<OrderSummaryProps> = ({
-  shippingPrice,
-}) => {
+const OrderSummary: React.FC<OrderSummaryProps> = ({ shippingPrice }) => {
   const { cart } = useCart();
-
 
   // Calculate subtotal
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [cart]
+    [cart],
   );
 
   return (
     <div className="border rounded-lg p-4 space-y-4">
-
       <ul className="space-y-2">
         {cart.map((item) => (
           <li key={item.id} className="flex justify-between">
@@ -58,7 +54,7 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
           <span>Total:</span>
           <TotalPrice
             cart={cart}
-            shippingPrice={shippingPrice?.shippingPrice}
+            shippingPrice={shippingPrice?.shippingPrice ?? 0}
           />
         </div>
         <div className="flex justify-between">

@@ -1,8 +1,8 @@
 "use client";
 
 import { findOrders } from "@/app/actions/order";
-import MonetBilPayment from "@/components/payments/MonetBilPayment";
-import PaypalPayment from "@/components/payments/PaypalPayment";
+import MonetBilPayment from "@/app/(profile)/components/payments/MonetBilPayment";
+import PaypalPayment from "@/app/(profile)/components/payments/PaypalPayment";
 import { Orders } from "@/constant/types";
 import { useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";

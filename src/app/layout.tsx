@@ -14,9 +14,9 @@ export const metadata: Metadata = {
     default: "Clickitcome Cameroun | Your One-Stop E-commerce Solution",
     template: "%s | Clickitcome Cameroun",
   },
-  description: "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
+  description:
+    "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
 };
-
 
 export default function RootLayout({
   children,

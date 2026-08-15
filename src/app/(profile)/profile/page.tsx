@@ -3,11 +3,11 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useSession } from "next-auth/react";
-import { SignOut } from "@/components/auth/SignInButton";
+import { SignOut } from "@/app/(auth)/components/auth/SignInButton";
 import { findOrders } from "@/app/actions/order";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
-import { useUnreadMessages } from "../checkout/chat/_component/useUnreadMessages";
+import { useUnreadMessages } from "../../(checkout)/checkout/chat/_component/useUnreadMessages";
 
 const Profile = () => {
   const { data: session, status } = useSession();
@@ -198,8 +198,9 @@ const Profile = () => {
                   </span>
                 </Link>
 
+                {/* Addresses - updated route */}
                 <Link
-                  href="/checkout/billing_addresses"
+                  href="/profile/address"
                   className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
                 >
                   <svg
@@ -217,7 +218,31 @@ const Profile = () => {
                     />
                   </svg>
                   <span className="text-gray-700 group-hover:text-blue-600">
-                    Billing Addresses
+                    Addresses
+                  </span>
+                </Link>
+
+                {/* Payment Methods - new link */}
+                <Link
+                  href="/profile/payment"
+                  className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                    />
+                  </svg>
+                  <span className="text-gray-700 group-hover:text-blue-600">
+                    Payment Methods
                   </span>
                 </Link>
 

@@ -1,78 +1,119 @@
-import { findCustomer } from "@/app/actions/customer";
-import { generatePaymentLink } from "@/app/actions/monetbil_payment";
 import { findOrders } from "@/app/actions/order";
+import { generatePaymentLink } from "@/app/actions/monetbil_payment";
 import { useCart } from "@/app/context/CartContext";
-import { useUser } from "@/app/context/UserContext";
+import { useUserData } from "@/app/context/UserDataContext";
 import { CartItem } from "@/app/reducer/cartReducer";
-import { Customer, MonetbilPaymentRequest } from "@/constant/types";
+import { MonetbilPaymentRequest } from "@/constant/types";
 import React, { useEffect, useState } from "react";
 
-function MonetbilPayment({ payment_ref }: { payment_ref?: string }) {
+interface MonetbilPaymentProps {
+  payment_ref?: string;
+  orderTotal?: number; // optionally passed from checkout if order not yet created
+}
+
+function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const { cart } = useCart();
-  const { user } = useUser();
-  const [customer, setCustomer] = useState<Customer>();
+  const { user, addresses } = useUserData(); // new context
   const [operator, setOperator] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>("");
-  const [order, setOrder] = useState<any>({});
+  const [order, setOrder] = useState<any>(null);
 
-  useEffect(() => {
-    async function fetchOrder() {
-      if (payment_ref) {
-        const response = await findOrders(payment_ref);
-        setOrder(response);
-      }
-    }
-    fetchOrder();
-  }, [payment_ref]);
-
-  // Generate order number once
+  // Generate a fallback order number if none provided
   useEffect(() => {
     const generateOrderNumber = () => {
       const datePart = new Date()
         .toISOString()
         .replace(/[-:ZT.]/g, "")
-        .slice(0, 14); // YYYYMMDDHHMMSS
+        .slice(0, 14);
       const randomStr = Math.random()
         .toString(36)
         .substring(2, 8)
         .toUpperCase();
       return `ORD${datePart}${randomStr}`;
     };
-    setOrderNumber(generateOrderNumber());
-  }, []);
+    if (!payment_ref) {
+      setOrderNumber(generateOrderNumber());
+    }
+  }, [payment_ref]);
 
+  // Fetch order if payment_ref exists
+  useEffect(() => {
+    async function fetchOrder() {
+      if (payment_ref) {
+        const response = await findOrders(payment_ref);
+        if (response) {
+          const order = Array.isArray(response) ? response[0] : response;
+          setOrder(order);
+          // If order has an orderNumber, use it
+          if (order?.orderNumber) {
+            setOrderNumber(order.orderNumber);
+          }
+        }
+      }
+    }
+    fetchOrder();
+  }, [payment_ref]);
+
+  // Calculate total from cart (fallback)
   const calculateTotal = (cartItems: CartItem[]) => {
     return cartItems.reduce(
       (total, item) => total + item.price * item.quantity,
-      0
+      0,
     );
   };
 
-  useEffect(() => {
-    async function getCustomer() {
-      if (user?._id) {
-        const response = await findCustomer(user._id);
-        setCustomer(response);
-      }
+  // Determine the total amount to pay
+  const amount = order?.total ?? orderTotal ?? calculateTotal(cart);
+
+  // Extract billing details from order or fallback to user/address
+  const getBillingDetails = () => {
+    // If order exists, use its embedded billingAddress
+    if (order?.billingAddress) {
+      return {
+        phone: order.billingAddress.phone || user?.phone || "",
+        firstName:
+          order.billingAddress.firstName ||
+          user?.firstName ||
+          user?.name?.split(" ")[0] ||
+          "",
+        lastName:
+          order.billingAddress.lastName ||
+          user?.lastName ||
+          user?.name?.split(" ").slice(1).join(" ") ||
+          "",
+        email: order.billingAddress.email || user?.email || "",
+      };
     }
-    getCustomer();
-  }, [user]);
+
+    // Otherwise, use the first saved address (or user info)
+    const firstAddress = addresses.length > 0 ? addresses[0] : null;
+    return {
+      phone: user?.phone || "",
+      firstName: user?.firstName || user?.name?.split(" ")[0] || "",
+      lastName:
+        user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
+      email: user?.email || "",
+    };
+  };
+
+  const billing = getBillingDetails();
 
   const fetchPaymentLink = async (selectedOperator: string) => {
     setOperator(selectedOperator);
     setLoading(true);
 
+    // Build payment request
     const paymentData: MonetbilPaymentRequest = {
       serviceKey: process.env.NEXT_PUBLIC_MONETBIL_KEY as string,
-      orderNumber: payment_ref || orderNumber,
-      amount: payment_ref ? order?.total : calculateTotal(cart),
-      phone: customer?.billingAddress.phone,
-      user: user?.name,
-      firstName: customer?.billingAddress.firstName,
-      lastName: customer?.billingAddress.lastName,
-      email: customer?.billingAddress.email,
+      orderNumber: orderNumber,
+      amount: amount,
+      phone: billing.phone,
+      user: user?.name || billing.firstName,
+      firstName: billing.firstName,
+      lastName: billing.lastName,
+      email: billing.email,
       operator: selectedOperator,
       returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/payment/success`,
       notifyUrl: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/payment/notification`,
@@ -94,12 +135,29 @@ function MonetbilPayment({ payment_ref }: { payment_ref?: string }) {
     { code: "CM_EUMM", name: "EXPRESS UNION FINANCE" },
   ];
 
+  // Show error if phone is missing
+  if (!billing.phone) {
+    return (
+      <div className="flex justify-center items-center mt-8 bg-gray-50 p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md p-6 text-center">
+          <p className="text-red-600">
+            Phone number is required for mobile money payment. Please update
+            your profile.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex justify-center items-center mt-8 bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-md p-6">
         <h2 className="text-2xl font-semibold text-center mb-6">
           Pay with Mobile Money
         </h2>
+        <p className="text-sm text-gray-600 text-center mb-4">
+          Amount: {amount} CFA
+        </p>
         <div className="flex flex-col gap-4">
           {operators.map(({ code, name }) => (
             <button

@@ -6,9 +6,9 @@ import i18n from "./i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider } from "next-auth/react";
 import { Provider as ReduxProvider } from "react-redux";
-import { UserProvider } from "./context/UserContext";
 import { CartProvider } from "./context/CartContext";
 import { store } from "./store/store";
+import { UserDataProvider } from "./context/UserDataContext";
 
 interface ProviderProps {
   children: ReactNode;
@@ -24,7 +24,7 @@ const Providers = ({ children }: ProviderProps) => {
           <ReduxProvider store={store}>
             {/* <PersistGate loading={null} persistor={persistor}> */}
             <CartProvider>
-              <UserProvider>{children}</UserProvider>
+              <UserDataProvider>{children}</UserDataProvider>
             </CartProvider>
             {/* </PersistGate> */}
           </ReduxProvider>

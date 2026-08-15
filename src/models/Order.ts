@@ -20,8 +20,13 @@ export interface OrderDocument extends Document {
   shippingCost: number;
   total: number;
   paymentStatus: "pending" | "paid" | "failed" | "cancelled" | "refunded";
-  paymentMethod: string;
+  paymentMethod: string; // still store as string for quick display
   transaction_id?: string;
+  // Reference to the selected billing address
+  billingAddressId?: mongoose.Types.ObjectId;
+  // Reference to the selected payment method
+  paymentMethodId?: mongoose.Types.ObjectId;
+  // Embedded copies for historical consistency (kept for backward compatibility)
   billingAddress: {
     street: string;
     city: string;
@@ -82,6 +87,17 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
       default: "pending",
     },
     paymentMethod: { type: String, required: true },
+    billingAddressId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Address",
+      required: false, // optional for existing orders
+    },
+    paymentMethodId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PaymentMethod",
+      required: false,
+    },
+    // Embedded copies (still required)
     billingAddress: {
       street: { type: String, required: true },
       city: { type: String, required: true },
@@ -113,7 +129,7 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
     couponCode: { type: String },
     discount: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Order: Model<OrderDocument> =

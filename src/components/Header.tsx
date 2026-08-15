@@ -14,10 +14,10 @@ import useClickOutside from "./Hooks";
 import { Category } from "@/constant/types";
 import { useCart } from "@/app/context/CartContext";
 import { getCategory } from "@/app/actions/category";
-import { SignIn } from "./auth/SignInButton";
+import { SignIn } from "../app/(auth)/components/auth/SignInButton";
 import { useSession } from "next-auth/react";
 import { getMenusByType, MenuData } from "@/app/actions/menu";
-import { useUnreadMessages } from "@/app/(root)/checkout/chat/_component/useUnreadMessages";
+import { useUnreadMessages } from "@/app/(checkout)/checkout/chat/_component/useUnreadMessages";
 
 // Extracted Search Component
 const SearchBar = React.memo(
@@ -58,7 +58,7 @@ const SearchBar = React.memo(
         </button>
       </form>
     );
-  }
+  },
 );
 
 SearchBar.displayName = "SearchBar";
@@ -211,7 +211,7 @@ const Sidebar = React.memo(
         </div>
       </>
     );
-  }
+  },
 );
 
 Sidebar.displayName = "Sidebar";
@@ -285,11 +285,11 @@ const Header = () => {
       e.preventDefault();
       if (searchInput.trim()) {
         window.location.href = `/search?query=${encodeURIComponent(
-          searchInput
+          searchInput,
         )}`;
       }
     },
-    [searchInput]
+    [searchInput],
   );
 
   const toggleSidebar = useCallback(() => {

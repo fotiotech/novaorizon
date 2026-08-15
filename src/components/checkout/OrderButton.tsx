@@ -1,9 +1,9 @@
 // OrderButton.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { triggerNotification } from "@/app/actions/notifications";
-import { useUser } from "@/app/context/UserContext";
+import { useUserData } from "@/app/context/UserDataContext";
 import { useRouter } from "next/navigation";
 
 interface OrderButtonProps {
@@ -13,24 +13,28 @@ interface OrderButtonProps {
 const ProceedPaymentButton: React.FC<OrderButtonProps> = ({
   paymentMethod,
 }) => {
-  const { user } = useUser();
+  const { user } = useUserData();
   const router = useRouter();
-  const [isOrderPlaced, setIsOrderPlaced] = useState<boolean>(false);
 
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!paymentMethod) return;
 
     router.push(
-      `/checkout/payment?paymentMethod=${encodeURIComponent(paymentMethod)}`
+      `/checkout/payment?paymentMethod=${encodeURIComponent(paymentMethod)}`,
     );
 
-    setIsOrderPlaced(true);
-    if (user?._id) {
-      await triggerNotification(
-        user._id,
-        `${user.name} is proceeding payment!`
-      );
+    // Send notification if user exists
+    if (user?.id) {
+      const userName = user?.firstName || user?.name?.split(" ")[0] || "A user";
+      try {
+        await triggerNotification(
+          user.id,
+          `${userName} is proceeding to payment!`,
+        );
+      } catch (error) {
+        console.error("Failed to send notification:", error);
+      }
     }
   };
 
