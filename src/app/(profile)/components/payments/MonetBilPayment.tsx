@@ -88,7 +88,7 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
     }
 
     return {
-      phone: order.paymentMethodId.details.phoneNumber || "",
+      phone: order?.paymentMethodId?.details?.phoneNumber || "",
       firstName: user?.firstName || user?.name?.split(" ")[0] || "",
       lastName:
         user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
