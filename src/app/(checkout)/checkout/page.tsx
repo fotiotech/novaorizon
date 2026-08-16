@@ -133,12 +133,10 @@ const CheckoutPage = () => {
     }
   }
 
-  // --- UPDATED "Pay Now" handler ---
   const handlePayNow = async () => {
-    // 1. Guard: ensure orderNumber is set (fallback)
+    // 1. Ensure orderNumber is set
     let finalOrderNumber = orderNumber;
     if (!finalOrderNumber) {
-      // Regenerate if missing
       const datePart = new Date()
         .toISOString()
         .replace(/[-:ZT.]/g, "")
@@ -160,13 +158,12 @@ const CheckoutPage = () => {
       return;
     }
 
-    // 3. Ensure payment method exists
     if (!selectedPaymentMethod) {
       toast.error("Selected payment method not found. Please choose again.");
       return;
     }
 
-    // 4. Compute totals
+    // 3. Compute totals
     const subtotal = cart.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0,
@@ -174,14 +171,15 @@ const CheckoutPage = () => {
     const shippingCost = shippingPrice?.shippingPrice || 0;
     const total = subtotal + shippingCost;
 
+    // 4. Build clean order data (all primitive values)
     const orderData = {
-      userId: user?.id,
+      userId: user?.id || "",
       email: user?.email || "",
       firstName: user?.firstName || user?.name?.split(" ")[0] || "",
       lastName:
         user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
       products: cart.map((item) => ({
-        productId: item.id,
+        productId: item.id, // ensure string
         name: item.name,
         imageUrl: item.imageUrl,
         quantity: item.quantity,
@@ -195,6 +193,13 @@ const CheckoutPage = () => {
       paymentMethod: selectedPaymentMethod.methodType,
       billingAddressId: selectedAddressId,
       paymentMethodId: selectedPaymentMethodId,
+      billingAddress: {
+        street: selectedAddress?.street || "",
+        city: selectedAddress?.city || "",
+        region: selectedAddress?.state || selectedAddress?.city || "",
+        address: selectedAddress?.street + ", " + selectedAddress?.city || "",
+        country: selectedAddress?.country || "",
+      },
       shippingAddress: {
         street: selectedAddress?.street || "",
         city: selectedAddress?.city || "",
@@ -203,13 +208,15 @@ const CheckoutPage = () => {
         country: selectedAddress?.country || "",
         carrier: "Novaorizon",
       },
-    } as any;
+    };
 
     setProcessing(true);
     try {
-      console.log("Creating order with data:", orderData);
-      const result = await createOrUpdateOrder(finalOrderNumber, orderData);
-      console.log("Order creation result:", result);
+      console.log(`Creating order ${finalOrderNumber}...`);
+      const result = await createOrUpdateOrder(
+        finalOrderNumber,
+        orderData as any,
+      );
 
       if (!result.success) {
         throw new Error(result.error || "Failed to create order");
@@ -223,7 +230,7 @@ const CheckoutPage = () => {
         `/checkout/payment?payment_ref=${finalOrderNumber}&paymentMethod=${paymentMethodParam}`,
       );
     } catch (error: any) {
-      console.error("Pay Now error:", error);
+      console.error("Pay Now error:", error.message || error);
       toast.error(error.message || "Failed to proceed to payment");
     } finally {
       setProcessing(false);

@@ -199,9 +199,9 @@ export default function PaymentMethodForm({
               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
             >
               <option value="">Select operator</option>
-              <option value="MTN">MTN</option>
-              <option value="Orange">Orange</option>
-              <option value="Camtel">Camtel</option>
+              <option value="CM_MTNMOBILEMONEY">MTN</option>
+              <option value="CM_ORANGEMONEY">Orange</option>
+              <option value="CM_EUMM">Express Union</option>
             </select>
           </div>
 

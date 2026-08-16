@@ -235,7 +235,8 @@ export async function createOrUpdateOrder(
       }
     }
 
-    return { success: true, order: savedOrder };
+    const savedOrderPlain = savedOrder.toObject();
+    return { success: true, order: savedOrderPlain };
   } catch (err: any) {
     console.error("[createOrUpdateOrder] Error saving order:", err);
     return { success: false, error: err.message };

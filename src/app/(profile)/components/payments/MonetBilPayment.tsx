@@ -87,10 +87,8 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
       };
     }
 
-    // Otherwise, use the first saved address (or user info)
-    const firstAddress = addresses.length > 0 ? addresses[0] : null;
     return {
-      phone: user?.phone || "",
+      phone: order.paymentMethodId.details.phoneNumber || "",
       firstName: user?.firstName || user?.name?.split(" ")[0] || "",
       lastName:
         user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
