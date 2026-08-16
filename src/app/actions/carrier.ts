@@ -1,5 +1,6 @@
 "use server";
 import { connection } from "@/utils/connection";
+
 import Carrier from "@/models/Carrier";
 import { revalidatePath } from "next/cache";
 
@@ -37,10 +38,10 @@ export async function getCarriers() {
   const carriers = await Carrier.find();
   return carriers.map((data) => ({
     ...data.toObject(),
-    _id: data._id.toString(),
+    _id: data?._id.toString(),
     regionsServed: data.regionsServed.map((region: any) => ({
       ...region.toObject(),
-      _id: region._id.toString(),
+      _id: region?._id.toString(),
     })),
   }));
 }
@@ -50,10 +51,10 @@ export async function getCarriersById(_id: string) {
   const data = await Carrier.findOne({ _id });
   return {
     ...data.toObject(),
-    _id: data._id.toString(),
+    _id: data?._id.toString(),
     regionsServed: data.regionsServed.map((region: any) => ({
       ...region.toObject(),
-      _id: region._id.toString(),
+      _id: region?._id.toString(),
     })),
   };
 }
@@ -72,7 +73,7 @@ export async function updateCarrier(
     }[];
     costWeight: number;
     status: string;
-  }>
+  }>,
 ) {
   await connection();
 
@@ -87,11 +88,11 @@ export async function updateCarrier(
       if (
         !updates.regionsServed.every(
           (region) =>
-            region.region && region.basePrice && region.averageDeliveryTime
+            region.region && region.basePrice && region.averageDeliveryTime,
         )
       ) {
         throw new Error(
-          "All regions must have a region, basePrice, and averageDeliveryTime"
+          "All regions must have a region, basePrice, and averageDeliveryTime",
         );
       }
 
@@ -129,34 +130,39 @@ export async function calculateShippingPrice(
   carrierId: string,
   region: string,
   weight?: number,
-  distance?: number
+  distance?: number,
 ) {
   try {
+    // Connect to MongoDB (if not already connected)
     await connection();
 
+    // Fetch the carrier details
     const carrier = await Carrier.findById(carrierId);
     if (!carrier) {
       throw new Error("Carrier not found");
     }
 
-    const regionDetails = carrier.regionsServed?.find(
-      (r: any) => r.region.toLowerCase().trim() === region.toLowerCase().trim()
+    // Find the region details within the carrier's regionsServed
+    const regionDetails = carrier.regionsServed.find(
+      (r: any) => r.region.toLowerCase() === region.toLowerCase(),
     );
-
-
     if (!regionDetails) {
       throw new Error(`Region ${region} is not served by this carrier`);
     }
 
+    // Compute the shipping price
     const { basePrice } = regionDetails;
-    const costWeight = carrier.costWeight ?? 0;
-    const w = weight ?? 0;
+    const costWeight = carrier.costWeight ? carrier.costWeight : 0;
+
+    const w = weight ? weight : 0;
+
+    // Shipping price formula (example: basePrice + (weight * costWeight) + (distance * costPerKm))
     const shippingPrice = basePrice + w * costWeight;
 
     return {
       ...regionDetails.toObject(),
-      _id: regionDetails._id.toString(),
-      shippingPrice,
+      _id: regionDetails?._id.toString(),
+      shippingPrice: shippingPrice,
     };
   } catch (error) {
     console.error("Error calculating shipping price:", error);

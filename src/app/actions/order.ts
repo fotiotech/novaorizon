@@ -13,7 +13,7 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
       const regex = new RegExp(orderNumber, "i");
       const order = await Order.findOne({
         orderNumber: { $regex: regex },
-      }).populate("billingAddressId paymentMethodId");
+      }).populate("billingAddressId paymentMethodId carrierId");
       if (order) {
         return {
           ...order.toObject(),
@@ -24,7 +24,7 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
       return null;
     } else if (userId) {
       const orders = await Order.find({ userId }).populate(
-        "billingAddressId paymentMethodId",
+        "billingAddressId paymentMethodId carrierId",
       );
       return orders.map((order: any) => ({
         ...order.toObject(),
@@ -33,7 +33,7 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
       }));
     } else {
       const orders = await Order.find().populate(
-        "billingAddressId paymentMethodId",
+        "billingAddressId paymentMethodId carrierId",
       );
       return orders.map((order: any) => ({
         ...order.toObject(),
@@ -62,7 +62,7 @@ export async function createOrUpdateOrder(
     `[createOrUpdateOrder] Creating/updating order with orderNumber: ${payment_ref}`,
   );
 
-  // Destructure with defaults, including new fields
+  // Destructure with defaults, including carrierId
   const {
     tax = 0,
     shippingCost = 0,
@@ -87,9 +87,11 @@ export async function createOrUpdateOrder(
     },
     billingAddressId,
     paymentMethodId,
+    carrierId, // 👈 new: receive carrierId from frontend
     ...rest
   } = data;
 
+  // Build payload
   const payload: any = {
     ...rest,
     orderNumber: payment_ref,
@@ -116,6 +118,7 @@ export async function createOrUpdateOrder(
     },
     billingAddressId: billingAddressId || null,
     paymentMethodId: paymentMethodId || null,
+    carrierId: carrierId || null, // 👈 store the carrier reference
   };
 
   try {

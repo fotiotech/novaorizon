@@ -12,9 +12,11 @@ import ProductViewAnalytics from "./_compnents/ProductViewAnalytics";
 import ReviewForm from "@/components/product/reviews/ProductReviews";
 import ExistingReviews from "@/components/product/reviews/ExistingReviews";
 import { useProductData } from "./_compnents/hooks";
-import { getCategoryAttributeSets } from "@/app/actions/category"; // adjust path
+import { getCategoryAttributeSets } from "@/app/actions/category";
+import { getCarriers } from "@/app/actions/carrier"; // 👈 new import
+import { useUserData } from "@/app/context/UserDataContext"; // 👈 new import
 
-// ---------- Types (matching those in category.ts) ----------
+// ---------- Types (same as before) ----------
 interface AttributeUnitFamily {
   id: string;
   name: string;
@@ -49,6 +51,18 @@ interface AttributeSetResult {
   groups: GroupNode[];
 }
 
+// Carrier type (simplified)
+interface Carrier {
+  _id: string;
+  name: string;
+  regionsServed: Array<{
+    region: string;
+    basePrice: number;
+    averageDeliveryTime: string;
+  }>;
+  costWeight: number;
+}
+
 interface Params {
   slug: string;
   dsin: string;
@@ -78,6 +92,27 @@ function renderAttributeValue(value: any): string {
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+// ---------- Helper: check if a carrier serves a given address ----------
+function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
+  if (!address) return false;
+  // Build a list of strings to match against carrier's regions
+  const addressStrings = [
+    address.city,
+    address.state,
+    address.country,
+    address.zipCode,
+  ]
+    .filter(Boolean)
+    .map((s) => s.toLowerCase().trim());
+
+  return carrier.regionsServed.some((regionObj) => {
+    const region = regionObj.region.toLowerCase().trim();
+    return addressStrings.some(
+      (addrStr) => addrStr.includes(region) || region.includes(addrStr),
+    );
+  });
 }
 
 // ---------- Component: Specifications Table (only for "specification" set) ----------
@@ -135,6 +170,107 @@ const SpecificationTable: React.FC<{
   );
 };
 
+// ---------- Component: Carrier Shipping Options ----------
+const CarrierShippingOptions: React.FC<{
+  product: any;
+  userAddresses: any[];
+}> = ({ product, userAddresses }) => {
+  const [carriers, setCarriers] = useState<Carrier[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Get the carrier IDs from the product's "carrier" attribute
+  const carrierIds: string[] = product?.carrier || [];
+  const hasCarriers = carrierIds.length > 0;
+
+  // Fetch all carriers (we could also fetch only the needed ones, but this is simpler)
+  useEffect(() => {
+    if (!hasCarriers) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    getCarriers()
+      .then((data) => {
+        setCarriers(data);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error("Failed to load carriers:", err);
+        setError("Could not load shipping options.");
+      })
+      .finally(() => setLoading(false));
+  }, [hasCarriers]);
+
+  // Determine which carriers serve the user's address (pick first address)
+  const primaryAddress =
+    userAddresses && userAddresses.length > 0 ? userAddresses[0] : null;
+  const availableCarriers = carriers.filter((carrier) =>
+    doesCarrierServeAddress(carrier, primaryAddress),
+  );
+
+  // If no carriers selected for the product
+  if (!hasCarriers) return null;
+
+  if (loading)
+    return (
+      <div className="mt-4 text-gray-500">Loading shipping options...</div>
+    );
+  if (error) return <div className="mt-4 text-red-500">{error}</div>;
+
+  return (
+    <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+      <h3 className="text-lg font-semibold mb-2">Shipping Options</h3>
+      {!primaryAddress ? (
+        <p className="text-sm text-gray-600">
+          Please{" "}
+          <Link
+            href="/account/addresses"
+            className="text-blue-600 hover:underline"
+          >
+            add an address
+          </Link>{" "}
+          to check shipping availability.
+        </p>
+      ) : availableCarriers.length === 0 ? (
+        <p className="text-sm text-gray-600">
+          No carriers serve your region (
+          {primaryAddress.city || primaryAddress.state || "your area"}).
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {availableCarriers.map((carrier) => {
+            // Find the matching region details for this address
+            const regionDetail = carrier.regionsServed.find((r) =>
+              doesCarrierServeAddress(carrier, primaryAddress),
+            );
+            return (
+              <li
+                key={carrier._id}
+                className="flex justify-between items-center border-b border-gray-200 pb-2 last:border-0"
+              >
+                <div>
+                  <span className="font-medium">{carrier.name}</span>
+                  {regionDetail && (
+                    <span className="text-sm text-gray-600 ml-2">
+                      (Est. delivery: {regionDetail.averageDeliveryTime})
+                    </span>
+                  )}
+                </div>
+                {regionDetail && (
+                  <span className="font-semibold text-indigo-600">
+                    {regionDetail.basePrice} CFA
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 // ---------- Main Page Component ----------
 export default function Details({ params }: { params: Params }) {
   const { product, loading, error, setProduct } = useProductData(params?.dsin);
@@ -145,6 +281,9 @@ export default function Details({ params }: { params: Params }) {
   const categoryId = product?.category_id?._id ?? product?.category_id;
   const { data: session } = useSession();
   const user = session?.user as any;
+
+  // Get user addresses from context
+  const { addresses: userAddresses } = useUserData();
 
   useEffect(() => {
     if (!categoryId) {
@@ -300,6 +439,12 @@ export default function Details({ params }: { params: Params }) {
                 }}
               />
             </div>
+
+            {/* 👇 Insert Carrier Shipping Options here */}
+            <CarrierShippingOptions
+              product={product}
+              userAddresses={userAddresses}
+            />
           </div>
         </div>
 
@@ -338,7 +483,6 @@ export default function Details({ params }: { params: Params }) {
         ) : attributeSets.length > 0 ? (
           <div className="mt-8 space-y-8">
             {attributeSets.map((set) => {
-              // Only render the set with code "specification"
               if (set.code === "specifications") {
                 return (
                   <SpecificationTable
@@ -348,7 +492,6 @@ export default function Details({ params }: { params: Params }) {
                   />
                 );
               }
-              // All other sets are hidden (return null)
               return null;
             })}
           </div>
