@@ -4,7 +4,10 @@ import React, { useEffect, useState } from "react";
 import { useCart } from "@/app/context/CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useUserData } from "@/app/context/UserDataContext";
+import {
+  UserDataContextValue,
+  useUserData,
+} from "@/app/context/UserDataContext";
 import OrderSummary from "@/components/cart/OrderSummary";
 import { getShippingPrice } from "@/components/cart/shipping";
 import { createOrUpdateOrder } from "@/app/actions/order";
@@ -58,11 +61,11 @@ const CheckoutPage = () => {
   // Auto‑select default address or first
   useEffect(() => {
     if (addresses.length > 0 && !selectedAddressId) {
-      const defaultAddr = addresses.find((a) => a.isDefault);
+      const defaultAddr: any = addresses.find((a) => a.isDefault);
       setSelectedAddressId(
         defaultAddr
           ? defaultAddr._id?.toString()
-          : (addresses[0]._id || addresses[0].id).toString(),
+          : (addresses[0]._id || "").toString(),
       );
     }
   }, [addresses, selectedAddressId]);
@@ -70,9 +73,16 @@ const CheckoutPage = () => {
   // Auto‑select first payment method
   useEffect(() => {
     if (paymentMethods.length > 0 && !selectedPaymentMethodId) {
-      setSelectedPaymentMethodId(
-        (paymentMethods[0]._id || paymentMethods[0].id).toString(),
-      );
+      const firstPaymentMethod = paymentMethods[0] as IPaymentMethod & {
+        _id?: string | { toString(): string };
+        id?: string | { toString(): string };
+      };
+      const firstPaymentMethodId =
+        firstPaymentMethod._id?.toString() || firstPaymentMethod.id?.toString();
+
+      if (firstPaymentMethodId) {
+        setSelectedPaymentMethodId(firstPaymentMethodId);
+      }
     }
   }, [paymentMethods, selectedPaymentMethodId]);
 
@@ -81,7 +91,7 @@ const CheckoutPage = () => {
     const fetchShipping = async () => {
       if (!selectedAddressId) return;
       const address = addresses.find(
-        (a) => a._id?.toString() === selectedAddressId,
+        (a: any) => a._id?.toString() === selectedAddressId,
       );
       if (!address) return;
 
@@ -101,10 +111,10 @@ const CheckoutPage = () => {
   }, [selectedAddressId, addresses]);
 
   const selectedAddress = addresses.find(
-    (a) => a._id?.toString() === selectedAddressId,
+    (a: any) => a._id?.toString() === selectedAddressId,
   );
   const selectedPaymentMethod = paymentMethods.find(
-    (pm) => pm._id?.toString() === selectedPaymentMethodId,
+    (pm: any) => pm._id?.toString() === selectedPaymentMethodId,
   );
 
   // Save cart to Firestore for chat

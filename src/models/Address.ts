@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 // ------------------ Interface ------------------
-export interface IAddress extends Document {
+export interface IAddress {
+  _id?: string;
   userId: mongoose.Types.ObjectId; // Owner of the address
   label: string; // e.g., "Home", "Office", "Parents' House"
   street: string;

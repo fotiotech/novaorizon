@@ -14,7 +14,7 @@ import { IAddress } from "@/models/Address";
 import { IPaymentMethod } from "@/models/PaymentMethod";
 
 // ---------- Types ----------
-interface UserDataContextValue {
+export interface UserDataContextValue {
   user: any; // session.user
   addresses: IAddress[];
   paymentMethods: IPaymentMethod[];
