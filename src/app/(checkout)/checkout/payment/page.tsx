@@ -15,13 +15,13 @@ const PaymentPage: React.FC = () => {
 
   if (paymentMethod) {
     switch (paymentMethod) {
-      case "Mobile Money":
+      case "MobileMoney":
         content = <MonetBilPayment payment_ref={payment_ref} />;
         break;
-      case "Paypal":
+      case "PayPal":
         content = <PaypalPayment payment_ref={payment_ref} />;
         break;
-      case "Credit Card":
+      case "CreditCard":
         content = <CreditCardPayment />;
         break;
       default:
