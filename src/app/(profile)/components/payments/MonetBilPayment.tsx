@@ -14,7 +14,7 @@ interface MonetbilPaymentProps {
 function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const { cart } = useCart();
-  const { user, addresses } = useUserData(); // new context
+  const { user, addresses, paymentMethods } = useUserData(); // new context
   const [operator, setOperator] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>("");
@@ -72,7 +72,7 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
     // If order exists, use its embedded billingAddress
     if (order?.billingAddress) {
       return {
-        phone: order.billingAddress.phone || user?.phone || "",
+        phone: order.paymentMethodId.details.phoneNumber || "",
         firstName:
           order.billingAddress.firstName ||
           user?.firstName ||

@@ -8,15 +8,12 @@ import Transaction from "@/models/Transaction";
 export async function findOrders(orderNumber?: string, userId?: string | null) {
   await connection();
 
-  console.log("userId:", userId);
-
   try {
     if (orderNumber !== undefined && orderNumber !== null) {
-      // Explicitly check for non-null and non-undefined values
-      const regex = new RegExp(orderNumber, "i"); // Case-insensitive regex
+      const regex = new RegExp(orderNumber, "i");
       const order = await Order.findOne({
         orderNumber: { $regex: regex },
-      });
+      }).populate("billingAddressId paymentMethodId");
       if (order) {
         return {
           ...order.toObject(),
@@ -24,18 +21,20 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
           userId: order.userId.toString(),
         };
       }
-      // Explicitly return null if no order is found
+      return null;
     } else if (userId) {
-      // Find all orders for a specific user by user ID
-      const orders = await Order.find({ userId });
+      const orders = await Order.find({ userId }).populate(
+        "billingAddressId paymentMethodId",
+      );
       return orders.map((order) => ({
         ...order.toObject(),
         _id: order._id.toString(),
         userId: order.userId.toString(),
       }));
     } else {
-      // Return all orders (usually for admin view)
-      const orders = await Order.find();
+      const orders = await Order.find().populate(
+        "billingAddressId paymentMethodId",
+      );
       return orders.map((order) => ({
         ...order.toObject(),
         _id: order._id.toString(),
@@ -44,13 +43,13 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
     }
   } catch (error: any) {
     console.error(`Error fetching orders: ${error.message}`);
-    throw error; // Re-throw the error for proper handling
+    throw error;
   }
 }
 
 export async function createOrUpdateOrder(
   payment_ref: string,
-  data: OrderDocument,
+  data: Partial<OrderDocument>,
 ): Promise<{ success: boolean; order?: any; error?: string }> {
   await connection();
 
@@ -63,7 +62,7 @@ export async function createOrUpdateOrder(
     `[createOrUpdateOrder] Creating/updating order with orderNumber: ${payment_ref}`,
   );
 
-  // Destructure with defaults
+  // Destructure with defaults, including new fields
   const {
     tax = 0,
     shippingCost = 0,
@@ -79,6 +78,15 @@ export async function createOrUpdateOrder(
       country: "",
       carrier: "Novaorizon",
     },
+    billingAddress = {
+      street: "",
+      city: "",
+      region: "",
+      address: "",
+      country: "",
+    },
+    billingAddressId,
+    paymentMethodId,
     ...rest
   } = data;
 
@@ -99,6 +107,15 @@ export async function createOrUpdateOrder(
       carrier: shippingAddress.carrier || "Novaorizon",
       country: shippingAddress.country || "",
     },
+    billingAddress: {
+      street: billingAddress.street || "",
+      city: billingAddress.city || "",
+      region: billingAddress.region || "",
+      address: billingAddress.address || "",
+      country: billingAddress.country || "",
+    },
+    billingAddressId: billingAddressId || null,
+    paymentMethodId: paymentMethodId || null,
   };
 
   try {
@@ -114,7 +131,7 @@ export async function createOrUpdateOrder(
     );
 
     console.log(
-      `[createOrUpdateOrder] Order ${savedOrder} saved/updated successfully`,
+      `[createOrUpdateOrder] Order ${savedOrder.orderNumber} saved/updated successfully`,
     );
 
     // Create shipping record for PAID orders
@@ -131,9 +148,9 @@ export async function createOrUpdateOrder(
             country: savedOrder.shippingAddress.country,
             carrier: savedOrder.shippingAddress.carrier || "Novaorizon",
           },
-          trackingNumber: await generateTrackingNumber(payment_ref), // You should implement this
+          trackingNumber: await generateTrackingNumber(payment_ref),
           shippingCost: savedOrder.shippingCost || 0,
-          status: "processing", // Start with processing, not pending
+          status: "processing",
         });
 
         const shippingRes = await createShipping.save();
@@ -142,7 +159,6 @@ export async function createOrUpdateOrder(
           shippingRes,
         );
 
-        // Update order with shipping reference
         await Order.findByIdAndUpdate(savedOrder._id, {
           shippingId: shippingRes._id,
         });
@@ -151,12 +167,10 @@ export async function createOrUpdateOrder(
           "[createOrUpdateOrder] Error creating shipping:",
           shippingError,
         );
-        // Don't fail the whole operation if shipping creation fails
       }
 
       // Create transaction record for paid orders
       try {
-        // Check if transaction already exists for this order
         const existingTransaction = await Transaction.findOne({
           orderId: savedOrder._id,
         });
@@ -179,7 +193,6 @@ export async function createOrUpdateOrder(
             transactionRes,
           );
         } else {
-          // Update existing transaction if needed
           await Transaction.findByIdAndUpdate(existingTransaction._id, {
             status: "completed",
             amount: savedOrder.total,
@@ -193,14 +206,12 @@ export async function createOrUpdateOrder(
           "[createOrUpdateOrder] Error creating transaction:",
           transactionError,
         );
-        // Don't fail the whole operation if transaction creation fails
       }
     }
 
     // Handle refunds
     if (savedOrder && savedOrder.paymentStatus === "refunded") {
       try {
-        // Create refund transaction
         const refundTransaction = new Transaction({
           orderId: savedOrder._id,
           userId: savedOrder.userId,
@@ -240,7 +251,6 @@ export async function deleteOrder(orderNumber: string) {
   }
 
   try {
-    // Find and delete the order by its orderNumber
     const deletedOrder = await Order.findOneAndDelete({ orderNumber });
 
     if (!deletedOrder) {
@@ -257,18 +267,13 @@ export async function deleteOrder(orderNumber: string) {
 }
 
 async function generateTrackingNumber(trackingNumber: string): Promise<string> {
-  // Check if this tracking number already exists
   const existing = await Shipping.findOne({ trackingNumber });
   if (existing) {
-    // If it exists, generate a new one recursively
     return trackingNumber;
   }
-  // Generate a random tracking number (you can customize this as needed)
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
   for (let i = 0; i < 10; i++) {
     trackingNumber += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-
   return trackingNumber;
 }
