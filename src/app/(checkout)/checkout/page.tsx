@@ -133,8 +133,60 @@ const CheckoutPage = () => {
     }
   }
 
+  // ----- Shared order creation logic -----
+  const buildOrderData = (
+    paymentMethod: string,
+    paymentMethodId?: string,
+  ): any => {
+    const subtotal = cart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    );
+    const shippingCost = shippingPrice?.shippingPrice || 0;
+    const total = subtotal + shippingCost;
+
+    return {
+      userId: user?.id || "",
+      email: user?.email || "",
+      firstName: user?.firstName || user?.name?.split(" ")[0] || "",
+      lastName:
+        user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
+      products: cart.map((item) => ({
+        productId: item.id,
+        name: item.name,
+        imageUrl: item.imageUrl,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      subtotal,
+      tax: 0,
+      shippingCost,
+      total,
+      paymentStatus: "pending", // will be updated after payment
+      paymentMethod: paymentMethod,
+      paymentMethodId: paymentMethodId || null,
+      billingAddressId: selectedAddressId,
+      billingAddress: {
+        street: selectedAddress?.street || "",
+        city: selectedAddress?.city || "",
+        region: selectedAddress?.state || selectedAddress?.city || "",
+        address: selectedAddress?.street + ", " + selectedAddress?.city || "",
+        country: selectedAddress?.country || "",
+      },
+      shippingAddress: {
+        street: selectedAddress?.street || "",
+        city: selectedAddress?.city || "",
+        region: selectedAddress?.state || selectedAddress?.city || "",
+        address: selectedAddress?.street || "",
+        country: selectedAddress?.country || "",
+        carrier: "Novaorizon",
+      },
+    };
+  };
+
+  // ----- Handler: Pay Now (online payment) -----
   const handlePayNow = async () => {
-    // 1. Ensure orderNumber is set
+    // 1. Ensure order number
     let finalOrderNumber = orderNumber;
     if (!finalOrderNumber) {
       const datePart = new Date()
@@ -163,60 +215,15 @@ const CheckoutPage = () => {
       return;
     }
 
-    // 3. Compute totals
-    const subtotal = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
-    const shippingCost = shippingPrice?.shippingPrice || 0;
-    const total = subtotal + shippingCost;
-
-    // 4. Build clean order data (all primitive values)
-    const orderData = {
-      userId: user?.id || "",
-      email: user?.email || "",
-      firstName: user?.firstName || user?.name?.split(" ")[0] || "",
-      lastName:
-        user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
-      products: cart.map((item) => ({
-        productId: item.id, // ensure string
-        name: item.name,
-        imageUrl: item.imageUrl,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-      subtotal,
-      tax: 0,
-      shippingCost,
-      total,
-      paymentStatus: "pending",
-      paymentMethod: selectedPaymentMethod.methodType,
-      billingAddressId: selectedAddressId,
-      paymentMethodId: selectedPaymentMethodId,
-      billingAddress: {
-        street: selectedAddress?.street || "",
-        city: selectedAddress?.city || "",
-        region: selectedAddress?.state || selectedAddress?.city || "",
-        address: selectedAddress?.street + ", " + selectedAddress?.city || "",
-        country: selectedAddress?.country || "",
-      },
-      shippingAddress: {
-        street: selectedAddress?.street || "",
-        city: selectedAddress?.city || "",
-        region: selectedAddress?.state || selectedAddress?.city || "",
-        address: selectedAddress?.street || "",
-        country: selectedAddress?.country || "",
-        carrier: "Novaorizon",
-      },
-    };
-
     setProcessing(true);
     try {
-      console.log(`Creating order ${finalOrderNumber}...`);
-      const result = await createOrUpdateOrder(
-        finalOrderNumber,
-        orderData as any,
+      const orderData = buildOrderData(
+        selectedPaymentMethod.methodType,
+        selectedPaymentMethodId,
       );
+
+      console.log(`Creating order ${finalOrderNumber}...`);
+      const result = await createOrUpdateOrder(finalOrderNumber, orderData);
 
       if (!result.success) {
         throw new Error(result.error || "Failed to create order");
@@ -232,6 +239,61 @@ const CheckoutPage = () => {
     } catch (error: any) {
       console.error("Pay Now error:", error.message || error);
       toast.error(error.message || "Failed to proceed to payment");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ----- Handler: Order and Pay at Delivery (COD) -----
+  const handleCashOnDelivery = async () => {
+    // 1. Ensure order number
+    let finalOrderNumber = orderNumber;
+    if (!finalOrderNumber) {
+      const datePart = new Date()
+        .toISOString()
+        .replace(/[-:ZT.]/g, "")
+        .slice(0, 14);
+      const randomStr = Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+      finalOrderNumber = `ORD${datePart}${randomStr}`;
+      setOrderNumber(finalOrderNumber);
+      setRoomId(finalOrderNumber);
+    }
+
+    // 2. Validate selections
+    if (!selectedAddressId || cart.length === 0) {
+      toast.error(
+        "Please select a billing address and ensure your cart is not empty.",
+      );
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      // Build order with CashOnDelivery
+      const orderData = buildOrderData(
+        "CashOnDelivery",
+        undefined, // no paymentMethodId needed
+      );
+      // Override paymentStatus to indicate COD pending
+      orderData.paymentStatus = "pending";
+
+      console.log(`Creating COD order ${finalOrderNumber}...`);
+      const result = await createOrUpdateOrder(finalOrderNumber, orderData);
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to create order");
+      }
+
+      // ✅ Redirect to the same payment page with CashOnDelivery method
+      router.push(
+        `/checkout/payment?payment_ref=${finalOrderNumber}&paymentMethod=CashOnDelivery`,
+      );
+    } catch (error: any) {
+      console.error("COD order error:", error.message || error);
+      toast.error(error.message || "Failed to place order");
     } finally {
       setProcessing(false);
     }
@@ -278,7 +340,7 @@ const CheckoutPage = () => {
                   onChange={(e) => setSelectedAddressId(e.target.value)}
                   className="w-full p-2 border rounded-md"
                 >
-                  {addresses.map((addr) => (
+                  {addresses.map((addr: any) => (
                     <option
                       key={addr._id?.toString()}
                       value={addr._id?.toString()}
@@ -334,7 +396,7 @@ const CheckoutPage = () => {
             )}
           </div>
 
-          {/* Payment Method */}
+          {/* Payment Method (only shown for Pay Now) */}
           <div>
             <p className="font-bold">Payment Method</p>
             {paymentMethods.length === 0 ? (
@@ -356,7 +418,7 @@ const CheckoutPage = () => {
                   onChange={(e) => setSelectedPaymentMethodId(e.target.value)}
                   className="w-full p-2 border rounded-md"
                 >
-                  {paymentMethods.map((pm) => (
+                  {paymentMethods.map((pm: any) => (
                     <option key={pm._id?.toString()} value={pm._id?.toString()}>
                       {pm.methodType} –{" "}
                       {pm.methodType === "CreditCard"
@@ -381,7 +443,7 @@ const CheckoutPage = () => {
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-4 mt-6">
-        {/* "Pay Now" Button */}
+        {/* Pay Now button */}
         <button
           onClick={handlePayNow}
           disabled={
@@ -396,27 +458,30 @@ const CheckoutPage = () => {
           {processing ? "Processing..." : "Pay Now"}
         </button>
 
-        {/* "Message to finalize order" Button (chat) */}
-        <div onClick={saveCart} className="flex-1">
-          <Link href={`/checkout/chat/${roomId}`}>
-            <button
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50"
-              disabled={
-                !selectedAddressId ||
-                !selectedPaymentMethodId ||
-                cart.length === 0 ||
-                shippingLoading
-              }
-            >
-              Message to finalize order
-            </button>
-          </Link>
-        </div>
+        {/* Cash on Delivery button */}
+        <button
+          onClick={handleCashOnDelivery}
+          disabled={
+            !selectedAddressId ||
+            cart.length === 0 ||
+            shippingLoading ||
+            processing
+          }
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 transition"
+        >
+          {processing ? "Placing order..." : "Cash on Delivery"}
+        </button>
       </div>
 
       {(!selectedAddressId || !selectedPaymentMethodId) && (
         <p className="text-sm text-red-500 mt-2">
-          Please select both a billing address and a payment method.
+          Please select both a billing address and a payment method for online
+          payment.
+        </p>
+      )}
+      {!selectedAddressId && (
+        <p className="text-sm text-red-500 mt-2">
+          Please select a billing address to proceed.
         </p>
       )}
     </div>

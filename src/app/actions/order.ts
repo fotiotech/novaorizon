@@ -26,7 +26,7 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
       const orders = await Order.find({ userId }).populate(
         "billingAddressId paymentMethodId",
       );
-      return orders.map((order) => ({
+      return orders.map((order: any) => ({
         ...order.toObject(),
         _id: order._id.toString(),
         userId: order.userId.toString(),
@@ -35,7 +35,7 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
       const orders = await Order.find().populate(
         "billingAddressId paymentMethodId",
       );
-      return orders.map((order) => ({
+      return orders.map((order: any) => ({
         ...order.toObject(),
         _id: order._id.toString(),
         userId: order.userId.toString(),

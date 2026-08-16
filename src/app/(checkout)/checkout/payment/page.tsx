@@ -5,6 +5,7 @@ import React from "react";
 import MonetBilPayment from "@/app/(profile)/components/payments/MonetBilPayment";
 import PaypalPayment from "@/app/(profile)/components/payments/PaypalPayment";
 import CreditCardPayment from "@/app/(profile)/components/payments/CreditCardPayment";
+import CashOnDelivery from "@/app/(profile)/components/payments/CashOnDelivery";
 
 const PaymentPage: React.FC = () => {
   const searchParams = useSearchParams();
@@ -23,6 +24,14 @@ const PaymentPage: React.FC = () => {
         break;
       case "CreditCard":
         content = <CreditCardPayment />;
+        break;
+      case "CashOnDelivery":
+        content = (
+          <CashOnDelivery
+            orderNumber={payment_ref || "N/A"}
+            redirectDelay={5000}
+          />
+        );
         break;
       default:
         content = <p>Invalid payment method or no payment method selected.</p>;
