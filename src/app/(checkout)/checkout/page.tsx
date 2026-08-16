@@ -3,15 +3,17 @@
 import React, { useEffect, useState } from "react";
 import { useCart } from "@/app/context/CartContext";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUserData } from "@/app/context/UserDataContext";
 import OrderSummary from "@/components/cart/OrderSummary";
 import { getShippingPrice } from "@/components/cart/shipping";
+import { createOrUpdateOrder } from "@/app/actions/order";
 import { IAddress } from "@/models/Address";
 import { IPaymentMethod } from "@/models/PaymentMethod";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/utils/firebaseConfig";
+import { toast } from "react-hot-toast";
 
-// Types
 export type CalcShippingPrice = {
   averageDeliveryTime: string;
   basePrice: number;
@@ -22,6 +24,7 @@ export type CalcShippingPrice = {
 const CheckoutPage = () => {
   const { user, addresses, paymentMethods, loading } = useUserData();
   const { cart } = useCart();
+  const router = useRouter();
 
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] =
@@ -31,8 +34,9 @@ const CheckoutPage = () => {
     null,
   );
   const [shippingLoading, setShippingLoading] = useState<boolean>(false);
+  const [orderNumber, setOrderNumber] = useState<string>("");
 
-  // Generate room ID
+  // Generate order number and room ID
   useEffect(() => {
     const generateOrderNumber = (): string => {
       const datePart = new Date()
@@ -45,7 +49,9 @@ const CheckoutPage = () => {
         .toUpperCase();
       return `ORD${datePart}${randomStr}`;
     };
-    setRoomId(generateOrderNumber());
+    const newOrderNumber = generateOrderNumber();
+    setOrderNumber(newOrderNumber);
+    setRoomId(newOrderNumber);
   }, []);
 
   // Auto‑select default address or first
@@ -80,7 +86,6 @@ const CheckoutPage = () => {
 
       setShippingLoading(true);
       try {
-        // Use the city as region, or state if available, or fallback
         const region = address.state || address.city;
         const price = await getShippingPrice(region);
         setShippingPrice(price);
@@ -101,7 +106,7 @@ const CheckoutPage = () => {
     (pm) => pm._id?.toString() === selectedPaymentMethodId,
   );
 
-  // Save cart to Firestore
+  // Save cart to Firestore for chat
   async function saveCart(): Promise<void> {
     try {
       if (!cart || Object.keys(cart).length === 0) return;
@@ -127,7 +132,71 @@ const CheckoutPage = () => {
     }
   }
 
-  // Loading states
+  // --- NEW: Direct "Pay Now" handler ---
+  const handlePayNow = async () => {
+    if (!selectedAddressId || !selectedPaymentMethodId || cart.length === 0) {
+      toast.error("Please select both a billing address and a payment method.");
+      return;
+    }
+
+    try {
+      // Build order data
+      const subtotal = cart.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+      const shippingCost = shippingPrice?.shippingPrice || 0;
+      const total = subtotal + shippingCost;
+
+      const orderData = {
+        userId: user?.id,
+        email: user?.email || "",
+        firstName: user?.firstName || user?.name?.split(" ")[0] || "",
+        lastName:
+          user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
+        products: cart.map((item) => ({
+          productId: item.id,
+          name: item.name,
+          imageUrl: item.imageUrl,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        subtotal,
+        tax: 0,
+        shippingCost,
+        total,
+        paymentStatus: "pending",
+        paymentMethod: selectedPaymentMethod?.methodType || "Unknown",
+        billingAddressId: selectedAddressId,
+        paymentMethodId: selectedPaymentMethodId,
+        shippingAddress: {
+          street: selectedAddress?.street || "",
+          city: selectedAddress?.city || "",
+          region: selectedAddress?.state || selectedAddress?.city || "",
+          address: selectedAddress?.street || "",
+          country: selectedAddress?.country || "",
+          carrier: "Novaorizon",
+        },
+      } as any;
+
+      const result = await createOrUpdateOrder(orderNumber, orderData);
+      if (!result.success) {
+        throw new Error(result.error || "Failed to create order");
+      }
+
+      // Navigate to payment page with order number and method
+      const paymentMethodParam = encodeURIComponent(
+        selectedPaymentMethod?.methodType || "",
+      );
+      router.push(
+        `/checkout/payment?payment_ref=${orderNumber}&paymentMethod=${paymentMethodParam}`,
+      );
+    } catch (error: any) {
+      console.error("Pay Now error:", error);
+      toast.error(error.message || "Failed to proceed to payment");
+    }
+  };
+
   if (loading) {
     return <div className="p-4 text-center">Loading checkout...</div>;
   }
@@ -270,27 +339,45 @@ const CheckoutPage = () => {
         </div>
       </div>
 
-      {/* Proceed to chat */}
-      <div onClick={saveCart} className="mt-4">
-        <Link href={`/checkout/chat/${roomId}`}>
-          <button
-            className="bg-blue-600 w-full text-white px-4 py-2 rounded disabled:opacity-50"
-            disabled={
-              !selectedAddressId ||
-              !selectedPaymentMethodId ||
-              cart.length === 0 ||
-              shippingLoading
-            }
-          >
-            Message to finalize order
-          </button>
-        </Link>
-        {(!selectedAddressId || !selectedPaymentMethodId) && (
-          <p className="text-sm text-red-500 mt-1">
-            Please select both a billing address and a payment method.
-          </p>
-        )}
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-4 mt-6">
+        {/* "Pay Now" Button */}
+        <button
+          onClick={handlePayNow}
+          disabled={
+            !selectedAddressId ||
+            !selectedPaymentMethodId ||
+            cart.length === 0 ||
+            shippingLoading
+          }
+          className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 transition"
+        >
+          Pay Now
+        </button>
+
+        {/* "Message to finalize order" Button (chat) */}
+        <div onClick={saveCart} className="flex-1">
+          <Link href={`/checkout/chat/${roomId}`}>
+            <button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50"
+              disabled={
+                !selectedAddressId ||
+                !selectedPaymentMethodId ||
+                cart.length === 0 ||
+                shippingLoading
+              }
+            >
+              Message to finalize order
+            </button>
+          </Link>
+        </div>
       </div>
+
+      {(!selectedAddressId || !selectedPaymentMethodId) && (
+        <p className="text-sm text-red-500 mt-2">
+          Please select both a billing address and a payment method.
+        </p>
+      )}
     </div>
   );
 };

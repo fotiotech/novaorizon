@@ -7,14 +7,12 @@ import { toast } from "react-hot-toast";
 import { createOrUpdateOrder, findOrders } from "@/app/actions/order";
 import { CartItem } from "@/app/reducer/cartReducer";
 import { calculateShippingPrice } from "@/app/actions/carrier";
-import { useSession } from "next-auth/react";
 import { CalcShippingPrice } from "../../page";
 import { generateOrderPDF } from "@/app/actions/generatePDF";
 
 const DEFAULT_CARRIER_ID = "675eeda75a81d16c81aca736";
 
 export default function PaymentSuccess() {
-  const { data: session } = useSession();
   const router = useRouter();
   const params = useSearchParams();
   const { dispatch: cartDispatch } = useCart();
@@ -45,7 +43,7 @@ export default function PaymentSuccess() {
     fetchOrder();
   }, [payment_ref]);
 
-  // Fetch shipping price (if needed for PDF)
+  // Fetch shipping price (for PDF fallback)
   useEffect(() => {
     if (!order?.shippingAddress?.region) return;
     const fetchCarrier = async () => {
@@ -78,10 +76,7 @@ export default function PaymentSuccess() {
           throw new Error("Missing payment information");
         }
 
-        // If order doesn't exist yet, create a minimal one (fallback)
-        // In normal flow, order should already exist from chat finalization.
         if (!order) {
-          // You might want to redirect or show error
           throw new Error("Order not found. Please contact support.");
         }
 
@@ -98,10 +93,8 @@ export default function PaymentSuccess() {
           transactionId: transaction_id,
           paymentMethod: order.paymentMethod || "Unknown",
           shippingAddress: order.shippingAddress || {},
-          // Keep existing billingAddressId and paymentMethodId (already in order)
           billingAddressId: order.billingAddressId,
           paymentMethodId: order.paymentMethodId,
-          // other fields remain unchanged
         } as any);
 
         if (!updatedOrder?.success) {
@@ -174,7 +167,6 @@ export default function PaymentSuccess() {
           city: "",
           region: "",
           country: "",
-          address: "",
         },
         paymentMethod: order.paymentMethod || "Unknown",
         estimatedDelivery: order.deliveryDate
@@ -193,14 +185,13 @@ export default function PaymentSuccess() {
     }
   };
 
-  // Component for PDF generation (unchanged, uses order)
+  // Hidden component for PDF capture
   const OrderSummary = () => (
     <div
       ref={orderSummaryRef}
       className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto mt-8"
       style={{ display: "none" }}
     >
-      {/* ... same as before but using order object */}
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">ORDER CONFIRMATION</h1>
         <p className="text-gray-600">Thank you for your purchase!</p>
@@ -236,9 +227,6 @@ export default function PaymentSuccess() {
             {order?.shippingAddress?.city}, {order?.shippingAddress?.region}
           </p>
           <p>{order?.shippingAddress?.country}</p>
-          {order?.shippingAddress?.address && (
-            <p>{order.shippingAddress.address}</p>
-          )}
         </div>
       </div>
       <div className="mb-6">
@@ -317,12 +305,10 @@ export default function PaymentSuccess() {
     );
   }
 
-  // Render success/failure UI (same as before, but uses order data)
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
         {status === "paid" ? (
-          // Success UI – unchanged
           <div className="text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
               <svg
@@ -375,7 +361,6 @@ export default function PaymentSuccess() {
             </div>
           </div>
         ) : (
-          // Failure UI – unchanged
           <div className="text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full mx-auto flex items-center justify-center mb-4">
               <svg

@@ -3,20 +3,59 @@ import "./globals.css";
 import Providers from "./providers";
 import Script from "next/script";
 import { Inter } from "next/font/google";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { Suspense } from "react";
+import Loading from "./loading";
 
 const inter = Inter({
-  subsets: ["latin"], // Choose the subsets you need
-  weight: ["400", "700"], // Specify font weights
+  subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Clickitcome Cameroun | Your One-Stop E-commerce Solution",
-    template: "%s | Clickitcome Cameroun",
+    default: "dyfkCameroun.com - Your Trusted E-Commerce Platform in Cameroun",
+    template: "%s | dyfkCameroun.com",
   },
   description:
     "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
+  metadataBase: new URL("https://dyfk-com.vercel.app"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://dyfk-com.vercel.app",
+    siteName: "dyfkCameroun.com",
+    title: "dyfkCameroun.com - Your Trusted E-Commerce Platform in Cameroun",
+    description:
+      "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 630,
+        alt: "dyfkCameroun.com - Your Trusted E-Commerce Platform in Cameroun",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@dyfkCameroun",
+    creator: "@dyfkCameroun",
+    title: "dyfkCameroun.com - Your Trusted E-Commerce Platform in Cameroun",
+    description:
+      "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
+    images: ["/logo.png"],
+  },
+  verification: {
+    google: "jGAR6wmWVPQe_fzOwoL1MqqKWSdN-Ty2dFf60Zu",
+  },
 };
+
+export const viewport = "width=device-width, initial-scale=1";
 
 export default function RootLayout({
   children,
@@ -29,6 +68,7 @@ export default function RootLayout({
         {/* Google Tag Manager */}
         <Script
           id="google-tag-manager"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -45,7 +85,7 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
       </head>
-      <body>
+      <body className={inter.className}>
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe
@@ -53,11 +93,18 @@ export default function RootLayout({
             height="0"
             width="0"
             style={{ display: "none", visibility: "hidden" }}
-          ></iframe>
+          />
         </noscript>
-        <div className={`${inter.className}  `}>
-          <Providers>{children}</Providers>
-        </div>
+
+        <Providers>
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <Suspense fallback={<Loading />}>
+              <div className="flex-1">{children}</div>
+            </Suspense>
+            <Footer />
+          </div>
+        </Providers>
       </body>
     </html>
   );

@@ -1,25 +1,28 @@
 "use client";
 
-import { findOrders } from "@/app/actions/order";
+import { useSearchParams } from "next/navigation";
+import React from "react";
 import MonetBilPayment from "@/app/(profile)/components/payments/MonetBilPayment";
 import PaypalPayment from "@/app/(profile)/components/payments/PaypalPayment";
-import { Orders } from "@/constant/types";
-import { useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import CreditCardPayment from "@/app/(profile)/components/payments/CreditCardPayment";
 
 const PaymentPage: React.FC = () => {
-  const payment_ref = useSearchParams()?.get("payment_ref");
-  const paymentMethod = useSearchParams()?.get("paymentMethod");
+  const searchParams = useSearchParams();
+  const payment_ref = searchParams?.get("payment_ref") || undefined;
+  const paymentMethod = searchParams?.get("paymentMethod") || "";
 
   let content;
 
   if (paymentMethod) {
     switch (paymentMethod) {
       case "Mobile Money":
-        content = <MonetBilPayment payment_ref={payment_ref ?? undefined} />;
+        content = <MonetBilPayment payment_ref={payment_ref} />;
         break;
       case "Paypal":
-        content = <PaypalPayment />;
+        content = <PaypalPayment payment_ref={payment_ref} />;
+        break;
+      case "Credit Card":
+        content = <CreditCardPayment />;
         break;
       default:
         content = <p>Invalid payment method or no payment method selected.</p>;

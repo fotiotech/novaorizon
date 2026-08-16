@@ -1,46 +1,9 @@
 "use server";
 import { connection } from "@/utils/connection";
-import Order from "@/models/Order";
+import Order, { OrderDocument } from "@/models/Order";
 import { revalidatePath } from "next/cache";
 import Shipping from "@/models/Shipping";
 import Transaction from "@/models/Transaction";
-
-export interface OrderData {
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  products: Array<{
-    productId: string;
-    name: string;
-    imageUrl?: string;
-    quantity: number;
-    price: number;
-  }>;
-  subtotal: number;
-  total: number;
-  transactionId?: string;
-  paymentMethod?: string;
-  shippingAddress?: {
-    street?: string;
-    city?: string;
-    region?: string;
-    address?: string;
-    country?: string;
-    carrier?: string;
-  };
-  shippingDate?: Date;
-  deliveryDate?: Date;
-  notes?: string;
-  couponCode?: string;
-  // optional fields with defaults:
-  tax?: number;
-  shippingCost?: number;
-  paymentStatus?: string;
-  shippingStatus?: string;
-  orderStatus?: string;
-  discount?: number;
-}
 
 export async function findOrders(orderNumber?: string, userId?: string | null) {
   await connection();
@@ -87,7 +50,7 @@ export async function findOrders(orderNumber?: string, userId?: string | null) {
 
 export async function createOrUpdateOrder(
   payment_ref: string,
-  data: OrderData
+  data: OrderDocument,
 ): Promise<{ success: boolean; order?: any; error?: string }> {
   await connection();
 
@@ -97,7 +60,7 @@ export async function createOrUpdateOrder(
   }
 
   console.log(
-    `[createOrUpdateOrder] Creating/updating order with orderNumber: ${payment_ref}`
+    `[createOrUpdateOrder] Creating/updating order with orderNumber: ${payment_ref}`,
   );
 
   // Destructure with defaults
@@ -147,11 +110,11 @@ export async function createOrUpdateOrder(
         new: true,
         runValidators: true,
         setDefaultsOnInsert: true,
-      }
+      },
     );
 
     console.log(
-      `[createOrUpdateOrder] Order ${savedOrder} saved/updated successfully`
+      `[createOrUpdateOrder] Order ${savedOrder} saved/updated successfully`,
     );
 
     // Create shipping record for PAID orders
@@ -176,7 +139,7 @@ export async function createOrUpdateOrder(
         const shippingRes = await createShipping.save();
         console.log(
           `Shipping created for order ${savedOrder.orderNumber}:`,
-          shippingRes
+          shippingRes,
         );
 
         // Update order with shipping reference
@@ -186,7 +149,7 @@ export async function createOrUpdateOrder(
       } catch (shippingError) {
         console.error(
           "[createOrUpdateOrder] Error creating shipping:",
-          shippingError
+          shippingError,
         );
         // Don't fail the whole operation if shipping creation fails
       }
@@ -213,7 +176,7 @@ export async function createOrUpdateOrder(
           const transactionRes = await createTransaction.save();
           console.log(
             `Transaction created for order ${savedOrder.orderNumber}:`,
-            transactionRes
+            transactionRes,
           );
         } else {
           // Update existing transaction if needed
@@ -222,13 +185,13 @@ export async function createOrUpdateOrder(
             amount: savedOrder.total,
           });
           console.log(
-            `Transaction updated for order ${savedOrder.orderNumber}`
+            `Transaction updated for order ${savedOrder.orderNumber}`,
           );
         }
       } catch (transactionError) {
         console.error(
           "[createOrUpdateOrder] Error creating transaction:",
-          transactionError
+          transactionError,
         );
         // Don't fail the whole operation if transaction creation fails
       }
@@ -251,12 +214,12 @@ export async function createOrUpdateOrder(
 
         await refundTransaction.save();
         console.log(
-          `Refund transaction created for order ${savedOrder.orderNumber}`
+          `Refund transaction created for order ${savedOrder.orderNumber}`,
         );
       } catch (refundError) {
         console.error(
           "[createOrUpdateOrder] Error creating refund transaction:",
-          refundError
+          refundError,
         );
       }
     }
