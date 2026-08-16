@@ -35,6 +35,7 @@ const CheckoutPage = () => {
   );
   const [shippingLoading, setShippingLoading] = useState<boolean>(false);
   const [orderNumber, setOrderNumber] = useState<string>("");
+  const [processing, setProcessing] = useState<boolean>(false);
 
   // Generate order number and room ID
   useEffect(() => {
@@ -132,68 +133,100 @@ const CheckoutPage = () => {
     }
   }
 
-  // --- NEW: Direct "Pay Now" handler ---
+  // --- UPDATED "Pay Now" handler ---
   const handlePayNow = async () => {
+    // 1. Guard: ensure orderNumber is set (fallback)
+    let finalOrderNumber = orderNumber;
+    if (!finalOrderNumber) {
+      // Regenerate if missing
+      const datePart = new Date()
+        .toISOString()
+        .replace(/[-:ZT.]/g, "")
+        .slice(0, 14);
+      const randomStr = Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+      finalOrderNumber = `ORD${datePart}${randomStr}`;
+      setOrderNumber(finalOrderNumber);
+      setRoomId(finalOrderNumber);
+    }
+
+    // 2. Validate selections
     if (!selectedAddressId || !selectedPaymentMethodId || cart.length === 0) {
-      toast.error("Please select both a billing address and a payment method.");
+      toast.error(
+        "Please select a billing address, a payment method, and ensure your cart is not empty.",
+      );
       return;
     }
 
+    // 3. Ensure payment method exists
+    if (!selectedPaymentMethod) {
+      toast.error("Selected payment method not found. Please choose again.");
+      return;
+    }
+
+    // 4. Compute totals
+    const subtotal = cart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    );
+    const shippingCost = shippingPrice?.shippingPrice || 0;
+    const total = subtotal + shippingCost;
+
+    const orderData = {
+      userId: user?.id,
+      email: user?.email || "",
+      firstName: user?.firstName || user?.name?.split(" ")[0] || "",
+      lastName:
+        user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
+      products: cart.map((item) => ({
+        productId: item.id,
+        name: item.name,
+        imageUrl: item.imageUrl,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      subtotal,
+      tax: 0,
+      shippingCost,
+      total,
+      paymentStatus: "pending",
+      paymentMethod: selectedPaymentMethod.methodType,
+      billingAddressId: selectedAddressId,
+      paymentMethodId: selectedPaymentMethodId,
+      shippingAddress: {
+        street: selectedAddress?.street || "",
+        city: selectedAddress?.city || "",
+        region: selectedAddress?.state || selectedAddress?.city || "",
+        address: selectedAddress?.street || "",
+        country: selectedAddress?.country || "",
+        carrier: "Novaorizon",
+      },
+    } as any;
+
+    setProcessing(true);
     try {
-      // Build order data
-      const subtotal = cart.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0,
-      );
-      const shippingCost = shippingPrice?.shippingPrice || 0;
-      const total = subtotal + shippingCost;
+      console.log("Creating order with data:", orderData);
+      const result = await createOrUpdateOrder(finalOrderNumber, orderData);
+      console.log("Order creation result:", result);
 
-      const orderData = {
-        userId: user?.id,
-        email: user?.email || "",
-        firstName: user?.firstName || user?.name?.split(" ")[0] || "",
-        lastName:
-          user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
-        products: cart.map((item) => ({
-          productId: item.id,
-          name: item.name,
-          imageUrl: item.imageUrl,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        subtotal,
-        tax: 0,
-        shippingCost,
-        total,
-        paymentStatus: "pending",
-        paymentMethod: selectedPaymentMethod?.methodType || "Unknown",
-        billingAddressId: selectedAddressId,
-        paymentMethodId: selectedPaymentMethodId,
-        shippingAddress: {
-          street: selectedAddress?.street || "",
-          city: selectedAddress?.city || "",
-          region: selectedAddress?.state || selectedAddress?.city || "",
-          address: selectedAddress?.street || "",
-          country: selectedAddress?.country || "",
-          carrier: "Novaorizon",
-        },
-      } as any;
-
-      const result = await createOrUpdateOrder(orderNumber, orderData);
       if (!result.success) {
         throw new Error(result.error || "Failed to create order");
       }
 
-      // Navigate to payment page with order number and method
+      // Navigate to payment page
       const paymentMethodParam = encodeURIComponent(
-        selectedPaymentMethod?.methodType || "",
+        selectedPaymentMethod.methodType,
       );
       router.push(
-        `/checkout/payment?payment_ref=${orderNumber}&paymentMethod=${paymentMethodParam}`,
+        `/checkout/payment?payment_ref=${finalOrderNumber}&paymentMethod=${paymentMethodParam}`,
       );
     } catch (error: any) {
       console.error("Pay Now error:", error);
       toast.error(error.message || "Failed to proceed to payment");
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -348,11 +381,12 @@ const CheckoutPage = () => {
             !selectedAddressId ||
             !selectedPaymentMethodId ||
             cart.length === 0 ||
-            shippingLoading
+            shippingLoading ||
+            processing
           }
           className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 transition"
         >
-          Pay Now
+          {processing ? "Processing..." : "Pay Now"}
         </button>
 
         {/* "Message to finalize order" Button (chat) */}
