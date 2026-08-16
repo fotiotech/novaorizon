@@ -1,4 +1,4 @@
-export default function Layout({
+export default function ProfileLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

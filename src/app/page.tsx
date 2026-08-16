@@ -2,12 +2,10 @@
 
 import Hero from "@/components/Hero";
 import ImageRenderer from "@/components/ImageRenderer";
-import Layout from "@/components/Layout";
 import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo, memo } from "react";
 import { Prices } from "@/components/cart/Prices";
 import { triggerNotification } from "./actions/notifications";
-import Head from "next/head";
 import { useAppDispatch, useAppSelector } from "./hooks";
 import { fetchUserEvents } from "@/fetch/fetchUser";
 import { fetchProducts } from "@/fetch/fetchProducts";
@@ -120,7 +118,7 @@ const ProductCard = memo(
         </div>
       </Link>
     );
-  }
+  },
 );
 
 ProductCard.displayName = "ProductCard";
@@ -211,7 +209,7 @@ const RecommendationSection = memo(
         </div>
       </section>
     );
-  }
+  },
 );
 
 RecommendationSection.displayName = "RecommendationSection";
@@ -235,7 +233,7 @@ export default function Home() {
       productsState.allIds
         .slice(0, visibleCount)
         .map((id) => productsState.byId[id]),
-    [productsState.allIds, productsState.byId, visibleCount]
+    [productsState.allIds, productsState.byId, visibleCount],
   );
 
   const handleProductClick = useCallback(
@@ -261,7 +259,7 @@ export default function Home() {
         }
       }
     },
-    [user]
+    [user],
   );
 
   // Load user recommendations
@@ -361,26 +359,23 @@ export default function Home() {
             onProductClick={() => handleProductClick(product._id)}
           />
         )),
-    [visibleProducts, handleProductClick]
+    [visibleProducts, handleProductClick],
   );
 
   // Memoized menu sections
   const menuSections = useMemo(
     () => menus.map((menu) => <MenuSection key={menu._id} menu={menu} />),
-    [menus]
+    [menus],
   );
 
   return (
-    <Layout>
-    
+    <main className="">
+      <div className="bg-white ">
+        <Hero />
+      </div>
 
-      <main className="">
-        <div className="bg-white ">
-          <Hero />
-        </div>
-        
-<div className="bg-background">
-  {/* Personalized Recommendations Section */}
+      <div className="bg-background">
+        {/* Personalized Recommendations Section */}
         {user?.id && (
           <RecommendationSection
             recommendations={recommendations}
@@ -449,9 +444,7 @@ export default function Home() {
             </div>
           </section>
         )}
-</div>
-        
-      </main>
-    </Layout>
+      </div>
+    </main>
   );
 }

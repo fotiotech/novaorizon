@@ -1,4 +1,4 @@
-export default function AccountLayout({
+export default function SearchLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
