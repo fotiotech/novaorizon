@@ -3,14 +3,12 @@
 import React, { useEffect, useState } from "react";
 import PayPalButton from "@/app/(profile)/components/payments/PaypalButton";
 import { findOrders } from "@/app/actions/order";
-import { useUserData } from "@/app/context/UserDataContext";
 
 interface PaypalPaymentProps {
   payment_ref?: string;
 }
 
 const PaypalPayment: React.FC<PaypalPaymentProps> = ({ payment_ref }) => {
-  const { user } = useUserData();
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -22,11 +20,12 @@ const PaypalPayment: React.FC<PaypalPaymentProps> = ({ payment_ref }) => {
     }
     const fetchOrder = async () => {
       try {
-        const res = await findOrders(payment_ref);
-        if (Array.isArray(res) && res.length > 0) {
-          setOrder(res[0]);
-        } else if (res && !Array.isArray(res)) {
-          setOrder(res);
+        // ✅ Correct usage: pass an object with orderNumber
+        const response = await findOrders({ orderNumber: payment_ref });
+        if (response?.orders && response.orders.length > 0) {
+          setOrder(response.orders[0]);
+        } else {
+          console.warn("No order found for payment_ref:", payment_ref);
         }
       } catch (error) {
         console.error("Error fetching order:", error);
@@ -48,14 +47,13 @@ const PaypalPayment: React.FC<PaypalPaymentProps> = ({ payment_ref }) => {
   };
 
   if (loading) {
-    return <p>Loading order details...</p>;
+    return <p className="text-muted-foreground">Loading order details...</p>;
   }
 
   if (!order && payment_ref) {
-    return <p>Order not found.</p>;
+    return <p className="text-destructive">Order not found.</p>;
   }
 
-  // Determine amount from order or fallback
   const amount = order?.total?.toString() || "0.00";
 
   return (
@@ -66,7 +64,9 @@ const PaypalPayment: React.FC<PaypalPaymentProps> = ({ payment_ref }) => {
         onSuccess={handleSuccess}
         onError={handleError}
       />
-      {paymentStatus && <p className="mt-2 text-center">{paymentStatus}</p>}
+      {paymentStatus && (
+        <p className="mt-2 text-center text-foreground">{paymentStatus}</p>
+      )}
     </div>
   );
 };

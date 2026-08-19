@@ -35,9 +35,17 @@ export default function PaymentSuccess() {
   // Fetch existing order
   useEffect(() => {
     async function fetchOrder() {
-      if (payment_ref) {
-        const response = await findOrders(payment_ref);
-        setOrder(response);
+      if (!payment_ref) return;
+      try {
+        const response = await findOrders({ orderNumber: payment_ref });
+        if (response.orders && response.orders.length > 0) {
+          setOrder(response.orders[0]);
+        } else {
+          toast.error("Order not found. Please contact support.");
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to fetch order details.");
       }
     }
     fetchOrder();
@@ -76,26 +84,24 @@ export default function PaymentSuccess() {
           throw new Error("Missing payment information");
         }
 
+        // If already paid, skip
+        if (order?.paymentStatus === "paid") {
+          setIsProcessing(false);
+          return;
+        }
+
         if (!order) {
           throw new Error("Order not found. Please contact support.");
         }
 
-        // Update only payment-related fields
+        // Prepare update payload (exclude _id to avoid conflicts)
+        const { _id, ...orderData } = order;
         const updatedOrder = await createOrUpdateOrder(payment_ref, {
-          userId: order.userId,
-          email: order.email || email || "",
-          firstName: order.firstName || firstName || "",
-          lastName: order.lastName || lastName || "",
-          products: order.products || [],
-          subtotal: order.subtotal || 0,
-          total: order.total || 0,
-          paymentStatus: status,
-          transactionId: transaction_id,
+          ...orderData,
+          paymentStatus: status, // "paid" or "failed"
+          transaction_id: transaction_id,
           paymentMethod: order.paymentMethod || "Unknown",
-          shippingAddress: order.shippingAddress || {},
-          billingAddressId: order.billingAddressId,
-          paymentMethodId: order.paymentMethodId,
-        } as any);
+        });
 
         if (!updatedOrder?.success) {
           throw new Error(updatedOrder?.error || "Failed to update order");
@@ -120,7 +126,8 @@ export default function PaymentSuccess() {
       }
     }
 
-    if (order !== null) {
+    // Only run after order is fetched and if not already processed
+    if (order !== null && isProcessing) {
       updatePaymentInfos();
     }
   }, [
@@ -132,6 +139,7 @@ export default function PaymentSuccess() {
     order,
     firstName,
     lastName,
+    isProcessing,
   ]);
 
   const handleDownloadPDF = async () => {
@@ -294,11 +302,11 @@ export default function PaymentSuccess() {
 
   if (isProcessing) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-card rounded-xl shadow-lg p-8 border border-border">
           <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
-            <p className="text-gray-600">Processing your payment...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+            <p className="text-muted-foreground">Processing your payment...</p>
           </div>
         </div>
       </div>
@@ -306,13 +314,13 @@ export default function PaymentSuccess() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-card rounded-xl shadow-lg p-8 border border-border">
         {status === "paid" ? (
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-green/20 rounded-full mx-auto flex items-center justify-center mb-4">
               <svg
-                className="w-8 h-8 text-green-500"
+                className="w-8 h-8 text-green-600 dark:text-green-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -325,10 +333,10 @@ export default function PaymentSuccess() {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-foreground mb-2">
               Payment Successful!
             </h1>
-            <div className="space-y-3 text-gray-600">
+            <div className="space-y-3 text-muted-foreground">
               <p className="font-medium">Order #{payment_ref}</p>
               <p>Transaction ID: {transaction_id}</p>
               <p>
@@ -347,13 +355,13 @@ export default function PaymentSuccess() {
               <div className="mt-6 space-y-3">
                 <button
                   onClick={() => router.push("/orders")}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   View Orders
                 </button>
                 <button
                   onClick={() => router.push("/")}
-                  className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="w-full bg-muted text-muted-foreground py-2 px-4 rounded-lg hover:bg-muted/80 transition-colors"
                 >
                   Continue Shopping
                 </button>
@@ -362,9 +370,9 @@ export default function PaymentSuccess() {
           </div>
         ) : (
           <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full mx-auto flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-destructive/20 rounded-full mx-auto flex items-center justify-center mb-4">
               <svg
-                className="w-8 h-8 text-red-500"
+                className="w-8 h-8 text-destructive"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -377,10 +385,10 @@ export default function PaymentSuccess() {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-foreground mb-2">
               Payment Failed
             </h1>
-            <p className="text-gray-600 mb-6">
+            <p className="text-muted-foreground mb-6">
               We couldn't process your payment. Please try again or contact
               support.
             </p>
@@ -390,7 +398,7 @@ export default function PaymentSuccess() {
                   `/checkout/payment?payment_ref=${payment_ref}&paymentMethod=${order?.paymentMethod || ""}`,
                 )
               }
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors"
             >
               Try Again
             </button>

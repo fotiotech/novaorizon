@@ -1,24 +1,27 @@
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Your custom styles */
 label {
-  @apply text-lg font-semibold text-gray-300 block;
+  @apply text-lg font-semibold text-muted-foreground block;
 }
 
 h2,
 h3,
 p,
 span {
-  @apply text-text;
+  @apply text-foreground;
 }
 
 input,
 select,
 textarea {
   @apply appearance-none block px-3 shadow focus:outline-none 
-    rounded-lg border-2 border-gray-800 
-     focus:border-secondary my-2 p-2;
+    rounded-lg border-2 border-border 
+    focus:border-secondary my-2 p-2;
 }
 
 .btn {
@@ -27,19 +30,82 @@ textarea {
 
 th,
 td {
-  @apply border p-2;
+  @apply border border-border p-2;
 }
 
 .activeLink {
-  @apply mx-2 text-gray-100 rounded-lg py-1  px-4 flex gap-3 
-  items-center hover:bg-secondary dark:text-primary;
+  @apply mx-2 text-gray-100 rounded-lg py-1 px-4 flex gap-3 
+  items-center hover:bg-secondary;
 }
 
 .inactiveLink {
-  @apply text-gray-300 mx-2 rounded-lg py-1  px-4 flex gap-3 items-center hover:bg-secondary;
+  @apply text-gray-300 mx-2 rounded-lg py-1 px-4 flex gap-3 items-center hover:bg-secondary;
 }
 
 .transform {
   transition: transform 0.3s ease-in-out;
 }
 
+@layer base {
+  .theme {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+  }
+
+  :root {
+    /* Background & Foreground – white & black */
+    --background: 255 255 255;
+    --foreground: 0 0 0;
+
+    --card: 255 255 255;
+    --card-foreground: 0 0 0;
+    --popover: 255 255 255;
+    --popover-foreground: 0 0 0;
+
+    --primary: 59 130 246;       /* blue */
+    --primary-foreground: 255 255 255;
+    --secondary: 249 115 22;     /* orange */
+    --secondary-foreground: 255 255 255;
+    --muted: 241 245 249;
+    --muted-foreground: 100 116 139;
+    --accent: 34 197 94;         /* green */
+    --accent-foreground: 255 255 255;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+
+    --border: 229 231 235;
+    --input: 229 231 235;
+    --ring: 59 130 246;
+    --radius: 0.625rem;
+
+    --sidebar: 255 255 255;
+    --sidebar-foreground: 0 0 0;
+    --sidebar-primary: 59 130 246;
+    --sidebar-primary-foreground: 255 255 255;
+    --sidebar-accent: 34 197 94;
+    --sidebar-accent-foreground: 255 255 255;
+    --sidebar-border: 229 231 235;
+    --sidebar-ring: 59 130 246;
+  }
+
+  /* ❌ No .dark block – dark mode disabled */
+
+  /* Explicitly define classes that might be missed by Tailwind */
+  .border-border {
+    border-color: rgb(var(--border));
+  }
+  .outline-ring\/50 {
+    outline-color: rgba(var(--ring), 0.5);
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

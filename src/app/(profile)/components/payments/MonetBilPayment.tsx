@@ -1,3 +1,5 @@
+"use client";
+
 import { findOrders } from "@/app/actions/order";
 import { generatePaymentLink } from "@/app/actions/monetbil_payment";
 import { useCart } from "@/app/context/CartContext";
@@ -14,7 +16,7 @@ interface MonetbilPaymentProps {
 function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const { cart } = useCart();
-  const { user, addresses, paymentMethods } = useUserData(); // new context
+  const { user, addresses, paymentMethods } = useUserData();
   const [operator, setOperator] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>("");
@@ -42,14 +44,17 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
   useEffect(() => {
     async function fetchOrder() {
       if (payment_ref) {
-        const response = await findOrders(payment_ref);
-        if (response) {
-          const order = Array.isArray(response) ? response[0] : response;
-          setOrder(order);
-          // If order has an orderNumber, use it
-          if (order?.orderNumber) {
-            setOrderNumber(order.orderNumber);
+        try {
+          const response = await findOrders({ orderNumber: payment_ref });
+          if (response && response.orders && response.orders.length > 0) {
+            const foundOrder = response.orders[0];
+            setOrder(foundOrder);
+            if (foundOrder.orderNumber) {
+              setOrderNumber(foundOrder.orderNumber);
+            }
           }
+        } catch (error) {
+          console.error("Error fetching order:", error);
         }
       }
     }
@@ -69,10 +74,15 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
 
   // Extract billing details from order or fallback to user/address
   const getBillingDetails = () => {
-    // If order exists, use its embedded billingAddress
+    // If order exists, use its embedded billingAddress and populated paymentMethodId
     if (order?.billingAddress) {
+      // Try to get phone from paymentMethodId if populated
+      let phone = "";
+      if (order.paymentMethodId && typeof order.paymentMethodId === "object") {
+        phone = order.paymentMethodId.details?.phoneNumber || "";
+      }
       return {
-        phone: order.paymentMethodId.details.phoneNumber || "",
+        phone: phone,
         firstName:
           order.billingAddress.firstName ||
           user?.firstName ||
@@ -87,8 +97,9 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
       };
     }
 
+    // Fallback to user data
     return {
-      phone: order?.paymentMethodId?.details?.phoneNumber || "",
+      phone: "",
       firstName: user?.firstName || user?.name?.split(" ")[0] || "",
       lastName:
         user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
@@ -136,9 +147,9 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
   // Show error if phone is missing
   if (!billing.phone) {
     return (
-      <div className="flex justify-center items-center mt-8 bg-gray-50 p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-md p-6 text-center">
-          <p className="text-red-600">
+      <div className="flex justify-center items-center mt-8 bg-muted p-4">
+        <div className="max-w-md w-full bg-card rounded-2xl shadow-md p-6 text-center border border-border">
+          <p className="text-destructive">
             Phone number is required for mobile money payment. Please update
             your profile.
           </p>
@@ -148,12 +159,12 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
   }
 
   return (
-    <div className="flex justify-center items-center mt-8 bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-md p-6">
-        <h2 className="text-2xl font-semibold text-center mb-6">
+    <div className="flex justify-center items-center mt-8 bg-muted p-4">
+      <div className="max-w-md w-full bg-card rounded-2xl shadow-md p-6 border border-border">
+        <h2 className="text-2xl font-semibold text-center mb-6 text-foreground">
           Pay with Mobile Money
         </h2>
-        <p className="text-sm text-gray-600 text-center mb-4">
+        <p className="text-sm text-muted-foreground text-center mb-4">
           Amount: {amount} CFA
         </p>
         <div className="flex flex-col gap-4">
@@ -164,8 +175,8 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
               disabled={loading}
               className={`w-full border rounded-lg p-3 text-left transition-all duration-300 ${
                 operator === code
-                  ? "bg-blue-100 border-blue-500"
-                  : "hover:bg-gray-100"
+                  ? "bg-primary/10 border-primary text-foreground"
+                  : "hover:bg-muted border-border text-foreground"
               }`}
             >
               {name}
@@ -174,7 +185,7 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
         </div>
         <div className="mt-6 text-center">
           {loading ? (
-            <p className="text-gray-500">Generating payment link...</p>
+            <p className="text-muted-foreground">Generating payment link...</p>
           ) : paymentLink ? (
             <a
               href={paymentLink}
@@ -185,13 +196,13 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
               <button
                 title="Pay Now"
                 type="button"
-                className="bg-blue-600 text-white w-full p-3 rounded-lg hover:bg-blue-700 transition-all"
+                className="bg-primary text-primary-foreground w-full p-3 rounded-lg hover:bg-primary/90 transition-all"
               >
                 Pay Now
               </button>
             </a>
           ) : (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               Select an operator to continue
             </p>
           )}

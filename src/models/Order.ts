@@ -49,7 +49,7 @@ export interface OrderDocument extends Document {
   shippingStatus: "pending" | "shipped" | "delivered";
   shippingDate?: Date;
   deliveryDate?: Date;
-  orderStatus: "processing" | "completed" | "cancelled";
+  orderStatus: "pending" | "processing" | "shipped" | "in transit" | "completed" | "cancelled" |"returned";
   createdAt?: Date;
   updatedAt?: Date;
   notes?: string;
@@ -138,7 +138,7 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
     deliveryDate: { type: Date },
     orderStatus: {
       type: String,
-      enum: ["processing", "completed", "cancelled"],
+      enum: ["pending", "processing", "shipped", "in transit", "completed", "returned", "cancelled"],
       default: "processing",
     },
     notes: { type: String },
