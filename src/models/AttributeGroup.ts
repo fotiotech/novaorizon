@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-export interface IAttributeGroup extends Document {
-  _id: string;
+export interface IAttributeGroup {
+  _id?: string;
   code: string;
   name: string;
   parent_id?: mongoose.Types.ObjectId;
