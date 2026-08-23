@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useCart } from "@/app/context/CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,7 +13,7 @@ import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/utils/firebaseConfig";
 import { toast } from "react-hot-toast";
 import { getCarriers, calculateShippingPrice } from "@/app/actions/carrier";
-import { findProducts } from "@/app/actions/products"; // 👈 use findProducts instead
+import { findProducts } from "@/app/actions/products";
 
 // ---------- Types ----------
 export type CalcShippingPrice = {
@@ -70,6 +70,9 @@ const CheckoutPage = () => {
   // ---------- Product fetching for carrier detection ----------
   const [cartProducts, setCartProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
+
+  // ---------- Ref for synchronous processing lock ----------
+  const processingRef = useRef(false);
 
   // Generate order number and room ID (unchanged)
   useEffect(() => {
@@ -129,12 +132,9 @@ const CheckoutPage = () => {
       setLoadingProducts(true);
       try {
         const productIds = cart.map((item) => item.id);
-        // findProducts can accept a single id or undefined
         const products = await Promise.all(
-          productIds.map((id) => findProducts(id)), // returns product object (or array? handle below)
+          productIds.map((id) => findProducts(id)),
         );
-        // findProducts might return an array if no id is given, but we pass id, so it returns a single product object.
-        // However, to be safe, extract the first element if it's an array.
         const normalized = products.map((p) => (Array.isArray(p) ? p[0] : p));
         setCartProducts(normalized);
       } catch (err) {
@@ -156,7 +156,6 @@ const CheckoutPage = () => {
       return;
     }
 
-    // Extract carrier arrays from products (assume each has a "carrier" field as array of IDs)
     const carrierSets = cartProducts
       .map((p) => (p.carrier ? p.carrier : []))
       .filter((arr) => arr.length > 0);
@@ -167,7 +166,6 @@ const CheckoutPage = () => {
       return;
     }
 
-    // Intersection of all carrier arrays
     const commonCarrierIds = carrierSets.reduce((acc, arr) =>
       acc.filter((id: string) => arr.includes(id)),
     );
@@ -295,6 +293,11 @@ const CheckoutPage = () => {
 
   // ----- Handlers (Pay Now & Cash on Delivery) -----
   const handlePayNow = async () => {
+    // --- immediate guard ---
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setProcessing(true);
+
     let finalOrderNumber = orderNumber;
     if (!finalOrderNumber) {
       const datePart = new Date()
@@ -314,15 +317,18 @@ const CheckoutPage = () => {
       toast.error(
         "Please select a billing address, a payment method, and ensure your cart is not empty.",
       );
+      processingRef.current = false;
+      setProcessing(false);
       return;
     }
 
     if (!selectedPaymentMethod) {
       toast.error("Selected payment method not found. Please choose again.");
+      processingRef.current = false;
+      setProcessing(false);
       return;
     }
 
-    setProcessing(true);
     try {
       const orderData = buildOrderData(
         selectedPaymentMethod.methodType,
@@ -343,11 +349,17 @@ const CheckoutPage = () => {
       console.error("Pay Now error:", error.message || error);
       toast.error(error.message || "Failed to proceed to payment");
     } finally {
+      processingRef.current = false;
       setProcessing(false);
     }
   };
 
   const handleCashOnDelivery = async () => {
+    // --- immediate guard ---
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setProcessing(true);
+
     let finalOrderNumber = orderNumber;
     if (!finalOrderNumber) {
       const datePart = new Date()
@@ -367,10 +379,11 @@ const CheckoutPage = () => {
       toast.error(
         "Please select a billing address and ensure your cart is not empty.",
       );
+      processingRef.current = false;
+      setProcessing(false);
       return;
     }
 
-    setProcessing(true);
     try {
       const orderData = buildOrderData("CashOnDelivery", undefined);
       orderData.paymentStatus = "pending";
@@ -385,6 +398,7 @@ const CheckoutPage = () => {
       console.error("COD order error:", error.message || error);
       toast.error(error.message || "Failed to place order");
     } finally {
+      processingRef.current = false;
       setProcessing(false);
     }
   };

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+// @ts-ignore -- Next.js handles global CSS imports at build time.
 import "./globals.css";
 import Providers from "./providers";
 import Script from "next/script";
@@ -8,7 +9,6 @@ import Footer from "@/components/Footer";
 import { Suspense } from "react";
 import Loading from "./loading";
 import { cn } from "@/lib/utils";
-
 
 const inter = Inter({
   subsets: ["latin"],
@@ -65,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans")}>
+    <html lang="en" className={cn("theme", "font-sans")}>
       <head>
         {/* Google Tag Manager */}
         <Script

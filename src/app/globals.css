@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Your custom styles */
+/* ── Your custom styles ── */
 label {
   @apply text-lg font-semibold text-muted-foreground block;
 }
@@ -46,6 +46,7 @@ td {
   transition: transform 0.3s ease-in-out;
 }
 
+/* ── Shadcn + extended colour palette ── */
 @layer base {
   .theme {
     --font-heading: var(--font-sans);
@@ -53,51 +54,90 @@ td {
   }
 
   :root {
-    /* Background & Foreground – white & black */
-    --background: 255 255 255;
-    --foreground: 0 0 0;
+    /* ----- Core Shadcn tokens (HSL) ----- */
+    --background: 0 0% 100%; /* white */
+    --foreground: 0 0% 0%; /* black */
 
-    --card: 255 255 255;
-    --card-foreground: 0 0 0;
-    --popover: 255 255 255;
-    --popover-foreground: 0 0 0;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
 
-    --primary: 59 130 246;       /* blue */
-    --primary-foreground: 255 255 255;
-    --secondary: 249 115 22;     /* orange */
-    --secondary-foreground: 255 255 255;
-    --muted: 241 245 249;
-    --muted-foreground: 100 116 139;
-    --accent: 34 197 94;         /* green */
-    --accent-foreground: 255 255 255;
-    --destructive: 239 68 68;
-    --destructive-foreground: 255 255 255;
+    /* Primary = Blue (navy/neutral) */
+    --primary: 217 91% 60%; /* #3b82f6 */
+    --primary-foreground: 0 0% 100%;
 
-    --border: 229 231 235;
-    --input: 229 231 235;
-    --ring: 59 130 246;
+    /* Secondary = Orange */
+    --secondary: 24 95% 53%; /* #f97316 */
+    --secondary-foreground: 0 0% 100%;
+
+    /* Accent = Green */
+    --accent: 142 76% 36%; /* #22c55e */
+    --accent-foreground: 0 0% 100%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
     --radius: 0.625rem;
 
-    --sidebar: 255 255 255;
-    --sidebar-foreground: 0 0 0;
-    --sidebar-primary: 59 130 246;
-    --sidebar-primary-foreground: 255 255 255;
-    --sidebar-accent: 34 197 94;
-    --sidebar-accent-foreground: 255 255 255;
-    --sidebar-border: 229 231 235;
-    --sidebar-ring: 59 130 246;
+    /* ----- Extended shades (variations) ----- */
+    /* Primary (Blue) shades – from very light to very dark */
+    --primary-50: 217 90% 95%;
+    --primary-100: 217 90% 85%;
+    --primary-200: 217 90% 75%;
+    --primary-300: 217 91% 65%;
+    --primary-400: 217 91% 55%;
+    --primary-500: 217 91% 60%; /* matches --primary */
+    --primary-600: 217 90% 45%;
+    --primary-700: 217 90% 35%;
+    --primary-800: 217 90% 25%;
+    --primary-900: 217 90% 15%;
+
+    /* Secondary (Orange) shades */
+    --secondary-50: 24 95% 95%;
+    --secondary-100: 24 95% 85%;
+    --secondary-200: 24 95% 75%;
+    --secondary-300: 24 95% 65%;
+    --secondary-400: 24 95% 55%;
+    --secondary-500: 24 95% 53%; /* matches --secondary */
+    --secondary-600: 24 90% 45%;
+    --secondary-700: 24 90% 35%;
+    --secondary-800: 24 90% 25%;
+    --secondary-900: 24 90% 15%;
+
+    /* Accent (Green) shades */
+    --accent-50: 142 76% 95%;
+    --accent-100: 142 76% 85%;
+    --accent-200: 142 76% 75%;
+    --accent-300: 142 76% 65%;
+    --accent-400: 142 76% 55%;
+    --accent-500: 142 76% 36%; /* matches --accent */
+    --accent-600: 142 75% 30%;
+    --accent-700: 142 75% 22%;
+    --accent-800: 142 75% 15%;
+    --accent-900: 142 75% 10%;
+
+    /* Neutral (black/white) – optional extra */
+    --neutral-50: 0 0% 98%;
+    --neutral-100: 0 0% 90%;
+    --neutral-200: 0 0% 80%;
+    --neutral-300: 0 0% 70%;
+    --neutral-400: 0 0% 60%;
+    --neutral-500: 0 0% 50%;
+    --neutral-600: 0 0% 40%;
+    --neutral-700: 0 0% 30%;
+    --neutral-800: 0 0% 20%;
+    --neutral-900: 0 0% 10%;
   }
 
-  /* ❌ No .dark block – dark mode disabled */
+  /* No .dark block – dark mode disabled */
 
-  /* Explicitly define classes that might be missed by Tailwind */
-  .border-border {
-    border-color: rgb(var(--border));
-  }
-  .outline-ring\/50 {
-    outline-color: rgba(var(--ring), 0.5);
-  }
-
+  /* Global resets using Shadcn utilities */
   * {
     @apply border-border outline-ring/50;
   }

@@ -129,7 +129,7 @@ export async function updateOrderStatus(
   updates: {
     paymentStatus?: OrderDocument["paymentStatus"];
     orderStatus?: OrderDocument["orderStatus"];
-  }
+  },
 ): Promise<{ success: boolean; order?: any; error?: string }> {
   await connection();
 
@@ -144,18 +144,22 @@ export async function updateOrderStatus(
   try {
     // Build update object
     const updateFields: any = {};
-    if (updates.paymentStatus) updateFields.paymentStatus = updates.paymentStatus;
+    if (updates.paymentStatus)
+      updateFields.paymentStatus = updates.paymentStatus;
     if (updates.orderStatus) updateFields.orderStatus = updates.orderStatus;
 
     // Use findOneAndUpdate with $set and skip validation (safe for status updates)
     const order = await Order.findOneAndUpdate(
       { orderNumber },
       { $set: updateFields },
-      { new: true, runValidators: false } // ⬅️ Skip validation to avoid missing billingAddress error
+      { new: true, runValidators: false }, // ⬅️ Skip validation to avoid missing billingAddress error
     );
 
     if (!order) {
-      return { success: false, error: `Order with number ${orderNumber} not found` };
+      return {
+        success: false,
+        error: `Order with number ${orderNumber} not found`,
+      };
     }
 
     // If paymentStatus becomes "refunded", create a refund transaction
@@ -173,7 +177,10 @@ export async function updateOrderStatus(
         });
         await refundTransaction.save();
       } catch (refundError) {
-        console.error("[updateOrderStatus] Error creating refund transaction:", refundError);
+        console.error(
+          "[updateOrderStatus] Error creating refund transaction:",
+          refundError,
+        );
       }
     }
 
@@ -199,7 +206,6 @@ export async function createOrUpdateOrder(
     console.error("[createOrUpdateOrder] Missing payment_ref or data");
     return { success: false, error: "Missing payment_ref or data" };
   }
-
 
   const {
     tax = 0,
@@ -268,7 +274,9 @@ export async function createOrUpdateOrder(
       },
     );
 
-    return { success: true, order: savedOrder };
+    // ✅ Convert Mongoose document to plain object to avoid circular JSON serialization
+    const plainOrder = savedOrder.toObject();
+    return { success: true, order: plainOrder };
   } catch (err: any) {
     console.error("[createOrUpdateOrder] Error saving order:", err);
     return { success: false, error: err.message };
@@ -301,7 +309,9 @@ export async function deleteOrder(orderNumber: string) {
   }
 }
 
-export async function generateTrackingNumber(trackingNumber: string): Promise<string> {
+export async function generateTrackingNumber(
+  trackingNumber: string,
+): Promise<string> {
   const existing = await Shipping.findOne({ trackingNumber });
   if (existing) {
     return trackingNumber;

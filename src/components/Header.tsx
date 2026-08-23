@@ -19,7 +19,7 @@ import { useSession } from "next-auth/react";
 import { getMenusByType, MenuData } from "@/app/actions/menu";
 import { useUnreadMessages } from "@/app/(checkout)/checkout/chat/_component/useUnreadMessages";
 
-// Extracted Search Component
+// ---------- SearchBar ----------
 const SearchBar = React.memo(
   ({
     searchInput,
@@ -47,7 +47,7 @@ const SearchBar = React.memo(
           placeholder="Search Dyfk"
           onChange={(e) => setSearchInput(e.target.value)}
           className="flex-1 h-full bg-none py-2 focus:outline-none 
-                 border-none px-3 leading-tight text-sec bg-background"
+                 border-none px-3 leading-tight text-foreground bg-background"
         />
         <button
           type="submit"
@@ -63,7 +63,7 @@ const SearchBar = React.memo(
 
 SearchBar.displayName = "SearchBar";
 
-// Extracted User Profile Component
+// ---------- UserProfile ----------
 const UserProfile = React.memo(() => {
   const session = useSession();
   const unreadCount = useUnreadMessages();
@@ -73,7 +73,7 @@ const UserProfile = React.memo(() => {
     <div className="flex items-center">
       {user ? (
         <Link href={"/profile"}>
-          <p className=" ">{user?.name}</p>
+          <p className="text-foreground">{user?.name}</p>
         </Link>
       ) : (
         <SignIn />
@@ -83,7 +83,7 @@ const UserProfile = React.memo(() => {
       </span>
       <div className="relative">
         {unreadCount > 0 && (
-          <p className="absolute right-0 -top-2 bg-red-500 text-xs rounded-full px-1 min-w-[18px] text-center">
+          <p className="absolute right-0 -top-2 bg-destructive text-destructive-foreground text-xs rounded-full px-1 min-w-[18px] text-center">
             {unreadCount}
           </p>
         )}
@@ -97,14 +97,14 @@ const UserProfile = React.memo(() => {
 
 UserProfile.displayName = "UserProfile";
 
-// Extracted Cart Icon Component
+// ---------- CartIcon ----------
 const CartIcon = React.memo(() => {
   const { cart } = useCart();
 
   return (
     <span className="relative">
       {cart.length > 0 && (
-        <p className="absolute right-0 -top-2 bg-red-500 text-xs rounded-full px-1 min-w-[18px] text-center">
+        <p className="absolute right-0 -top-2 bg-destructive text-destructive-foreground text-xs rounded-full px-1 min-w-[18px] text-center">
           {cart.length}
         </p>
       )}
@@ -117,7 +117,7 @@ const CartIcon = React.memo(() => {
 
 CartIcon.displayName = "CartIcon";
 
-// Sidebar Component
+// ---------- Sidebar ----------
 const Sidebar = React.memo(
   ({
     isOpen,
@@ -133,27 +133,29 @@ const Sidebar = React.memo(
         {/* Overlay */}
         {isOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={onClose}
           />
         )}
 
         {/* Sidebar */}
         <div
-          className={`fixed top-0 left-0 h-full w-64 bg-surface shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
+          className={`fixed top-0 left-0 h-full w-64 bg-background shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
             isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="p-4 flex justify-between items-center border-b border-gray-200">
+          <div className="p-4 flex justify-between items-center border-b border-border">
             <Link href={`/category`}>
-              <h2 className="text-xl font-semibold">Categories</h2>
+              <h2 className="text-xl font-semibold text-foreground">
+                Categories
+              </h2>
             </Link>
 
             <button
-              title="category "
+              title="category"
               type="button"
               onClick={onClose}
-              className="p-1 rounded-full hover:bg-gray-200"
+              className="p-1 rounded-full hover:bg-muted"
             >
               <Close />
             </button>
@@ -162,10 +164,10 @@ const Sidebar = React.memo(
           <div className="overflow-y-auto h-full pb-20">
             <ul className="py-4">
               {categories.slice(0, 15).map((category, index) => (
-                <li key={index} className="border-b border-gray-100">
+                <li key={index} className="border-b border-border">
                   <Link
                     href={`/category?id=${category._id}`}
-                    className="block py-3 px-6 hover:bg-gray-100 transition-colors"
+                    className="block py-3 px-6 hover:bg-muted transition-colors text-foreground"
                     onClick={onClose}
                   >
                     {category.name}
@@ -176,12 +178,14 @@ const Sidebar = React.memo(
 
             {/* Additional sidebar content */}
             <div className="px-6 py-4">
-              <h3 className="font-medium mb-2">Customer Support</h3>
+              <h3 className="font-medium mb-2 text-foreground">
+                Customer Support
+              </h3>
               <ul className="space-y-2">
                 <li>
                   <Link
                     href="/help"
-                    className="text-sm text-gray-600 hover:text-primary"
+                    className="text-sm text-muted-foreground hover:text-primary"
                     onClick={onClose}
                   >
                     Help Center
@@ -190,7 +194,7 @@ const Sidebar = React.memo(
                 <li>
                   <Link
                     href="/contact"
-                    className="text-sm text-gray-600 hover:text-primary"
+                    className="text-sm text-muted-foreground hover:text-primary"
                     onClick={onClose}
                   >
                     Contact Us
@@ -199,7 +203,7 @@ const Sidebar = React.memo(
                 <li>
                   <Link
                     href="/returns"
-                    className="text-sm text-gray-600 hover:text-primary"
+                    className="text-sm text-muted-foreground hover:text-primary"
                     onClick={onClose}
                   >
                     Returns & Refunds
@@ -216,6 +220,7 @@ const Sidebar = React.memo(
 
 Sidebar.displayName = "Sidebar";
 
+// ---------- Main Header ----------
 const Header = () => {
   const [showSearchBox, setShowSearchBox] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -257,15 +262,19 @@ const Header = () => {
     if (navMenus.length > 0 && navMenus[0].collections) {
       return navMenus[0].collections;
     }
-    // Fallback to empty array if no navigation menu exists
     return [];
   }, [navMenus]);
 
-  // Memoize navigation menu items to prevent unnecessary re-renders
+  // Memoize navigation menu items
   const navigationMenuList = useMemo(() => {
     return navigationMenuItems.map((item: any, index) => (
       <li key={index} className="inline-block pt-2 px-2">
-        <Link href={`/collection?id=${item._id}`}>{item.name}</Link>
+        <Link
+          href={`/collection?id=${item._id}`}
+          className="text-foreground hover:text-primary"
+        >
+          {item.name}
+        </Link>
       </li>
     ));
   }, [navigationMenuItems]);
@@ -274,7 +283,12 @@ const Header = () => {
   const categoryList = useMemo(() => {
     return category.slice(0, 10).map((cat, index) => (
       <li key={index} className="inline-block pt-2 px-2">
-        <Link href={`/category?id=${cat._id}`}>{cat.name}</Link>
+        <Link
+          href={`/category?id=${cat._id}`}
+          className="text-foreground hover:text-primary"
+        >
+          {cat.name}
+        </Link>
       </li>
     ));
   }, [category]);
@@ -302,10 +316,10 @@ const Header = () => {
 
   return (
     <>
-      <div className="p-2 lg:px-10 bg-surface text-pri sticky top-0 z-30 shadow-md">
+      <div className="p-2 lg:px-10 bg-background text-foreground sticky top-0 z-30 shadow-md">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <button title="toggle " type="button" onClick={toggleSidebar}>
+            <button title="toggle" type="button" onClick={toggleSidebar}>
               <Menu style={{ fontSize: 30 }} />
             </button>
             <Link href={"/"}>
@@ -314,7 +328,7 @@ const Header = () => {
                 width={60}
                 height={30}
                 alt="logo"
-                priority // Prioritize loading logo
+                priority
               />
             </Link>
           </div>
@@ -361,18 +375,15 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Navigation Menu (if available) or Categories (fallback) */}
+        {/* Navigation Menu (or Categories as fallback) */}
         <div className="mt-2">
           <ul className="whitespace-nowrap overflow-auto scrollbar-none">
-            {navigationMenuItems.length > 0
-              ? navigationMenuList
-              : // Fallback to categories if no navigation menu
-                categoryList}
+            {navigationMenuItems.length > 0 ? navigationMenuList : categoryList}
           </ul>
         </div>
       </div>
 
-      {/* Sidebar - Keep showing categories */}
+      {/* Sidebar */}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={closeSidebar}
