@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, use } from "react";
 import AddToCart from "@/components/AddToCart";
 import CheckoutButton from "@/components/CheckoutButton";
 import DetailImages from "@/components/DetailImages";
@@ -272,7 +272,8 @@ const CarrierShippingOptions: React.FC<{
 };
 
 // ---------- Main Page Component ----------
-export default function Details({ params }: { params: Params }) {
+export default function Details(props: { params: Promise<Params> }) {
+  const params = use(props.params);
   const { product, loading, error, setProduct } = useProductData(params?.dsin);
   const [attributeSets, setAttributeSets] = useState<AttributeSetResult[]>([]);
   const [setsLoading, setSetsLoading] = useState<boolean>(true);

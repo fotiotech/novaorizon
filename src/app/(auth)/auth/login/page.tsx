@@ -6,13 +6,13 @@ import Link from "next/link";
 const SIGNIN_ERROR_URL = "/auth/error";
 
 export default async function SignInPage(props: {
-  searchParams: { callbackUrl: string | undefined; error: string | undefined };
+  searchParams: Promise<{ callbackUrl: string | undefined; error: string | undefined }>;
 }) {
   const session = await auth();
 
   // If user is already authenticated, redirect to callbackUrl or home
   if (session) {
-    redirect(props.searchParams.callbackUrl || "/");
+    redirect((await props.searchParams).callbackUrl || "/");
   }
 
   return (
@@ -22,9 +22,9 @@ export default async function SignInPage(props: {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
             Sign in to your account
           </h2>
-          {props.searchParams.error && (
+          {(await props.searchParams).error && (
             <div className="mt-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-md text-center">
-              {props.searchParams.error === "CredentialsSignin"
+              {(await props.searchParams).error === "CredentialsSignin"
                 ? "Invalid email or password"
                 : "Authentication failed. Please try again."}
             </div>
@@ -42,7 +42,7 @@ export default async function SignInPage(props: {
               });
 
               // If successful, redirect to callback URL or home
-              redirect(props.searchParams.callbackUrl || "/");
+              redirect((await props.searchParams).callbackUrl || "/");
             } catch (error) {
               if (error instanceof AuthError) {
                 return redirect(`${SIGNIN_ERROR_URL}?error=${error.type}`);
@@ -123,7 +123,7 @@ export default async function SignInPage(props: {
                     "use server";
                     try {
                       await signIn(provider.id, {
-                        redirectTo: props.searchParams?.callbackUrl || "/",
+                        redirectTo: (await props.searchParams)?.callbackUrl || "/",
                       });
                     } catch (error) {
                       if (error instanceof AuthError) {
