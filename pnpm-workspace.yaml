@@ -2,4 +2,4 @@ allowBuilds:
   bcrypt: true
   core-js: true
   protobufjs: true
-  unrs-resolver: set this to true or false
+  unrs-resolver: true
