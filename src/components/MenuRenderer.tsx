@@ -152,7 +152,11 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                     />
                   </div>
                 )}
-                <Link href={getItemHref(item)} className="hover:underline">
+                <Link
+                  href={getItemHref(item)}
+                  className="hover:underline line-clamp-2"
+                  title={item.name}
+                >
                   {item.name}
                 </Link>
               </li>
@@ -176,7 +180,8 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                 )}
                 <Link
                   href={getItemHref(item)}
-                  className="block text-center hover:underline"
+                  className="block text-center hover:underline line-clamp-2"
+                  title={item.name}
                 >
                   {item.name}
                 </Link>
@@ -204,7 +209,8 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                 )}
                 <Link
                   href={getItemHref(item)}
-                  className="block text-center hover:underline"
+                  className="block text-center hover:underline line-clamp-2"
+                  title={item.name}
                 >
                   {item.name}
                 </Link>
@@ -224,7 +230,8 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                 <Link
                   key={item._id}
                   href={getItemHref(item)}
-                  className="block px-4 py-2 hover:bg-gray-100 rounded"
+                  className="block px-4 py-2 hover:bg-gray-100 rounded line-clamp-2"
+                  title={item.name}
                 >
                   {item.name}
                 </Link>
@@ -266,7 +273,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
     >
       <div className="flex justify-between items-center">
         {sectionTitle && (
-          <h2 className="menu-section-title text-xl font-semibold mb-2">
+          <h2 className="menu-section-title text-xl font-semibold mb-2 line-clamp-1">
             {sectionTitle}
           </h2>
         )}
