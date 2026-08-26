@@ -4,39 +4,27 @@ import { useCart } from "@/app/context/CartContext";
 import { Delete } from "@mui/icons-material";
 import Image from "next/image";
 import { Prices } from "./Prices";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
-interface CartItemProps {
-  item: any;
-  onUpdateQuantity: (id: string, quantity: number) => void;
-  onRemove: (id: string) => void;
-}
-
-// Memoized CartItem component to prevent unnecessary re-renders
-const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
+const CartItem = ({ item, onUpdate, onRemove }: any) => {
   const [isRemoving, setIsRemoving] = useState(false);
 
   const handleRemove = useCallback(() => {
     setIsRemoving(true);
-    // Small delay for smooth animation
-    setTimeout(() => onRemove(item.id), 300);
-  }, [item.id, onRemove]);
+    setTimeout(() => onRemove(item._id), 300);
+  }, [item._id, onRemove]);
 
   const handleDecrease = useCallback(() => {
-    if (item.quantity > 1) {
-      onUpdateQuantity(item.id, item.quantity - 1);
-    }
-  }, [item.id, item.quantity, onUpdateQuantity]);
+    if (item.quantity > 1) onUpdate(item._id, item.quantity - 1);
+  }, [item._id, item.quantity, onUpdate]);
 
   const handleIncrease = useCallback(() => {
-    onUpdateQuantity(item.id, item.quantity + 1);
-  }, [item.id, item.quantity, onUpdateQuantity]);
+    onUpdate(item._id, item.quantity + 1);
+  }, [item._id, item.quantity, onUpdate]);
 
   return (
     <div
-      className={`flex justify-between p-3 bg-white rounded-lg shadow-sm border transition-all duration-300 ${
-        isRemoving ? "opacity-0 scale-95" : "opacity-100 scale-100"
-      }`}
+      className={`flex justify-between p-3 bg-white rounded-lg shadow-sm border transition-all duration-300 ${isRemoving ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
     >
       <div className="flex gap-3 flex-1 min-w-0">
         {item.imageUrl && (
@@ -52,7 +40,6 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
             />
           </div>
         )}
-
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
           <p className="text-gray-600 mt-1">
@@ -67,7 +54,6 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
                 onClick={handleDecrease}
                 disabled={item.quantity <= 1}
                 className="px-2 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                aria-label="Decrease quantity"
               >
                 -
               </button>
@@ -77,7 +63,6 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
               <button
                 onClick={handleIncrease}
                 className="px-2 py-1 text-gray-600 hover:bg-gray-100 transition-colors"
-                aria-label="Increase quantity"
               >
                 +
               </button>
@@ -85,12 +70,10 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
           </div>
         </div>
       </div>
-
       <div className="flex flex-col items-end justify-between pl-2">
         <button
           onClick={handleRemove}
           className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
-          aria-label="Remove item"
         >
           <Delete fontSize="small" />
         </button>
@@ -102,34 +85,40 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
   );
 };
 
-// Main Cart component
 const Cart = () => {
-  const { cart, dispatch } = useCart();
-  const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
+  const {
+    items,
+    subtotal,
+    tax,
+    discount,
+    shippingCost,
+    total,
+    loading,
+    updateItem,
+    removeItem,
+    clearCart,
+  } = useCart();
 
+  const handleUpdate = useCallback(
+    (id: string, quantity: number) => updateItem(id, quantity),
+    [updateItem],
+  );
   const handleRemove = useCallback(
-    (id: string) => {
-      dispatch({ type: "REMOVE_ITEM", payload: id });
-    },
-    [dispatch]
+    (id: string) => removeItem(id),
+    [removeItem],
   );
+  const handleClear = useCallback(() => {
+    if (
+      items.length > 0 &&
+      confirm("Are you sure you want to clear your cart?")
+    )
+      clearCart();
+  }, [items, clearCart]);
 
-  const handleUpdateQuantity = useCallback(
-    (id: string, quantity: number) => {
-      dispatch({
-        type: "UPDATE_QUANTITY",
-        payload: { id, quantity },
-      });
-    },
-    [dispatch]
-  );
+  if (loading && items.length === 0)
+    return <div className="p-4 text-center">Loading cart...</div>;
 
-  // Calculate total using useMemo to avoid recalculating on every render
-  const total = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  }, [cart]);
-
-  if (cart.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center">
         <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -159,24 +148,60 @@ const Cart = () => {
     <div className="p-2">
       <div className="flex justify-between items-center mb-4">
         <span className="text-gray-600">
-          {cart.length} {cart.length === 1 ? "item" : "items"}
+          {items.length} {items.length === 1 ? "item" : "items"}
         </span>
+        <button
+          onClick={handleClear}
+          className="text-sm text-red-600 hover:text-red-800"
+        >
+          Clear Cart
+        </button>
       </div>
 
       <div className="space-y-4">
-        {cart.map((item) => (
+        {items.map((item) => (
           <CartItem
-            key={item.id}
+            key={item._id}
             item={item}
-            onUpdateQuantity={handleUpdateQuantity}
+            onUpdate={handleUpdate}
             onRemove={handleRemove}
           />
         ))}
       </div>
 
-      <div className="mt-6 border-t pt-4">
-        <div className="flex justify-between text-lg font-bold">
-          <span>Total:</span>
+      <div className="mt-6 border-t pt-4 space-y-1">
+        <div className="flex justify-between text-sm">
+          <span>Subtotal</span>
+          <span>
+            <Prices amount={subtotal} />
+          </span>
+        </div>
+        {tax > 0 && (
+          <div className="flex justify-between text-sm">
+            <span>Tax</span>
+            <span>
+              <Prices amount={tax} />
+            </span>
+          </div>
+        )}
+        {discount > 0 && (
+          <div className="flex justify-between text-sm text-green-600">
+            <span>Discount</span>
+            <span>
+              -<Prices amount={discount} />
+            </span>
+          </div>
+        )}
+        {shippingCost > 0 && (
+          <div className="flex justify-between text-sm">
+            <span>Shipping</span>
+            <span>
+              <Prices amount={shippingCost} />
+            </span>
+          </div>
+        )}
+        <div className="flex justify-between text-lg font-bold border-t pt-2">
+          <span>Total</span>
           <span>
             <Prices amount={total} />
           </span>

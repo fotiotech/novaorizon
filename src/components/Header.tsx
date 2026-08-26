@@ -96,15 +96,16 @@ const UserProfile = React.memo(() => {
 });
 UserProfile.displayName = "UserProfile";
 
-// ---------- CartIcon (unchanged) ----------
+// ---------- CartIcon – UPDATED to use items (not cart) ----------
 const CartIcon = React.memo(() => {
-  const { cart } = useCart();
+  const { items } = useCart(); // ✅ Changed from { cart } to { items }
+  const itemCount = items?.length ?? 0;
 
   return (
     <span className="relative">
-      {cart.length > 0 && (
+      {itemCount > 0 && (
         <p className="absolute right-0 -top-2 bg-destructive text-destructive-foreground text-xs rounded-full px-1 min-w-[18px] text-center">
-          {cart.length}
+          {itemCount}
         </p>
       )}
       <Link href={"/cart"}>
@@ -139,11 +140,9 @@ const Header = () => {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch categories (for sidebar fallback)
         const categoriesRes = await getCategory();
         setCategory(categoriesRes);
 
-        // Fetch NavBar menus (location === "NavBar")
         const navBarMenusRes = await getMenusByLocation("NavBar");
         if (navBarMenusRes.success && navBarMenusRes.data.length > 0) {
           const firstMenu = navBarMenusRes.data[0];
@@ -158,7 +157,6 @@ const Header = () => {
           }
         }
 
-        // Fetch SideBar menus (location === "SideBar")
         const sideBarMenusRes = await getMenusByLocation("SideBar");
         if (sideBarMenusRes.success && sideBarMenusRes.data.length > 0) {
           setSidebarMenus(sideBarMenusRes.data);
@@ -174,7 +172,6 @@ const Header = () => {
   const domNode = useClickOutside(() => setShowSearchBox(false));
   const sidebarRef = useClickOutside(() => setIsSidebarOpen(false));
 
-  // Memoize navigation items (from NavBar menu or fallback categories)
   const navigationItems = useMemo(() => {
     if (navItems.length > 0) {
       return navItems.map((item) => (
@@ -189,7 +186,6 @@ const Header = () => {
       ));
     }
 
-    // Fallback: use first 10 categories
     return category.slice(0, 10).map((cat) => (
       <li key={cat._id} className="inline-block pt-2 px-2">
         <Link

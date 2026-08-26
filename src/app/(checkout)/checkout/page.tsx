@@ -47,7 +47,7 @@ function doesCarrierServeAddress(carrier: any, address: any): boolean {
 
 const CheckoutPage = () => {
   const { user, addresses, paymentMethods, loading } = useUserData();
-  const { cart } = useCart();
+  const { items, subtotal, tax, discount } = useCart(); // <-- using items and totals
   const router = useRouter();
 
   // ---------- Base state ----------
@@ -121,7 +121,7 @@ const CheckoutPage = () => {
 
   // ---------- Fetch product details from cart using findProducts ----------
   useEffect(() => {
-    if (cart.length === 0) {
+    if (items.length === 0) {
       setCartProducts([]);
       setAvailableCarriers([]);
       setSelectedCarrierId("");
@@ -131,7 +131,8 @@ const CheckoutPage = () => {
     const fetchProducts = async () => {
       setLoadingProducts(true);
       try {
-        const productIds = cart.map((item) => item.id);
+        // Use productId from each cart item
+        const productIds = items.map((item) => item.productId);
         const products = await Promise.all(
           productIds.map((id) => findProducts(id)),
         );
@@ -146,7 +147,7 @@ const CheckoutPage = () => {
     };
 
     fetchProducts();
-  }, [cart]);
+  }, [items]);
 
   // ---------- Compute common carriers from cart products ----------
   useEffect(() => {
@@ -244,12 +245,18 @@ const CheckoutPage = () => {
     paymentMethod: string,
     paymentMethodId?: string,
   ): any => {
-    const subtotal = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
+    // Use subtotal from context
     const shippingCost = shippingPrice?.shippingPrice || 0;
-    const total = subtotal + shippingCost;
+    const total = subtotal + tax - discount + shippingCost; // context provides subtotal, tax, discount
+
+    // Build products array from items
+    const products = items.map((item) => ({
+      productId: item.productId,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      quantity: item.quantity,
+      price: item.price,
+    }));
 
     return {
       userId: user?.id || "",
@@ -257,15 +264,10 @@ const CheckoutPage = () => {
       firstName: user?.firstName || user?.name?.split(" ")[0] || "",
       lastName:
         user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
-      products: cart.map((item) => ({
-        productId: item.id,
-        name: item.name,
-        imageUrl: item.imageUrl,
-        quantity: item.quantity,
-        price: item.price,
-      })),
+      products,
       subtotal,
-      tax: 0,
+      tax,
+      discount,
       shippingCost,
       total,
       paymentStatus: "pending",
@@ -313,7 +315,7 @@ const CheckoutPage = () => {
       setRoomId(finalOrderNumber);
     }
 
-    if (!selectedAddressId || !selectedPaymentMethodId || cart.length === 0) {
+    if (!selectedAddressId || !selectedPaymentMethodId || items.length === 0) {
       toast.error(
         "Please select a billing address, a payment method, and ensure your cart is not empty.",
       );
@@ -375,7 +377,7 @@ const CheckoutPage = () => {
       setRoomId(finalOrderNumber);
     }
 
-    if (!selectedAddressId || cart.length === 0) {
+    if (!selectedAddressId || items.length === 0) {
       toast.error(
         "Please select a billing address and ensure your cart is not empty.",
       );
@@ -593,7 +595,7 @@ const CheckoutPage = () => {
           disabled={
             !selectedAddressId ||
             !selectedPaymentMethodId ||
-            cart.length === 0 ||
+            items.length === 0 ||
             shippingLoading ||
             processing ||
             availableCarriers.length === 0
@@ -607,7 +609,7 @@ const CheckoutPage = () => {
           onClick={handleCashOnDelivery}
           disabled={
             !selectedAddressId ||
-            cart.length === 0 ||
+            items.length === 0 ||
             shippingLoading ||
             processing ||
             availableCarriers.length === 0
