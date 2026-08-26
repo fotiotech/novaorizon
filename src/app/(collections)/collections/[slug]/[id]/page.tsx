@@ -26,7 +26,8 @@ async function resolveCollectionItems(collection: any) {
     }
   } else {
     if (collection.rules && collection.rules.length > 0) {
-      const query = buildQueryFromRules(
+      // ✅ Now synchronous – no await needed
+      const query = await buildQueryFromRules(
         collection.rules,
         collection.targetType,
       );
@@ -44,7 +45,6 @@ async function resolveCollectionItems(collection: any) {
   }));
 }
 
-// ✅ Important: params is now a Promise
 export default async function CollectionDetailPage({
   params,
 }: {

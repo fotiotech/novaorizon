@@ -7,7 +7,7 @@ import Product from "@/models/Product";
 import "@/models/Category";
 import { Collection } from "@/models/Collection";
 
-// ---------- Helper: parse rule value ----------
+// ---------- Helper: parse rule value (async) ----------
 export async function parseRuleValue(value: any, operator: string) {
   if (operator === "$in" || operator === "$nin") {
     if (Array.isArray(value)) return value;
@@ -39,7 +39,7 @@ export async function parseRuleValue(value: any, operator: string) {
   return value;
 }
 
-// ---------- Build query for a given model ----------
+// ---------- Build query for a given model (async) ----------
 export async function buildQueryFromRules(rules: any[], targetModel: string) {
   if (!rules || rules.length === 0) return {};
 
@@ -47,7 +47,7 @@ export async function buildQueryFromRules(rules: any[], targetModel: string) {
 
   for (const rule of rules) {
     if (!rule.attribute || !rule.operator) continue;
-    const value = parseRuleValue(rule.value, rule.operator);
+    const value = await parseRuleValue(rule.value, rule.operator);
 
     if (targetModel === "Product" && rule.attribute === "category_id") {
       if (Array.isArray(value)) {
@@ -89,6 +89,7 @@ export async function getAllCollections() {
 }
 
 // ---------- Get collections with resolved items/products ----------
+// ---------- Get collections with resolved items/products ----------
 export async function getCollectionsWithProducts() {
   try {
     await connection();
@@ -105,10 +106,10 @@ export async function getCollectionsWithProducts() {
       if (collection.type === "rule") {
         const Model =
           collection.targetType === "Product" ? Product : Collection;
-        const query = buildQueryFromRules(
+        const query = await buildQueryFromRules(
           collection.rules,
           collection.targetType,
-        );
+        ); // 👈 await added
         if (Object.keys(query).length > 0) {
           matchingItems = await Model.find(query)
             .populate("category_id", "name")

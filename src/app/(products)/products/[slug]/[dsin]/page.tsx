@@ -376,7 +376,7 @@ export default function Details(props: { params: Promise<Params> }) {
           )}
 
           <div className="md:w-1/2 text-text">
-            <h1 className="text-lg font-bold text-gray-800 mb-4">
+            <h1 className="text-sm font-bold text-gray-600 lg:text-lg mb-4">
               {title} {model}
             </h1>
 
