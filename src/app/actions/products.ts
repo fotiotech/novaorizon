@@ -7,15 +7,54 @@ import "@/models/User";
 import "@/models/Brand";
 import "@/models/Category";
 import "@/models/Attribute";
+import mongoose from "mongoose";
+
+// ---------- Helper: Deep Serialize (same as in category.ts) ----------
+function serialize(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+
+  // Handle Mongoose ObjectId
+  if (
+    obj instanceof mongoose.Types.ObjectId ||
+    obj._bsontype === "ObjectId" ||
+    typeof obj.toHexString === "function"
+  ) {
+    return obj.toString();
+  }
+
+  // Handle Date
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(serialize);
+  }
+
+  // Handle plain objects
+  if (typeof obj === "object") {
+    const result: any = {};
+    for (const key of Object.keys(obj)) {
+      result[key] = serialize(obj[key]);
+    }
+    return result;
+  }
+
+  // Primitives
+  return obj;
+}
+
+// ---------- Server Actions ----------
 
 export async function findProductByCategory(id: string) {
   await connection();
-
   try {
-    const res = await Product.find({ category_id: id });
-    return res;
+    const products = await Product.find({ category_id: id }).lean();
+    return serialize(products);
   } catch (error) {
     console.log(error);
+    return { error: "Failed to fetch products by category" };
   }
 }
 
@@ -24,12 +63,12 @@ export async function findProducts(id?: string) {
     await connection();
 
     if (id) {
-      const product: any = await Product.findById(id)
-        .populate("brand", "name") // Populate brand name
-        .populate("category_id", "name") // Populate category name
+      const product = await Product.findById(id)
+        .populate("brand", "name")
+        .populate("category_id", "name")
         .populate({
           path: "related_products.ids",
-          select: "name price image slug", // Select fields for related products
+          select: "name price image slug",
         })
         .lean()
         .exec();
@@ -38,30 +77,8 @@ export async function findProducts(id?: string) {
         return { success: false, error: "Product not found" };
       }
 
-      // Convert MongoDB ObjectIds to strings for the main product
-      const result = {
-        ...product,
-        _id: product._id?.toString(),
-        category_id:
-          product.category_id?._id?.toString() ||
-          product.category_id?.toString(),
-        brand: { ...product.brand, _id: product.brand?._id?.toString() },
-      };
-
-      // If related products exist, convert their IDs to strings
-      if (result.related_products?.ids) {
-        result.related_products.ids = result.related_products.ids.map(
-          (relatedProduct: any) => ({
-            ...relatedProduct,
-            _id: relatedProduct._id?.toString(),
-            category_id: relatedProduct.category_id?.toString(),
-          })
-        );
-      }
-
-      console.log({ result });
-
-      return result;
+      // Fully serialize the product (handles all nested ObjectIds)
+      return serialize(product);
     }
 
     const products = await Product.find()
@@ -73,25 +90,17 @@ export async function findProducts(id?: string) {
 
     if (!products) {
       console.error("No products found");
+      return [];
     }
 
-    console.log(products)
-
-    return products.map((product: any) => ({
-      ...product,
-      _id: product._id?.toString(),
-      category_id:
-        product.category_id?._id?.toString() || product.category_id?.toString(),
-    }));
+    return serialize(products);
   } catch (error) {
     console.error("Error finding products:", error);
     return { success: false, error: "Failed to fetch products" };
   }
 }
 
-// app/actions/products.ts
-
-// A “light” version just to pull URL slugs & updated dates, no populates:
+// A "light" version just to pull URL slugs & updated dates, no populates.
 export async function findProductsForSitemap() {
   await connection();
   const products = await Product.find({}, "url_slug dsin updatedAt").exec();

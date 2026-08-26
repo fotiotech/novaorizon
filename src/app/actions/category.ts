@@ -1,42 +1,67 @@
 "use server";
 
-import mongoose, { Types } from "mongoose"; // ✅ single import
+import mongoose, { Types } from "mongoose";
 import slugify from "slugify";
 import { connection } from "@/utils/connection";
 import Category from "@/models/Category";
 import CategoryProperty, { ICategoryProperty } from "@/models/CategoryProperty";
 import AttributeSet from "@/models/AttributeSet";
 import Attribute from "@/models/Attribute";
-import "@/models/AttributeGroup";
+import AttributeGroup from "@/models/AttributeGroup"; // only imported once
 import "@/models/UnitFamily";
 import { revalidatePath } from "next/cache";
-import AttributeGroup from "@/models/AttributeGroup";
 
-// ---------- Helper ----------
+// ---------- Helper: Deep Serialize ----------
+function serialize(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+
+  // Handle Mongoose ObjectId
+  if (
+    obj instanceof mongoose.Types.ObjectId ||
+    obj._bsontype === "ObjectId" ||
+    typeof obj.toHexString === "function"
+  ) {
+    return obj.toString();
+  }
+
+  // Handle Date
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(serialize);
+  }
+
+  // Handle plain objects
+  if (typeof obj === "object") {
+    const result: any = {};
+    for (const key of Object.keys(obj)) {
+      result[key] = serialize(obj[key]);
+    }
+    return result;
+  }
+
+  // Primitives
+  return obj;
+}
+
+// ---------- Helper: Slug ----------
 function generateSlug(name: string) {
   return slugify(name, { lower: true });
 }
 
-// ---------- Category Property CRUD (unchanged) ----------
+// ---------- Category Property CRUD ----------
 export async function getCategoryProperty(id?: string) {
   await connection();
   if (id) {
-    const property: any = await CategoryProperty.findById(id).lean();
+    const property = await CategoryProperty.findById(id).lean();
     if (!property) return null;
-    return {
-      ...property,
-      _id: property._id?.toString(),
-      createdAt: property.createdAt.toISOString(),
-      updatedAt: property.updatedAt.toISOString(),
-    };
+    return serialize(property);
   } else {
     const properties = await CategoryProperty.find().lean();
-    return properties.map((prop) => ({
-      ...prop,
-      _id: prop._id?.toString(),
-      createdAt: prop.createdAt.toISOString(),
-      updatedAt: prop.updatedAt.toISOString(),
-    }));
+    return serialize(properties);
   }
 }
 
@@ -88,7 +113,8 @@ export async function createCategoryPropertyWithMappings(data: {
 
   await property.save();
   revalidatePath("/category-properties");
-  return { success: true, property };
+  // Serialize the property before returning
+  return { success: true, property: serialize(property.toObject()) };
 }
 
 export async function updateCategoryPropertyWithMappings(
@@ -115,7 +141,6 @@ export async function updateCategoryPropertyWithMappings(
   if (data.name) property.name = data.name;
   if (data.description !== undefined) property.description = data.description;
   if (data.mappings) {
-    // Replace mappings entirely
     property.mappings = data.mappings.map((m) => ({
       set: new mongoose.Types.ObjectId(m.set),
       groups: m.groups.map((g) => ({
@@ -130,7 +155,7 @@ export async function updateCategoryPropertyWithMappings(
 
   await property.save();
   revalidatePath("/category-properties");
-  return { success: true, property };
+  return { success: true, property: serialize(property.toObject()) };
 }
 
 export async function deleteCategoryProperty(id: string) {
@@ -147,7 +172,7 @@ export async function deleteCategoryProperty(id: string) {
   }
 }
 
-// ---------- Category CRUD (unchanged) ----------
+// ---------- Category CRUD ----------
 export async function getCategory(
   id?: string | null,
   parentId?: string | null,
@@ -158,65 +183,21 @@ export async function getCategory(
     const category = await Category.findOne({ name });
     if (category) {
       const subCategories = await Category.find({ parent_id: category._id });
-      return subCategories.map((sub) => ({
-        ...sub.toObject(),
-        _id: sub._id.toString(),
-        parent_id: sub.parent_id?.toString(),
-        created_at: sub.created_at.toISOString(),
-        updated_at: sub.updated_at.toISOString(),
-      }));
+      return serialize(subCategories);
     }
     return [];
   } else if (id) {
-    const category: any = await Category.findById(id)
-      .populate("property")
-      .lean();
+    const category = await Category.findById(id).populate("property").lean();
     if (!category) return null;
-    return {
-      ...category,
-      _id: category._id.toString(),
-      parent_id: category.parent_id?.toString(),
-      created_at: category.created_at.toISOString(),
-      updated_at: category.updated_at.toISOString(),
-      property: category.property
-        ? {
-            ...category.property,
-            _id: category.property._id.toString(),
-          }
-        : null,
-    };
+    return serialize(category);
   } else if (parentId) {
     const subCategories = await Category.find({ parent_id: parentId })
       .populate("property")
       .lean();
-    return subCategories.map((sub) => ({
-      ...sub,
-      _id: sub._id?.toString(),
-      parent_id: sub.parent_id?.toString(),
-      created_at: sub.created_at.toISOString(),
-      updated_at: sub.updated_at.toISOString(),
-      property: sub.property
-        ? {
-            ...sub.property,
-            _id: sub.property._id.toString(),
-          }
-        : null,
-    }));
+    return serialize(subCategories);
   } else {
     const categories = await Category.find().populate("property").lean();
-    return categories.map((cat) => ({
-      ...cat,
-      _id: cat._id?.toString(),
-      parent_id: cat.parent_id?.toString(),
-      created_at: cat.created_at.toISOString(),
-      updated_at: cat.updated_at.toISOString(),
-      property: cat.property
-        ? {
-            ...cat.property,
-            _id: cat.property._id.toString(),
-          }
-        : null,
-    }));
+    return serialize(categories);
   }
 }
 
@@ -327,8 +308,6 @@ interface AttributeSetResult {
   code: string;
   groups: GroupNode[];
 }
-
-// category.ts – add/update this function
 
 export async function getCategoryAttributeSets(
   categoryId: string,
@@ -557,13 +536,15 @@ export async function getCategoryAttributeSets(
 
 export async function getAllAttributeSets() {
   await connection();
-  return await AttributeSet.find().select("_id title code").lean();
+  const sets = await AttributeSet.find().select("_id title code").lean();
+  return serialize(sets);
 }
 
 export async function getGroupsBySet(setId: string) {
   await connection();
   const set = await AttributeSet.findById(setId).populate("groups").lean();
-  return set?.groups || [];
+  const groups = set?.groups || [];
+  return serialize(groups);
 }
 
 export async function getAttributesByGroup(groupId: string) {
@@ -572,11 +553,12 @@ export async function getAttributesByGroup(groupId: string) {
     .populate("attributes.id")
     .lean();
   if (!group) return [];
-  return (group.attributes || []).map((sub: any) => ({
+  const attributes = (group.attributes || []).map((sub: any) => ({
     _id: sub.id._id.toString(),
     code: sub.id.code,
     name: sub.id.name,
     type: sub.id.type,
     isRequired: sub.isRequired,
   }));
+  return serialize(attributes);
 }
