@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
-// @ts-ignore -- Next.js handles global CSS imports at build time.
 import "./globals.css";
 import Providers from "./providers";
 import Script from "next/script";
-import { Inter, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Suspense } from "react";
 import Loading from "./loading";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const inter = Inter({
+// Use Geist as the default font (includes a CSS variable)
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["400", "700"],
+  variable: "--font-sans", // makes the font available via CSS variable
 });
 
 export const metadata: Metadata = {
@@ -67,7 +65,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("theme", "font-sans", geist.variable)}>
+    // Removed unused "theme" class – only keep font variable and font-sans utility
+    <html lang="en" className={cn(geist.variable, "font-sans")}>
       <head>
         {/* Google Tag Manager */}
         <Script
@@ -89,7 +88,11 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
       </head>
-      <body className={inter.className}>
+      {/* 
+        The body will get its background from globals.css (via @layer base).
+        We also keep the font variable for consistency.
+      */}
+      <body className={geist.variable}>
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe

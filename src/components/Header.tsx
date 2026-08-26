@@ -16,7 +16,7 @@ import { useCart } from "@/app/context/CartContext";
 import { getCategory } from "@/app/actions/category";
 import { SignIn } from "../app/(auth)/components/auth/SignInButton";
 import { useSession } from "next-auth/react";
-import { getMenusByType, MenuData } from "@/app/actions/menu";
+import { getMenusByLocation, MenuData } from "@/app/actions/menu";
 import { useUnreadMessages } from "@/app/(checkout)/checkout/chat/_component/useUnreadMessages";
 
 // ---------- SearchBar ----------
@@ -130,7 +130,6 @@ const Sidebar = React.memo(
   }) => {
     return (
       <>
-        {/* Overlay */}
         {isOpen && (
           <div
             className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -138,7 +137,6 @@ const Sidebar = React.memo(
           />
         )}
 
-        {/* Sidebar */}
         <div
           className={`fixed top-0 left-0 h-full w-64 bg-background shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
             isOpen ? "translate-x-0" : "-translate-x-full"
@@ -176,7 +174,6 @@ const Sidebar = React.memo(
               ))}
             </ul>
 
-            {/* Additional sidebar content */}
             <div className="px-6 py-4">
               <h3 className="font-medium mb-2 text-foreground">
                 Customer Support
@@ -226,63 +223,71 @@ const Header = () => {
   const [searchInput, setSearchInput] = useState("");
   const [category, setCategory] = useState<Category[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [navMenus, setNavMenus] = useState<MenuData[]>([]);
-  const [catMenus, setCatMenus] = useState<MenuData[]>([]);
+  const [navItems, setNavItems] = useState<
+    Array<{ _id: string; name: string }>
+  >([]);
 
   useEffect(() => {
-    async function findCategories() {
-      const res = await getCategory();
-      setCategory(res);
-    }
-
-    async function f() {
+    async function fetchData() {
       try {
-        const navMenusRes = await getMenusByType("navigation");
-        const catMenusRes = await getMenusByType("category");
-        if (navMenusRes.success) {
-          setNavMenus(navMenusRes.data);
-        }
-        if (catMenusRes.success) {
-          setCatMenus(catMenusRes.data);
+        // Fetch categories (for sidebar and fallback)
+        const categoriesRes = await getCategory();
+        setCategory(categoriesRes);
+
+        // Fetch NavBar menus (location === "NavBar")
+        const navBarMenusRes = await getMenusByLocation("NavBar");
+        if (navBarMenusRes.success && navBarMenusRes.data.length > 0) {
+          // Assuming the first menu is the main navigation bar
+          const firstMenu = navBarMenusRes.data[0];
+          // Use populatedContent if available, otherwise fallback to content IDs
+          if (
+            firstMenu.populatedContent &&
+            firstMenu.populatedContent.length > 0
+          ) {
+            setNavItems(
+              firstMenu.populatedContent.map((item: any) => ({
+                _id: item._id,
+                name: item.name,
+              })),
+            );
+          } else {
+            // If no populated content, fallback to empty
+            setNavItems([]);
+          }
+        } else {
+          // If no NavBar menu, fallback to categories (first 10)
+          setNavItems([]);
         }
       } catch (error) {
-        console.error("Error fetching menus:", error);
+        console.error("Error fetching navigation data:", error);
       }
     }
-    f();
 
-    findCategories();
+    fetchData();
   }, []);
 
   const domNode = useClickOutside(() => setShowSearchBox(false));
   const sidebarRef = useClickOutside(() => setIsSidebarOpen(false));
 
-  // Get collections from the first navigation menu
-  const navigationMenuItems = useMemo(() => {
-    if (navMenus.length > 0 && navMenus[0].collections) {
-      return navMenus[0].collections;
+  // Memoize navigation items (from NavBar menu or fallback categories)
+  const navigationItems = useMemo(() => {
+    // If we have NavBar items, use them
+    if (navItems.length > 0) {
+      return navItems.map((item) => (
+        <li key={item._id} className="inline-block pt-2 px-2">
+          <Link
+            href={`/${item.name.toLowerCase().replace(/\s+/g, "-")}/${item._id}`}
+            className="text-foreground hover:text-primary"
+          >
+            {item.name}
+          </Link>
+        </li>
+      ));
     }
-    return [];
-  }, [navMenus]);
 
-  // Memoize navigation menu items
-  const navigationMenuList = useMemo(() => {
-    return navigationMenuItems.map((item: any, index) => (
-      <li key={index} className="inline-block pt-2 px-2">
-        <Link
-          href={`/collection?id=${item._id}`}
-          className="text-foreground hover:text-primary"
-        >
-          {item.name}
-        </Link>
-      </li>
-    ));
-  }, [navigationMenuItems]);
-
-  // Memoize categories for the sidebar
-  const categoryList = useMemo(() => {
-    return category.slice(0, 10).map((cat, index) => (
-      <li key={index} className="inline-block pt-2 px-2">
+    // Fallback: use first 10 categories
+    return category.slice(0, 10).map((cat) => (
+      <li key={cat._id} className="inline-block pt-2 px-2">
         <Link
           href={`/category?id=${cat._id}`}
           className="text-foreground hover:text-primary"
@@ -291,9 +296,8 @@ const Header = () => {
         </Link>
       </li>
     ));
-  }, [category]);
+  }, [navItems, category]);
 
-  // Handle search submission
   const handleSearchSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -333,7 +337,6 @@ const Header = () => {
             </Link>
           </div>
 
-          {/* Desktop Search */}
           <div className="hidden lg:block w-3/4">
             <div className="relative w-full">
               <SearchBar
@@ -345,7 +348,6 @@ const Header = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Mobile Search Toggle */}
             <span className="lg:hidden">
               <Search
                 onClick={() => setShowSearchBox((prev) => !prev)}
@@ -358,7 +360,6 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile Search */}
         <div
           ref={domNode}
           className={`${
@@ -375,15 +376,13 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Navigation Menu (or Categories as fallback) */}
         <div className="mt-2">
           <ul className="whitespace-nowrap overflow-auto scrollbar-none">
-            {navigationMenuItems.length > 0 ? navigationMenuList : categoryList}
+            {navigationItems}
           </ul>
         </div>
       </div>
 
-      {/* Sidebar */}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={closeSidebar}

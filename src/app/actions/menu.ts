@@ -1,17 +1,30 @@
+// app/actions/menu.ts
 "use server";
 
 import { connection } from "@/utils/connection";
 import { Menu } from "@/models/Menu";
-import "@/models/Collection";
+import Product from "@/models/Product";
+import Category from "@/models/Category";
+import Brand from "@/models/Brand";
+import Promotion from "@/models/Promotion";
+import { revalidatePath } from "next/cache";
+import mongoose from "mongoose";
+import { Collection } from "@/models/Collection";
+// Import the query builder from collection actions
+import { buildQueryFromRules } from "./collection";
 
-// Define the Menu interface
+// ------------------------------------------------------------
+// Interface (including order)
+// ------------------------------------------------------------
 export interface MenuData {
   name: string;
   description?: string;
-  collections: string[];
+  content: string[];
   ctaUrl?: string;
   ctaText?: string;
-  type?: string;
+  type: string;
+  location?: string;
+  display?: string;
   position?: string;
   columns?: number;
   maxDepth?: number;
@@ -20,62 +33,294 @@ export interface MenuData {
   backgroundImage?: string;
   isSticky?: boolean;
   sectionTitle?: string;
+  order?: number;
 }
 
-// Get menu by ID
+// ------------------------------------------------------------
+// Helper: populate content (recursive, expands Collections)
+// ------------------------------------------------------------
+// app/actions/menu.ts (inside populateContent)
+
+async function populateContent(menu: any) {
+  if (!menu || !menu.content || menu.content.length === 0) return menu;
+
+  const type = menu.type;
+  let model: any;
+  let isMenuModel = false;
+
+  switch (type) {
+    case "Category":
+      model = Category;
+      break;
+    case "Product":
+      model = Product;
+      break;
+    case "Brand":
+      model = Brand;
+      break;
+    case "Promotion":
+      model = Promotion;
+      break;
+    case "Collection":
+      model = Collection;
+      break;
+    case "MegaMenu":
+      model = Menu;
+      isMenuModel = true;
+      break;
+    default:
+      return menu;
+  }
+
+  const docs = await model.find({ _id: { $in: menu.content } }).lean();
+
+  // ---- MegaMenu: recursive children ----
+  if (isMenuModel) {
+    const populatedChildren = await Promise.all(
+      docs.map(async (doc: any) => {
+        const childMenu = { ...doc };
+        return populateContent(childMenu);
+      }),
+    );
+    menu.populatedContent = populatedChildren.map((child) => ({
+      _id: child._id.toString(),
+      name: child.name,
+      fullData: child,
+      contentType: "Menu", // added
+    }));
+    return menu;
+  }
+
+  // ---- Collection: expand into their items ----
+  if (type === "Collection") {
+    const allItems: any[] = [];
+
+    for (const doc of docs) {
+      const collection = doc as any;
+      const targetModelName = collection.targetType || "Product";
+      const TargetModel = targetModelName === "Product" ? Product : Collection;
+
+      let items: any[] = [];
+
+      if (collection.type === "manual") {
+        if (collection.items && collection.items.length > 0) {
+          items = await TargetModel.find({ _id: { $in: collection.items } })
+            .lean()
+            .exec();
+        }
+      } else {
+        if (collection.rules && collection.rules.length > 0) {
+          const query = buildQueryFromRules(collection.rules, targetModelName);
+          if (Object.keys(query).length > 0) {
+            items = await TargetModel.find(query).lean().exec();
+          }
+        }
+      }
+
+      for (const item of items) {
+        let image = null;
+        if (targetModelName === "Product") {
+          image = item.main_image || null;
+        } else {
+          image = item.image || item.imageUrl || null;
+        }
+
+        allItems.push({
+          _id: item._id.toString(),
+          name: item.name || item.title || "Unnamed",
+          image,
+          contentType: targetModelName, // "Product" or "Collection"
+        });
+      }
+    }
+
+    if (allItems.length === 0) {
+      // fallback: show the collection names
+      menu.populatedContent = docs.map((doc: any) => ({
+        _id: doc._id.toString(),
+        name: doc.name || "Collection",
+        image: doc.imageUrl || null,
+        contentType: "Collection", // fallback type
+      }));
+    } else {
+      menu.populatedContent = allItems;
+    }
+
+    return menu;
+  }
+
+  // ---- Other types (Category, Product, Brand, Promotion) ----
+  const imageField = type === "Product" ? "main_image" : "image";
+  menu.populatedContent = docs.map((doc: any) => ({
+    _id: doc._id.toString(),
+    name: doc.name || doc.title || "Unnamed",
+    image: doc[imageField] || doc.imageUrl || null,
+    contentType: type, // e.g., "Product", "Category", etc.
+  }));
+
+  return menu;
+}
+
+// ------------------------------------------------------------
+// Get menus by location (sorted by order)
+// ------------------------------------------------------------
+export async function getMenusByLocation(location: string) {
+  try {
+    await connection();
+    const menus = await Menu.find({ location }).sort({ order: 1 });
+    const populatedMenus = await Promise.all(
+      menus.map(async (menu) => populateContent(menu.toObject())),
+    );
+    return {
+      success: true,
+      data: JSON.parse(JSON.stringify(populatedMenus)),
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ------------------------------------------------------------
+// CRUD operations
+// ------------------------------------------------------------
 export async function getMenuById(id: string) {
   try {
     await connection();
-    const menu = await Menu.findById(id).populate("collections");
-
-    if (!menu) {
-      return { success: false, error: "Menu not found" };
-    }
-
+    const menu = await Menu.findById(id);
+    if (!menu) return { success: false, error: "Menu not found" };
+    const populatedMenu = await populateContent(menu.toObject());
     return {
       success: true,
-      data: JSON.parse(JSON.stringify(menu)),
+      data: JSON.parse(JSON.stringify(populatedMenu)),
     };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
-// Get all menus
 export async function getAllMenus() {
   try {
     await connection();
-    const menus = await Menu.find()
-      .populate("collections")
-      .sort({ createdAt: -1 });
-
+    const menus = await Menu.find().sort({ createdAt: -1 });
+    const populatedMenus = await Promise.all(
+      menus.map(async (menu) => populateContent(menu.toObject())),
+    );
     return {
       success: true,
-      data: JSON.parse(JSON.stringify(menus)),
+      data: JSON.parse(JSON.stringify(populatedMenus)),
     };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
-// Get menus by type
 export async function getMenusByType(type: string) {
-  console.log(`Querying for menus with type: ${type}`);
   try {
     await connection();
-    const menus = await Menu.find({ type })
-      .populate("collections")
-      .sort({ createdAt: -1 });
-
-      console.log(menus)
-
+    const menus = await Menu.find({ type }).sort({ createdAt: -1 });
+    const populatedMenus = await Promise.all(
+      menus.map(async (menu) => populateContent(menu.toObject())),
+    );
     return {
       success: true,
-      data: JSON.parse(JSON.stringify(menus)),
+      data: JSON.parse(JSON.stringify(populatedMenus)),
     };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
+export async function createMenu(menuData: MenuData) {
+  try {
+    await connection();
+    const contentIds = (menuData.content || []).map(
+      (id) => new mongoose.Types.ObjectId(id),
+    );
+    const newMenu = new Menu({
+      ...menuData,
+      content: contentIds,
+      order: menuData.order ?? 0,
+    });
+    await newMenu.save();
+    revalidatePath("/marketing/content/navigation/menus");
+    return {
+      success: true,
+      data: JSON.parse(JSON.stringify(newMenu)),
+      message: "Menu created successfully",
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
 
+export async function updateMenu(id: string, menuData: Partial<MenuData>) {
+  try {
+    await connection();
+    const updateData: any = { ...menuData };
+    if (menuData.content) {
+      updateData.content = menuData.content.map(
+        (id) => new mongoose.Types.ObjectId(id),
+      );
+    }
+    if (menuData.order !== undefined) {
+      updateData.order = menuData.order;
+    }
+    const menu = await Menu.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+    if (!menu) return { success: false, error: "Menu not found" };
+    revalidatePath("/marketing/content/navigation/menus");
+    revalidatePath(`/marketing/content/navigation/menus/edit/${id}`);
+    return {
+      success: true,
+      data: JSON.parse(JSON.stringify(menu)),
+      message: "Menu updated successfully",
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteMenu(id: string) {
+  try {
+    await connection();
+    const menu = await Menu.findByIdAndDelete(id);
+    if (!menu) return { success: false, error: "Menu not found" };
+    revalidatePath("/marketing/content/navigation/menus");
+    return { success: true, message: "Menu deleted successfully" };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ------------------------------------------------------------
+// Fetch content options for form selection
+// ------------------------------------------------------------
+export async function getMenuContentOptions(type: string) {
+  await connection();
+  let items: any[] = [];
+  switch (type) {
+    case "Category":
+      items = await Category.find().select("_id name").lean();
+      break;
+    case "Product":
+      items = await Product.find().select("_id title main_image").lean();
+      break;
+    case "Brand":
+      items = await Brand.find().select("_id name").lean();
+      break;
+    case "Promotion":
+      items = await Promotion.find().select("_id name").lean();
+      break;
+    case "Collection":
+      items = await Collection.find().select("_id name").lean();
+      break;
+    default:
+      return [];
+  }
+  return items.map((item) => ({
+    value: item._id.toString(),
+    label: item.name || item.title || "Unnamed",
+  }));
+}
