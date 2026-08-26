@@ -247,7 +247,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
 
   return (
     <div
-      className={`menu-node depth-${depth} p-2 my-2 rounded shadow-sm ${
+      className={`menu-node depth-${depth} p-2 md:p-4 lg:p-6 my-2 rounded shadow-sm ${
         isSticky ? "sticky top-0 z-50" : ""
       } `}
       style={style}
