@@ -263,16 +263,27 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
       }`}
       style={style}
     >
-      {sectionTitle && (
-        <h2 className="menu-section-title text-xl font-semibold mb-2 line-clamp-1">
-          {sectionTitle}
-        </h2>
-      )}
-      {image && (
-        <div className="relative w-8 h-8 inline-block mr-2">
-          <ImageRenderer image={image} alt={name} className="rounded-full" />
-        </div>
-      )}
+      <div className="flex items-center justify-between">
+        {sectionTitle && (
+          <h2 className="menu-section-title text-xl font-semibold mb-2 line-clamp-1">
+            {sectionTitle}
+          </h2>
+        )}
+        {image && (
+          <div className="relative w-8 h-8 inline-block mr-2">
+            <ImageRenderer image={image} alt={name} className="rounded-full" />
+          </div>
+        )}
+        {link && (
+          <Link
+            href={link}
+            className="menu-fallback-link text-blue-600 hover:text-blue-700"
+          >
+            {link}
+          </Link>
+        )}
+      </div>
+
       <div className="menu-content">{renderContent()}</div>
     </div>
   );
