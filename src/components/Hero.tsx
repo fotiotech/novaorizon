@@ -105,7 +105,7 @@ const HeaderScroll: React.FC = () => {
                   src={imageUrl}
                   alt={title}
                   fill
-                  className="aspect-square"
+                  className="object-cover"
                   priority={index === 0}
                 />
                 <div className="absolute inset-0 bg-black/30" />

@@ -34,7 +34,7 @@ const Profile = () => {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="font-semibold text-xl text-gray-800">Profile</div>
           <div className="flex items-center gap-4">
-            <LanguageSwitcher />
+            {/* <LanguageSwitcher /> */}
             <div className="hidden sm:block px-3 py-1 bg-gray-100 rounded-full text-sm">
               Currency
             </div>
@@ -53,9 +53,7 @@ const Profile = () => {
                 </div>
                 <div>
                   <p className="font-medium text-gray-800">Welcome back!</p>
-                  <p className="text-gray-600 text-sm truncate">
-                    {user.email}
-                  </p>
+                  <p className="text-gray-600 text-sm truncate">{user.email}</p>
                 </div>
               </div>
             </div>
