@@ -2,6 +2,7 @@
 import { getMenusByLocation } from "@/app/actions/menu";
 import Link from "next/link";
 import ImageRenderer from "./ImageRenderer";
+import Carousel from "./Carousel"; // we'll create this next
 
 type PopulatedItem = {
   _id: string;
@@ -180,10 +181,10 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                 )}
                 <Link
                   href={getItemHref(item)}
-                  className="block "
+                  className="block"
                   title={item.name}
                 >
-                  <p className=" line-clamp-2  text-sm">{item.name}</p>
+                  <p className="line-clamp-2 text-sm">{item.name}</p>
                 </Link>
               </div>
             ))}
@@ -192,31 +193,11 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
 
       case "Carousel":
         return (
-          <div className="menu-carousel flex overflow-x-auto gap-2 lg:gap-4 scroll-smooth snap-x snap-mandatory">
-            {populatedContent.map((item) => (
-              <div
-                key={item._id}
-                className="carousel-slide min-w-[180px] sm:min-w-[220px] md:min-w-[280px] flex-shrink-0 snap-start p-2 rounded"
-              >
-                {showImages && item.image && (
-                  <div className="relative w-full aspect-square mb-2">
-                    <ImageRenderer
-                      image={item.image}
-                      alt={item.name}
-                      className="rounded"
-                    />
-                  </div>
-                )}
-                <Link
-                  href={getItemHref(item)}
-                  className="block"
-                  title={item.name}
-                >
-                  <p className=" line-clamp-2 text-sm">{item.name}</p>
-                </Link>
-              </div>
-            ))}
-          </div>
+          <Carousel
+            items={populatedContent}
+            showImages={showImages}
+            menuType={type} // pass the menu's type as a string
+          />
         );
 
       case "Dropdown":
@@ -266,7 +247,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
 
   return (
     <div
-      className={`menu-node depth-${depth} p-4 my-2 rounded shadow-sm ${
+      className={`menu-node depth-${depth} p-2 my-2 rounded shadow-sm ${
         isSticky ? "sticky top-0 z-50" : ""
       } `}
       style={style}
