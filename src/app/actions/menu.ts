@@ -10,7 +10,6 @@ import Promotion from "@/models/Promotion";
 import { revalidatePath } from "next/cache";
 import mongoose from "mongoose";
 import { Collection } from "@/models/Collection";
-// Import the query builder from collection actions
 import { buildQueryFromRules } from "./collection";
 
 // ------------------------------------------------------------
@@ -37,10 +36,8 @@ export interface MenuData {
 }
 
 // ------------------------------------------------------------
-// Helper: populate content (recursive, expands Collections)
+// Helper: populate content (recursive, supports MegaMenu; does NOT expand Collections)
 // ------------------------------------------------------------
-// app/actions/menu.ts (inside populateContent)
-
 async function populateContent(menu: any) {
   if (!menu || !menu.content || menu.content.length === 0) return menu;
 
@@ -69,6 +66,7 @@ async function populateContent(menu: any) {
       isMenuModel = true;
       break;
     default:
+      // URL, Search, Page, etc. – no population
       return menu;
   }
 
@@ -86,76 +84,19 @@ async function populateContent(menu: any) {
       _id: child._id.toString(),
       name: child.name,
       fullData: child,
-      contentType: "Menu", // added
+      contentType: "Menu",
     }));
     return menu;
   }
 
-  // ---- Collection: expand into their items ----
-  if (type === "Collection") {
-    const allItems: any[] = [];
-
-    for (const doc of docs) {
-      const collection = doc as any;
-      const targetModelName = collection.targetType || "Product";
-      const TargetModel = targetModelName === "Product" ? Product : Collection;
-
-      let items: any[] = [];
-
-      if (collection.type === "manual") {
-        if (collection.items && collection.items.length > 0) {
-          items = await TargetModel.find({ _id: { $in: collection.items } })
-            .lean()
-            .exec();
-        }
-      } else {
-        if (collection.rules && collection.rules.length > 0) {
-          const query = buildQueryFromRules(collection.rules, targetModelName);
-          if (Object.keys(query).length > 0) {
-            items = await TargetModel.find(query).lean().exec();
-          }
-        }
-      }
-
-      for (const item of items) {
-        let image = null;
-        if (targetModelName === "Product") {
-          image = item.main_image || null;
-        } else {
-          image = item.image || item.imageUrl || null;
-        }
-
-        allItems.push({
-          _id: item._id.toString(),
-          name: item.name || item.title || "Unnamed",
-          image,
-          contentType: targetModelName, // "Product" or "Collection"
-        });
-      }
-    }
-
-    if (allItems.length === 0) {
-      // fallback: show the collection names
-      menu.populatedContent = docs.map((doc: any) => ({
-        _id: doc._id.toString(),
-        name: doc.name || "Collection",
-        image: doc.imageUrl || null,
-        contentType: "Collection", // fallback type
-      }));
-    } else {
-      menu.populatedContent = allItems;
-    }
-
-    return menu;
-  }
-
-  // ---- Other types (Category, Product, Brand, Promotion) ----
+  // ---- All other types (Category, Product, Brand, Promotion, Collection) ----
+  // For products, use "main_image"; for others, use "image" or "imageUrl".
   const imageField = type === "Product" ? "main_image" : "image";
   menu.populatedContent = docs.map((doc: any) => ({
     _id: doc._id.toString(),
     name: doc.name || doc.title || "Unnamed",
     image: doc[imageField] || doc.imageUrl || null,
-    contentType: type, // e.g., "Product", "Category", etc.
+    contentType: type, // "Category", "Product", "Brand", "Promotion", "Collection"
   }));
 
   return menu;

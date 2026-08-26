@@ -166,7 +166,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
 
       case "Grid":
         return (
-          <div className={`menu-grid grid gap-4 ${getGridCols()}`}>
+          <div className={`menu-grid grid gap-2 lg:gap-4 ${getGridCols()}`}>
             {populatedContent.map((item) => (
               <div key={item._id} className="menu-grid-item p-2 rounded">
                 {showImages && item.image && (
@@ -183,7 +183,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                   className="block "
                   title={item.name}
                 >
-                  <p className=" line-clamp-2">{item.name}</p>
+                  <p className=" line-clamp-2  text-sm">{item.name}</p>
                 </Link>
               </div>
             ))}
@@ -192,7 +192,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
 
       case "Carousel":
         return (
-          <div className="menu-carousel flex overflow-x-auto gap-4 p-2 scroll-smooth snap-x snap-mandatory">
+          <div className="menu-carousel flex overflow-x-auto gap-2 lg:gap-4 scroll-smooth snap-x snap-mandatory">
             {populatedContent.map((item) => (
               <div
                 key={item._id}
@@ -212,7 +212,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                   className="block"
                   title={item.name}
                 >
-                  <p className=" line-clamp-2">{item.name}</p>
+                  <p className=" line-clamp-2 text-sm">{item.name}</p>
                 </Link>
               </div>
             ))}
