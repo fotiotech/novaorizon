@@ -40,7 +40,7 @@ export default async function ProductsPage() {
           return (
             <Link
               key={product._id}
-              href={`/${slug}/details/${product._id}`}
+              href={`/products/${slug}/${product._id}`}
               className="group block bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
             >
               <div className="relative aspect-square bg-gray-100">

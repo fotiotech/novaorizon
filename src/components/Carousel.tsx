@@ -30,11 +30,9 @@ const Carousel = ({ items, showImages, menuType }: CarouselProps) => {
   const [showRight, setShowRight] = useState(true);
 
   const getItemHref = (item: CarouselItem) => {
-    if (item.contentType === "Product") {
-      const slug = slugify(item.name);
-      return `/${slug}/details/${item._id}`;
-    }
-    return `/${menuType.toLowerCase()}/${item._id}`;
+    const slug = slugify(item.name);
+
+    return `/${menuType.toLowerCase()}s/${slug}/${item._id}`;
   };
 
   // Update button visibility on scroll

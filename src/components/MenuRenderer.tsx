@@ -111,11 +111,9 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
   };
 
   const getItemHref = (item: PopulatedItem) => {
-    if (item.contentType === "Product") {
-      const slug = slugify(item.name);
-      return `/${slug}/details/${item._id}`;
-    }
-    return `/${type.toLowerCase()}s/${item.name}/${item._id}`;
+    const slug = slugify(item.name);
+
+    return `/${type.toLowerCase()}s/${slug}/${item._id}`;
   };
 
   const getGridCols = () => {

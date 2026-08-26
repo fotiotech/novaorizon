@@ -5,7 +5,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buildQueryFromRules } from "@/app/actions/collection";
 
-// Simple slugify for names
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -13,14 +12,12 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// Resolve items from a collection (manual or rule-based)
 async function resolveCollectionItems(collection: any) {
   const targetModel =
     collection.targetType === "Product" ? Product : Collection;
   let items: any[] = [];
 
   if (collection.type === "manual") {
-    // Manual: fetch the stored item IDs
     if (collection.items && collection.items.length > 0) {
       items = await targetModel
         .find({ _id: { $in: collection.items } })
@@ -28,7 +25,6 @@ async function resolveCollectionItems(collection: any) {
         .exec();
     }
   } else {
-    // Rule-based: build query and fetch
     if (collection.rules && collection.rules.length > 0) {
       const query = buildQueryFromRules(
         collection.rules,
@@ -40,32 +36,32 @@ async function resolveCollectionItems(collection: any) {
     }
   }
 
-  // Normalize items: each should have _id, name, image, and contentType
   return items.map((item: any) => ({
     _id: item._id.toString(),
     name: item.name || item.title || "Unnamed",
     image: item.main_image || item.image || item.imageUrl || null,
-    contentType: collection.targetType, // "Product" or "Collection"
+    contentType: collection.targetType,
   }));
 }
 
+// ✅ Important: params is now a Promise
 export default async function CollectionDetailPage({
   params,
 }: {
-  params: { slug: string; id: string };
+  params: Promise<{ slug: string; id: string }>;
 }) {
+  const { slug, id } = await params;
+
   await connection();
 
-  const collection: any = await Collection.findById(params.id).lean().exec();
+  const collection: any = await Collection.findById(id).lean().exec();
 
   if (!collection) {
     notFound();
   }
 
-  // Resolve items
   const items = await resolveCollectionItems(collection);
 
-  // Build the title and description for the page
   const title = collection.name || "Collection";
   const description = collection.description || "";
   const imageUrl = collection.imageUrl || "/placeholder.png";
@@ -96,7 +92,6 @@ export default async function CollectionDetailPage({
         </div>
       </div>
 
-      {/* Items grid */}
       {items.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">This collection is empty.</p>
@@ -104,11 +99,11 @@ export default async function CollectionDetailPage({
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {items.map((item) => {
-            const slug = slugify(item.name);
+            const itemSlug = slugify(item.name);
             const link =
               item.contentType === "Product"
-                ? `/${slug}/details/${item._id}`
-                : `/collections/${slug}/${item._id}`;
+                ? `/products/${itemSlug}/${item._id}`
+                : `/collections/${itemSlug}/${item._id}`;
 
             return (
               <Link
