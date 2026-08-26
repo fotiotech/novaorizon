@@ -154,7 +154,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                 )}
                 <Link
                   href={getItemHref(item)}
-                  className="hover:underline line-clamp-2"
+                  className="hover:underline line-clamp-1"
                   title={item.name}
                 >
                   {item.name}
@@ -168,9 +168,9 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
         return (
           <div className={`menu-grid grid gap-4 ${getGridCols()}`}>
             {populatedContent.map((item) => (
-              <div key={item._id} className="menu-grid-item border p-2 rounded">
+              <div key={item._id} className="menu-grid-item p-2 rounded">
                 {showImages && item.image && (
-                  <div className="relative w-full aspect-square mb-2">
+                  <div className="relative w-full aspect-square mb-2 bg-gray-100">
                     <ImageRenderer
                       image={item.image}
                       alt={item.name}
@@ -180,10 +180,10 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                 )}
                 <Link
                   href={getItemHref(item)}
-                  className="block text-center hover:underline line-clamp-2"
+                  className="block "
                   title={item.name}
                 >
-                  {item.name}
+                  <p className=" line-clamp-2">{item.name}</p>
                 </Link>
               </div>
             ))}
@@ -196,7 +196,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
             {populatedContent.map((item) => (
               <div
                 key={item._id}
-                className="carousel-slide min-w-[180px] sm:min-w-[220px] md:min-w-[280px] flex-shrink-0 snap-start border p-2 rounded"
+                className="carousel-slide min-w-[180px] sm:min-w-[220px] md:min-w-[280px] flex-shrink-0 snap-start p-2 rounded"
               >
                 {showImages && item.image && (
                   <div className="relative w-full aspect-square mb-2">
@@ -209,10 +209,10 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                 )}
                 <Link
                   href={getItemHref(item)}
-                  className="block text-center hover:underline line-clamp-2"
+                  className="block"
                   title={item.name}
                 >
-                  {item.name}
+                  <p className=" line-clamp-2">{item.name}</p>
                 </Link>
               </div>
             ))}
@@ -230,7 +230,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
                 <Link
                   key={item._id}
                   href={getItemHref(item)}
-                  className="block px-4 py-2 hover:bg-gray-100 rounded line-clamp-2"
+                  className="block px-4 py-2 hover:bg-gray-100 rounded line-clamp-1"
                   title={item.name}
                 >
                   {item.name}
