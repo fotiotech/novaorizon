@@ -115,7 +115,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
       const slug = slugify(item.name);
       return `/${slug}/details/${item._id}`;
     }
-    return `/${type.toLowerCase()}/${item._id}`;
+    return `/${type.toLowerCase()}s/${item.name}/${item._id}`;
   };
 
   const getGridCols = () => {
