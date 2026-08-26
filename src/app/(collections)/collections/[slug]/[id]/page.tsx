@@ -1,9 +1,11 @@
 import { connection } from "@/utils/connection";
 import { Collection } from "@/models/Collection";
-import Product from "@/models/Product";
+import {
+  getModelForTargetType,
+  buildQueryFromRules,
+} from "@/lib/collection-helpers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { buildQueryFromRules } from "@/app/actions/collection";
 
 function slugify(text: string): string {
   return text
@@ -12,36 +14,62 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/**
+ * Get the route prefix for a given target type.
+ * You can adjust these to match your actual routing.
+ */
+function getRoutePrefix(targetType: string): string {
+  const map: Record<string, string> = {
+    Product: "products",
+    Category: "categories",
+    Brand: "brands",
+    Collection: "collections",
+    Promotion: "promotions",
+    Page: "pages",
+  };
+  return map[targetType] || "item";
+}
+
+/**
+ * Resolve items from a collection based on its targetType and type (manual/rule).
+ */
 async function resolveCollectionItems(collection: any) {
-  const targetModel =
-    collection.targetType === "Product" ? Product : Collection;
+  const targetType = collection.targetType;
+  const Model = getModelForTargetType(targetType);
+  if (!Model) return [];
+
   let items: any[] = [];
 
   if (collection.type === "manual") {
+    // Manual collection: items are stored as ObjectIds
     if (collection.items && collection.items.length > 0) {
-      items = await targetModel
+      items = await (Model as any)
         .find({ _id: { $in: collection.items } })
-        .lean()
-        .exec();
+        .lean();
     }
   } else {
-    if (collection.rules && collection.rules.length > 0) {
-      // ✅ Now synchronous – no await needed
-      const query = await buildQueryFromRules(
-        collection.rules,
-        collection.targetType,
-      );
+    // Rule-based collection – only Product and Collection support rules
+    if (["Product", "Collection"].includes(targetType)) {
+      const query = buildQueryFromRules(collection.rules, targetType);
       if (Object.keys(query).length > 0) {
-        items = await targetModel.find(query).lean().exec();
+        items = await (Model as any).find(query).lean();
       }
     }
+    // For other target types, rules are not allowed (the form prevents it),
+    // so we return empty array.
   }
 
+  // Normalize items: extract name and image
   return items.map((item: any) => ({
     _id: item._id.toString(),
     name: item.name || item.title || "Unnamed",
-    image: item.main_image || item.image || item.imageUrl || null,
-    contentType: collection.targetType,
+    image:
+      item.main_image ||
+      item.image ||
+      item.imageUrl ||
+      item.backgroundImage ||
+      null,
+    contentType: targetType,
   }));
 }
 
@@ -54,8 +82,7 @@ export default async function CollectionDetailPage({
 
   await connection();
 
-  const collection: any = await Collection.findById(id).lean().exec();
-
+  const collection: any = await Collection.findById(id).lean();
   if (!collection) {
     notFound();
   }
@@ -89,6 +116,10 @@ export default async function CollectionDetailPage({
           <p className="text-sm text-muted-foreground mt-1">
             {items.length} item{items.length !== 1 ? "s" : ""}
           </p>
+          {/* Show target type for clarity */}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Type: {collection.targetType}
+          </p>
         </div>
       </div>
 
@@ -100,10 +131,8 @@ export default async function CollectionDetailPage({
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {items.map((item) => {
             const itemSlug = slugify(item.name);
-            const link =
-              item.contentType === "Product"
-                ? `/products/${itemSlug}/${item._id}`
-                : `/collections/${itemSlug}/${item._id}`;
+            const routePrefix = getRoutePrefix(item.contentType);
+            const link = `/${routePrefix}/${itemSlug}/${item._id}`;
 
             return (
               <Link
@@ -123,9 +152,10 @@ export default async function CollectionDetailPage({
                   <h2 className="text-sm font-medium text-foreground line-clamp-2 group-hover:underline">
                     {item.name}
                   </h2>
-                  {item.contentType === "Collection" && (
+                  {/* Show content type badge for non‑Product items */}
+                  {item.contentType !== "Product" && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Collection
+                      {item.contentType}
                     </p>
                   )}
                 </div>

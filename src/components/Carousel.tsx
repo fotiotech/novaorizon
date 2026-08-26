@@ -8,13 +8,12 @@ type CarouselItem = {
   _id: string;
   name: string;
   image: string | null;
-  contentType: string;
+  contentType: string; // "Product", "Collection", "Category", etc.
 };
 
 type CarouselProps = {
   items: CarouselItem[];
   showImages: boolean;
-  menuType: string;
 };
 
 function slugify(text: string): string {
@@ -24,16 +23,17 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-const Carousel = ({ items, showImages, menuType }: CarouselProps) => {
+// Build route based on contentType
+const getItemHref = (item: CarouselItem) => {
+  const slug = slugify(item.name);
+  const prefix = item.contentType.toLowerCase() + "s"; // e.g., products, collections
+  return `/${prefix}/${slug}/${item._id}`;
+};
+
+const Carousel = ({ items, showImages }: CarouselProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
-
-  const getItemHref = (item: CarouselItem) => {
-    const slug = slugify(item.name);
-
-    return `/${menuType.toLowerCase()}s/${slug}/${item._id}`;
-  };
 
   // Update button visibility on scroll
   const updateButtons = () => {
@@ -48,13 +48,11 @@ const Carousel = ({ items, showImages, menuType }: CarouselProps) => {
     const container = scrollContainerRef.current;
     if (container) {
       container.addEventListener("scroll", updateButtons);
-      // Initial check after layout
       requestAnimationFrame(updateButtons);
       return () => container.removeEventListener("scroll", updateButtons);
     }
   }, []);
 
-  // Scroll by one slide width
   const scrollBy = (direction: "left" | "right") => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -64,12 +62,10 @@ const Carousel = ({ items, showImages, menuType }: CarouselProps) => {
     container.scrollBy({ left: scrollAmount, behavior: "smooth" });
   };
 
-  // No items → nothing
   if (items.length === 0) return null;
 
   return (
     <div className="carousel-wrapper relative group">
-      {/* Scroll container */}
       <div
         ref={scrollContainerRef}
         className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-2 md:gap-4 py-2 scrollbar-hide"
@@ -98,7 +94,7 @@ const Carousel = ({ items, showImages, menuType }: CarouselProps) => {
                   className="block hover:underline"
                   title={item.name}
                 >
-                  <p className="line-clamp-2 text-sm ">{item.name}</p>
+                  <p className="line-clamp-2 text-sm">{item.name}</p>
                 </Link>
               </div>
             </div>
@@ -106,7 +102,6 @@ const Carousel = ({ items, showImages, menuType }: CarouselProps) => {
         ))}
       </div>
 
-      {/* Navigation buttons – only show when there’s overflow */}
       {showLeft && (
         <button
           onClick={() => scrollBy("left")}

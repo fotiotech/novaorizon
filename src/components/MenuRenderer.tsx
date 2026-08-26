@@ -2,23 +2,23 @@
 import { getMenusByLocation } from "@/app/actions/menu";
 import Link from "next/link";
 import ImageRenderer from "./ImageRenderer";
-import Carousel from "./Carousel"; // we'll create this next
+import Carousel from "./Carousel";
 
-type PopulatedItem = {
+type Item = {
   _id: string;
   name: string;
   image: string | null;
-  contentType: string; // "Product", "Collection", "Category", "Brand", "Promotion", "Menu"
+  contentType: string; // "Product", "Collection", "Category", etc.
 };
 
-type MenuItem = {
+type Menu = {
   _id: string;
   name: string;
   description?: string;
   image?: string;
-  ctaUrl?: string;
-  ctaText?: string;
-  type: string;
+  link?: string;
+  collectionId?: string | null;
+  location?: string;
   display: string;
   position?: "left" | "center" | "right" | "full";
   columns?: number;
@@ -28,8 +28,8 @@ type MenuItem = {
   backgroundImage?: string;
   isSticky?: boolean;
   sectionTitle?: string;
-  populatedContent?: PopulatedItem[];
-  content: string[];
+  order: number;
+  items?: Item[];
 };
 
 type MenuRendererProps = {
@@ -62,21 +62,18 @@ export default async function MenuRenderer({
 
   return (
     <div className={`menu-location-${location} ${className}`}>
-      {data.map((menu: MenuItem) => (
+      {data.map((menu: Menu) => (
         <MenuNode key={menu._id} menu={menu} depth={depth} />
       ))}
     </div>
   );
 }
 
-function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
+function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
   const {
     name,
-    description,
     image,
-    ctaUrl,
-    ctaText,
-    type,
+    link,
     display,
     position,
     columns = 4,
@@ -86,8 +83,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
     backgroundImage,
     isSticky,
     sectionTitle,
-    populatedContent = [],
-    content,
+    items = [],
   } = menu;
 
   if (depth > maxDepth) return null;
@@ -96,24 +92,24 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
   if (backgroundColor) style.backgroundColor = backgroundColor;
   if (backgroundImage) style.backgroundImage = `url(${backgroundImage})`;
 
+  const getItemHref = (item: Item) => {
+    const slug = slugify(item.name);
+    const prefix = item.contentType.toLowerCase() + "s";
+    return `/${prefix}/${slug}/${item._id}`;
+  };
+
   const renderFallback = () => {
-    if (ctaUrl) {
+    if (link) {
       return (
         <Link
-          href={ctaUrl}
+          href={link}
           className="menu-fallback-link text-blue-600 hover:underline"
         >
-          {ctaText || "Go to link"}
+          {name} (Link)
         </Link>
       );
     }
     return <p className="text-sm text-gray-400">No content available</p>;
-  };
-
-  const getItemHref = (item: PopulatedItem) => {
-    const slug = slugify(item.name);
-
-    return `/${type.toLowerCase()}s/${slug}/${item._id}`;
   };
 
   const getGridCols = () => {
@@ -130,9 +126,9 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
   };
 
   const renderContent = () => {
-    const hasContent = populatedContent && populatedContent.length > 0;
+    const hasItems = items && items.length > 0;
 
-    if (!hasContent) {
+    if (!hasItems) {
       return renderFallback();
     }
 
@@ -140,7 +136,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
       case "List":
         return (
           <ul className="menu-list space-y-2">
-            {populatedContent.map((item) => (
+            {items.map((item) => (
               <li key={item._id} className="flex items-center gap-3">
                 {showImages && item.image && (
                   <div className="relative w-10 h-10 flex-shrink-0">
@@ -166,7 +162,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
       case "Grid":
         return (
           <div className={`menu-grid grid gap-2 lg:gap-4 ${getGridCols()}`}>
-            {populatedContent.map((item) => (
+            {items.map((item) => (
               <div key={item._id} className="menu-grid-item p-2 rounded">
                 {showImages && item.image && (
                   <div className="relative w-full aspect-square mb-2 bg-gray-100">
@@ -192,9 +188,13 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
       case "Carousel":
         return (
           <Carousel
-            items={populatedContent}
+            items={items.map((item) => ({
+              _id: item._id,
+              name: item.name,
+              image: item.image,
+              contentType: item.contentType, // ✅ passes contentType
+            }))}
             showImages={showImages}
-            menuType={type} // pass the menu's type as a string
           />
         );
 
@@ -205,7 +205,7 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
               {name}
             </button>
             <div className="dropdown-content absolute left-0 mt-1 hidden group-hover:block group-focus-within:block bg-white shadow-lg rounded p-2 min-w-[150px] z-10 w-full sm:w-auto">
-              {populatedContent.map((item) => (
+              {items.map((item) => (
                 <Link
                   key={item._id}
                   href={getItemHref(item)}
@@ -226,12 +226,25 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
               position === "full" ? "w-full" : ""
             }`}
           >
-            {populatedContent.map((child: any) => (
-              <MenuNode
-                key={child._id}
-                menu={child.fullData}
-                depth={depth + 1}
-              />
+            {items.map((item) => (
+              <div key={item._id} className="mega-menu-item">
+                {showImages && item.image && (
+                  <div className="relative w-full aspect-square mb-2 bg-gray-100">
+                    <ImageRenderer
+                      image={item.image}
+                      alt={item.name}
+                      className="rounded"
+                    />
+                  </div>
+                )}
+                <Link
+                  href={getItemHref(item)}
+                  className="block hover:underline"
+                  title={item.name}
+                >
+                  <p className="line-clamp-2 text-sm">{item.name}</p>
+                </Link>
+              </div>
             ))}
           </div>
         );
@@ -247,32 +260,19 @@ function MenuNode({ menu, depth }: { menu: MenuItem; depth: number }) {
     <div
       className={`menu-node depth-${depth} p-2 md:p-4 lg:p-6 my-2 rounded shadow-sm ${
         isSticky ? "sticky top-0 z-50" : ""
-      } `}
+      }`}
       style={style}
     >
-      <div className="flex justify-between items-center">
-        {sectionTitle && (
-          <h2 className="menu-section-title text-xl font-semibold mb-2 line-clamp-1">
-            {sectionTitle}
-          </h2>
-        )}
-
-        {image && (
-          <div className="relative w-8 h-8 inline-block mr-2">
-            <ImageRenderer image={image} alt={name} className="rounded-full" />
-          </div>
-        )}
-
-        {ctaUrl && ctaText && populatedContent.length > 0 && (
-          <Link
-            href={ctaUrl}
-            className="menu-cta inline-block text-blue-500 px-4 py-2 rounded hover:text-blue-600 transition ml-2"
-          >
-            {ctaText}
-          </Link>
-        )}
-      </div>
-
+      {sectionTitle && (
+        <h2 className="menu-section-title text-xl font-semibold mb-2 line-clamp-1">
+          {sectionTitle}
+        </h2>
+      )}
+      {image && (
+        <div className="relative w-8 h-8 inline-block mr-2">
+          <ImageRenderer image={image} alt={name} className="rounded-full" />
+        </div>
+      )}
       <div className="menu-content">{renderContent()}</div>
     </div>
   );

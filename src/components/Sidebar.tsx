@@ -5,6 +5,21 @@ import Link from "next/link";
 import { Close } from "@mui/icons-material";
 import { Category } from "@/constant/types";
 
+// Helper to get item name (handles Product with `title`)
+const getItemName = (item: any) => item.title || item.name || "Unnamed";
+
+// Helper to build dynamic route from item
+const getItemHref = (item: any) => {
+  const name = getItemName(item);
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const contentType = item.contentType || "Product";
+  const prefix = contentType.toLowerCase() + "s"; // e.g., products, collections
+  return `/${prefix}/${slug}/${item._id}`;
+};
+
 // ---------- Recursive Sidebar Menu Node ----------
 const SidebarMenuNode = ({
   menu,
@@ -13,17 +28,12 @@ const SidebarMenuNode = ({
   menu: any;
   onClose: () => void;
 }) => {
-  const {
-    name,
-    display,
-    populatedContent = [],
-    ctaUrl,
-    ctaText,
-    sectionTitle,
-  } = menu;
+  const { name, display, link, items = [], sectionTitle } = menu;
 
-  // For "List" or simple menus
-  if (display === "List" || display === "Grid" || display === "Carousel") {
+  // For "List", "Grid", "Carousel", "Dropdown" – render a list of items
+  if (["List", "Grid", "Carousel", "Dropdown"].includes(display)) {
+    const hasItems = items.length > 0;
+
     return (
       <div className="py-1">
         {sectionTitle && (
@@ -31,25 +41,39 @@ const SidebarMenuNode = ({
             {sectionTitle}
           </h3>
         )}
-        <ul>
-          {populatedContent.map((item: any) => (
-            <li key={item._id}>
-              <Link
-                href={`/${item.contentType?.toLowerCase() || "page"}/${item._id}`}
-                className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
-                onClick={onClose}
-              >
-                {item.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {hasItems ? (
+          <ul>
+            {items.map((item: any) => (
+              <li key={item._id}>
+                <Link
+                  href={getItemHref(item)}
+                  className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
+                  onClick={onClose}
+                >
+                  {getItemName(item)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          // Fallback if no items but link exists
+          link && (
+            <Link
+              href={link}
+              className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
+              onClick={onClose}
+            >
+              {name}
+            </Link>
+          )
+        )}
       </div>
     );
   }
 
-  // For "MegaMenu" (nested)
+  // For "MegaMenu" – we render a grid/list of items
   if (display === "MegaMenu") {
+    const hasItems = items.length > 0;
     return (
       <div className="py-1">
         {sectionTitle && (
@@ -57,39 +81,31 @@ const SidebarMenuNode = ({
             {sectionTitle}
           </h3>
         )}
-        <div className="grid grid-cols-1 gap-1">
-          {populatedContent.map((child: any) => (
-            <SidebarMenuNode
-              key={child._id}
-              menu={child.fullData}
-              onClose={onClose}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Dropdown – treat as a collapsible list (optional: could be shown as a submenu)
-  if (display === "Dropdown") {
-    return (
-      <div className="py-1">
-        <button className="w-full text-left px-6 py-2 font-medium hover:bg-muted">
-          {name}
-        </button>
-        <ul className="pl-4">
-          {populatedContent.map((item: any) => (
-            <li key={item._id}>
-              <Link
-                href={`/${item.contentType?.toLowerCase() || "page"}/${item._id}`}
-                className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
-                onClick={onClose}
-              >
-                {item.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {hasItems ? (
+          <ul className="grid grid-cols-1 gap-1">
+            {items.map((item: any) => (
+              <li key={item._id}>
+                <Link
+                  href={getItemHref(item)}
+                  className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
+                  onClick={onClose}
+                >
+                  {getItemName(item)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          link && (
+            <Link
+              href={link}
+              className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
+              onClick={onClose}
+            >
+              {name}
+            </Link>
+          )
+        )}
       </div>
     );
   }
@@ -98,7 +114,7 @@ const SidebarMenuNode = ({
   return (
     <div className="py-1">
       <Link
-        href={ctaUrl || "#"}
+        href={link || "#"}
         className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
         onClick={onClose}
       >
@@ -154,7 +170,7 @@ const Sidebar = React.memo(
 
           <div className="overflow-y-auto h-full pb-20">
             {hasMenus ? (
-              // Render sidebar menus (supports MegaMenu)
+              // Render sidebar menus
               sidebarMenus.map((menu) => (
                 <SidebarMenuNode key={menu._id} menu={menu} onClose={onClose} />
               ))

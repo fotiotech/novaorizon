@@ -4,11 +4,18 @@ import { revalidatePath } from "next/cache";
 import { connection } from "@/utils/connection";
 import mongoose from "mongoose";
 import Product from "@/models/Product";
-import "@/models/Category";
+import Category from "@/models/Category";
+import Brand from "@/models/Brand";
+import Promotion from "@/models/Promotion";
+import Page from "@/models/Page"; // assuming you have a Page model
 import { Collection } from "@/models/Collection";
+import {
+  getModelForTargetType,
+  buildQueryFromRules,
+} from "@/lib/collection-helpers";
 
-// ---------- Helper: parse rule value (async) ----------
-export async function parseRuleValue(value: any, operator: string) {
+// ---------- Helper: parse rule value ----------
+function parseRuleValue(value: any, operator: string) {
   if (operator === "$in" || operator === "$nin") {
     if (Array.isArray(value)) return value;
     if (typeof value === "string") {
@@ -39,41 +46,6 @@ export async function parseRuleValue(value: any, operator: string) {
   return value;
 }
 
-// ---------- Build query for a given model (async) ----------
-export async function buildQueryFromRules(rules: any[], targetModel: string) {
-  if (!rules || rules.length === 0) return {};
-
-  const query: any = { $and: [] };
-
-  for (const rule of rules) {
-    if (!rule.attribute || !rule.operator) continue;
-    const value = await parseRuleValue(rule.value, rule.operator);
-
-    if (targetModel === "Product" && rule.attribute === "category_id") {
-      if (Array.isArray(value)) {
-        const objectIds = value
-          .filter((v) => mongoose.Types.ObjectId.isValid(v))
-          .map((v) => new mongoose.Types.ObjectId(v));
-        if (objectIds.length) {
-          query.$and.push({
-            [rule.attribute]: { [rule.operator]: objectIds },
-          });
-        }
-      } else if (mongoose.Types.ObjectId.isValid(value as any)) {
-        query.$and.push({
-          [rule.attribute]: new mongoose.Types.ObjectId(value as any),
-        });
-      }
-    } else {
-      query.$and.push({
-        [rule.attribute]: { [rule.operator]: value },
-      });
-    }
-  }
-
-  return query.$and.length > 0 ? query : {};
-}
-
 // ---------- Get all collections ----------
 export async function getAllCollections() {
   try {
@@ -88,8 +60,7 @@ export async function getAllCollections() {
   }
 }
 
-// ---------- Get collections with resolved items/products ----------
-// ---------- Get collections with resolved items/products ----------
+// ---------- Get collections with resolved items ----------
 export async function getCollectionsWithProducts() {
   try {
     await connection();
@@ -104,17 +75,14 @@ export async function getCollectionsWithProducts() {
       let matchingItems = [];
 
       if (collection.type === "rule") {
-        const Model =
-          collection.targetType === "Product" ? Product : Collection;
-        const query = await buildQueryFromRules(
+        const Model = getModelForTargetType(collection.targetType);
+        if (!Model) continue;
+        const query = buildQueryFromRules(
           collection.rules,
           collection.targetType,
-        ); // 👈 await added
+        );
         if (Object.keys(query).length > 0) {
-          matchingItems = await Model.find(query)
-            .populate("category_id", "name")
-            .limit(50)
-            .lean();
+          matchingItems = await (Model as any).find(query).limit(50).lean();
         }
       } else {
         matchingItems = collection.items || [];
@@ -171,7 +139,15 @@ export async function createCollection(formData: FormData) {
     if (!["rule", "manual"].includes(type)) {
       return { success: false, error: "Invalid collection type" };
     }
-    if (!["Product", "Collection"].includes(targetType)) {
+    const validTargets = [
+      "Category",
+      "Product",
+      "Brand",
+      "Collection",
+      "Promotion",
+      "Page",
+    ];
+    if (!validTargets.includes(targetType)) {
       return { success: false, error: "Invalid target type" };
     }
 
@@ -281,7 +257,15 @@ export async function updateCollection(id: string, formData: FormData) {
     if (!["rule", "manual"].includes(type)) {
       return { success: false, error: "Invalid collection type" };
     }
-    if (!["Product", "Collection"].includes(targetType)) {
+    const validTargets = [
+      "Category",
+      "Product",
+      "Brand",
+      "Collection",
+      "Promotion",
+      "Page",
+    ];
+    if (!validTargets.includes(targetType)) {
       return { success: false, error: "Invalid target type" };
     }
 
@@ -418,23 +402,29 @@ export async function deleteCollection(id: string) {
   }
 }
 
-// ---------- Fetch items for manual selection (status filter skipped) ----------
+// ---------- Fetch available items for manual selection ----------
 export async function fetchAvailableItems(targetType: string, search?: string) {
   try {
     await connection();
-    const Model = targetType === "Product" ? Product : Collection;
-    const filter: any = {};
+    const Model = getModelForTargetType(targetType);
+    if (!Model) {
+      return {
+        success: false,
+        error: `Unsupported target type: ${targetType}`,
+      };
+    }
 
-    // ⛔️ Status filter is SKIPPED for now – all items are shown regardless of status.
-    // If you want to filter by status later, uncomment the next line:
-    // filter.status = "active";
+    const filter: any = {};
+    // Optionally filter by status if model has status field
+    // filter.status = "active"; // uncomment if you want active only
 
     if (search) {
       const searchField = targetType === "Product" ? "title" : "name";
       filter[searchField] = { $regex: search, $options: "i" };
     }
 
-    const items = await Model.find(filter)
+    const items = await (Model as any)
+      .find(filter)
       .select(
         targetType === "Product" ? "_id title imageUrl" : "_id name imageUrl",
       )
@@ -453,3 +443,4 @@ export async function fetchAvailableItems(targetType: string, search?: string) {
     return { success: false, error: "Failed to fetch items" };
   }
 }
+export { getModelForTargetType, buildQueryFromRules, parseRuleValue };

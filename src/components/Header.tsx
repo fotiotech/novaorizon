@@ -20,7 +20,7 @@ import { getMenusByLocation } from "@/app/actions/menu";
 import { useUnreadMessages } from "@/app/(checkout)/checkout/chat/_component/useUnreadMessages";
 import Sidebar from "./Sidebar";
 
-// ---------- SearchBar ----------
+// ---------- SearchBar (unchanged) ----------
 const SearchBar = React.memo(
   ({
     searchInput,
@@ -61,10 +61,9 @@ const SearchBar = React.memo(
     );
   },
 );
-
 SearchBar.displayName = "SearchBar";
 
-// ---------- UserProfile ----------
+// ---------- UserProfile (unchanged) ----------
 const UserProfile = React.memo(() => {
   const session = useSession();
   const unreadCount = useUnreadMessages();
@@ -95,10 +94,9 @@ const UserProfile = React.memo(() => {
     </div>
   );
 });
-
 UserProfile.displayName = "UserProfile";
 
-// ---------- CartIcon ----------
+// ---------- CartIcon (unchanged) ----------
 const CartIcon = React.memo(() => {
   const { cart } = useCart();
 
@@ -115,8 +113,17 @@ const CartIcon = React.memo(() => {
     </span>
   );
 });
-
 CartIcon.displayName = "CartIcon";
+
+// ---------- Helper: build dynamic route from item ----------
+function getItemHref(item: { _id: string; name: string; contentType: string }) {
+  const slug = item.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const prefix = item.contentType.toLowerCase() + "s"; // e.g., products, collections
+  return `/${prefix}/${slug}/${item._id}`;
+}
 
 // ---------- Main Header ----------
 const Header = () => {
@@ -125,7 +132,7 @@ const Header = () => {
   const [category, setCategory] = useState<Category[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [navItems, setNavItems] = useState<
-    Array<{ _id: string; name: string }>
+    Array<{ _id: string; name: string; contentType: string }>
   >([]);
   const [sidebarMenus, setSidebarMenus] = useState<any[]>([]);
 
@@ -140,14 +147,12 @@ const Header = () => {
         const navBarMenusRes = await getMenusByLocation("NavBar");
         if (navBarMenusRes.success && navBarMenusRes.data.length > 0) {
           const firstMenu = navBarMenusRes.data[0];
-          if (
-            firstMenu.populatedContent &&
-            firstMenu.populatedContent.length > 0
-          ) {
+          if (firstMenu.items && firstMenu.items.length > 0) {
             setNavItems(
-              firstMenu.populatedContent.map((item: any) => ({
+              firstMenu.items.map((item: any) => ({
                 _id: item._id,
-                name: item.name,
+                name: item.name || item.title || "Unnamed",
+                contentType: item.contentType || "Product",
               })),
             );
           }
@@ -175,7 +180,7 @@ const Header = () => {
       return navItems.map((item) => (
         <li key={item._id} className="inline-block pt-2 px-2">
           <Link
-            href={`/${item.name.toLowerCase().replace(/\s+/g, "-")}/${item._id}`}
+            href={getItemHref(item)}
             className="text-foreground hover:text-primary"
           >
             {item.name}

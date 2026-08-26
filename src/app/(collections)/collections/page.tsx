@@ -10,14 +10,26 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+// Human‑readable target type label
+function getTargetTypeLabel(targetType: string): string {
+  const map: Record<string, string> = {
+    Category: "Category",
+    Product: "Product",
+    Brand: "Brand",
+    Collection: "Collection",
+    Promotion: "Promotion",
+    Page: "Page",
+  };
+  return map[targetType] || targetType;
+}
+
 export default async function CollectionsPage() {
   await connection();
 
   const collections = await Collection.find({})
-    .select("_id name description imageUrl")
-    .sort({ order: 1, createdAt: -1 }) // sort by order then newest
-    .lean()
-    .exec();
+    .select("_id name description imageUrl targetType")
+    .sort({ order: 1, createdAt: -1 })
+    .lean();
 
   if (collections.length === 0) {
     return (
@@ -64,6 +76,10 @@ export default async function CollectionsPage() {
                     {collection.description}
                   </p>
                 )}
+                {/* Target type badge */}
+                <span className="inline-block mt-2 text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
+                  {getTargetTypeLabel(collection.targetType)}
+                </span>
               </div>
             </Link>
           );
