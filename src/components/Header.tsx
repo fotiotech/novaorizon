@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Menu,
@@ -6,7 +7,6 @@ import {
   Person,
   Search,
   ShoppingCart,
-  Close,
 } from "@mui/icons-material";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,8 +16,9 @@ import { useCart } from "@/app/context/CartContext";
 import { getCategory } from "@/app/actions/category";
 import { SignIn } from "../app/(auth)/components/auth/SignInButton";
 import { useSession } from "next-auth/react";
-import { getMenusByLocation, MenuData } from "@/app/actions/menu";
+import { getMenusByLocation } from "@/app/actions/menu";
 import { useUnreadMessages } from "@/app/(checkout)/checkout/chat/_component/useUnreadMessages";
+import Sidebar from "./Sidebar";
 
 // ---------- SearchBar ----------
 const SearchBar = React.memo(
@@ -117,106 +118,6 @@ const CartIcon = React.memo(() => {
 
 CartIcon.displayName = "CartIcon";
 
-// ---------- Sidebar ----------
-const Sidebar = React.memo(
-  ({
-    isOpen,
-    onClose,
-    categories,
-  }: {
-    isOpen: boolean;
-    onClose: () => void;
-    categories: Category[];
-  }) => {
-    return (
-      <>
-        {isOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-            onClick={onClose}
-          />
-        )}
-
-        <div
-          className={`fixed top-0 left-0 h-full w-64 bg-background shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
-            isOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="p-4 flex justify-between items-center border-b border-border">
-            <Link href={`/category`}>
-              <h2 className="text-xl font-semibold text-foreground">
-                Categories
-              </h2>
-            </Link>
-
-            <button
-              title="category"
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-full hover:bg-muted"
-            >
-              <Close />
-            </button>
-          </div>
-
-          <div className="overflow-y-auto h-full pb-20">
-            <ul className="py-4">
-              {categories.slice(0, 15).map((category, index) => (
-                <li key={index} className="border-b border-border">
-                  <Link
-                    href={`/category?id=${category._id}`}
-                    className="block py-3 px-6 hover:bg-muted transition-colors text-foreground"
-                    onClick={onClose}
-                  >
-                    {category.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <div className="px-6 py-4">
-              <h3 className="font-medium mb-2 text-foreground">
-                Customer Support
-              </h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link
-                    href="/help"
-                    className="text-sm text-muted-foreground hover:text-primary"
-                    onClick={onClose}
-                  >
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/contact"
-                    className="text-sm text-muted-foreground hover:text-primary"
-                    onClick={onClose}
-                  >
-                    Contact Us
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/returns"
-                    className="text-sm text-muted-foreground hover:text-primary"
-                    onClick={onClose}
-                  >
-                    Returns & Refunds
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  },
-);
-
-Sidebar.displayName = "Sidebar";
-
 // ---------- Main Header ----------
 const Header = () => {
   const [showSearchBox, setShowSearchBox] = useState(false);
@@ -226,20 +127,19 @@ const Header = () => {
   const [navItems, setNavItems] = useState<
     Array<{ _id: string; name: string }>
   >([]);
+  const [sidebarMenus, setSidebarMenus] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch categories (for sidebar and fallback)
+        // Fetch categories (for sidebar fallback)
         const categoriesRes = await getCategory();
         setCategory(categoriesRes);
 
         // Fetch NavBar menus (location === "NavBar")
         const navBarMenusRes = await getMenusByLocation("NavBar");
         if (navBarMenusRes.success && navBarMenusRes.data.length > 0) {
-          // Assuming the first menu is the main navigation bar
           const firstMenu = navBarMenusRes.data[0];
-          // Use populatedContent if available, otherwise fallback to content IDs
           if (
             firstMenu.populatedContent &&
             firstMenu.populatedContent.length > 0
@@ -250,13 +150,13 @@ const Header = () => {
                 name: item.name,
               })),
             );
-          } else {
-            // If no populated content, fallback to empty
-            setNavItems([]);
           }
-        } else {
-          // If no NavBar menu, fallback to categories (first 10)
-          setNavItems([]);
+        }
+
+        // Fetch SideBar menus (location === "SideBar")
+        const sideBarMenusRes = await getMenusByLocation("SideBar");
+        if (sideBarMenusRes.success && sideBarMenusRes.data.length > 0) {
+          setSidebarMenus(sideBarMenusRes.data);
         }
       } catch (error) {
         console.error("Error fetching navigation data:", error);
@@ -271,7 +171,6 @@ const Header = () => {
 
   // Memoize navigation items (from NavBar menu or fallback categories)
   const navigationItems = useMemo(() => {
-    // If we have NavBar items, use them
     if (navItems.length > 0) {
       return navItems.map((item) => (
         <li key={item._id} className="inline-block pt-2 px-2">
@@ -302,9 +201,7 @@ const Header = () => {
     (e: React.FormEvent) => {
       e.preventDefault();
       if (searchInput.trim()) {
-        window.location.href = `/search?query=${encodeURIComponent(
-          searchInput,
-        )}`;
+        window.location.href = `/search?query=${encodeURIComponent(searchInput)}`;
       }
     },
     [searchInput],
@@ -354,7 +251,6 @@ const Header = () => {
                 style={{ cursor: "pointer" }}
               />
             </span>
-
             <UserProfile />
             <CartIcon />
           </div>
@@ -387,6 +283,7 @@ const Header = () => {
         isOpen={isSidebarOpen}
         onClose={closeSidebar}
         categories={category}
+        sidebarMenus={sidebarMenus}
       />
     </>
   );
