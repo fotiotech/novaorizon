@@ -1,3 +1,4 @@
+// components/menu/ImageRenderer.tsx
 import Image from "next/image";
 import React from "react";
 
@@ -8,7 +9,7 @@ interface ImageRendererProps {
 }
 
 const ImageRenderer = ({ image, alt, className = "" }: ImageRendererProps) => {
-  const defaultImage = "/placeholder.png"; // Fallback image path
+  const defaultImage = "/placeholder.png";
 
   return (
     <div className={`relative w-full h-full ${className}`}>
@@ -16,7 +17,7 @@ const ImageRenderer = ({ image, alt, className = "" }: ImageRendererProps) => {
         src={image || defaultImage}
         alt={alt || (image ? `Image: ${image}` : "Placeholder image")}
         fill
-        sizes="(max-width: 768px) 100vw, 50vw"
+        sizes="(max-width: 768px) 100vw, 100vw"
         className="object-cover"
         priority={false}
       />

@@ -46,7 +46,7 @@ const HeaderScroll: React.FC = () => {
     (index: number) => {
       setCurrentIndex(index % slides.length);
     },
-    [slides.length]
+    [slides.length],
   );
 
   // Preload images - Fixed implementation
@@ -86,7 +86,6 @@ const HeaderScroll: React.FC = () => {
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      
       <div
         className="flex h-full transition-transform duration-700 ease-in-out "
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
@@ -106,7 +105,7 @@ const HeaderScroll: React.FC = () => {
                   src={imageUrl}
                   alt={title}
                   fill
-                  className="object-cover"
+                  className="aspect-square"
                   priority={index === 0}
                 />
                 <div className="absolute inset-0 bg-black/30" />
