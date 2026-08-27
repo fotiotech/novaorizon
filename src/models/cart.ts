@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document, model, models } from "mongoose";
-import Category from "./Category";
 
 export interface ICartItem {
   productId: mongoose.Types.ObjectId;
