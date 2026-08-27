@@ -10,24 +10,21 @@ export default function ReviewForm({ productId }: { productId: string }) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const userId = user?.id; // NextAuth user.id
+  const userId = user?.id;
 
   const submitReview = async () => {
     if (!productId) {
       setError("Product ID is missing.");
       return;
     }
-
     if (!userId) {
       setError("You must be logged in to submit a review.");
       return;
     }
-
     if (rating < 1 || rating > 5) {
       setError("Rating must be between 1 and 5.");
       return;
     }
-
     if (!reviewText.trim()) {
       setError("Please write a review.");
       return;
@@ -55,26 +52,30 @@ export default function ReviewForm({ productId }: { productId: string }) {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="text-muted-foreground">Loading...</div>;
   }
 
   if (!userId) {
     return (
-      <div className="text-center text-red-600">
+      <div className="text-center text-destructive p-4 border border-border rounded-lg bg-background">
         Please log in to leave a review.
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2 p-2">
-      <h2 className="text-lg font-semibold">Write a Review</h2>
+    <div className="flex flex-col gap-3 p-4 bg-background border border-border rounded-lg">
+      <h2 className="text-lg font-semibold text-foreground">Write a Review</h2>
       {success && (
-        <div className="text-green-600 text-sm">
+        <div className="text-green-600 dark:text-green-400 text-sm bg-green-50 dark:bg-green-900/20 p-2 rounded">
           Review submitted successfully!
         </div>
       )}
-      {error && <div className="text-red-600 text-sm">{error}</div>}
+      {error && (
+        <div className="text-destructive text-sm bg-destructive/10 p-2 rounded">
+          {error}
+        </div>
+      )}
       <input
         type="number"
         value={rating}
@@ -82,17 +83,22 @@ export default function ReviewForm({ productId }: { productId: string }) {
         placeholder="Rating (1-5)"
         min={1}
         max={5}
-        className="border p-2 rounded"
+        className="border border-input bg-background text-foreground p-2 rounded focus:ring-2 focus:ring-ring focus:border-transparent"
         disabled={submitting}
       />
       <textarea
         value={reviewText}
         onChange={(e) => setReviewText(e.target.value)}
         placeholder="Write your review"
-        className="border p-2 rounded"
+        className="border border-input bg-background text-foreground p-2 rounded focus:ring-2 focus:ring-ring focus:border-transparent"
         disabled={submitting}
+        rows={4}
       />
-      <button onClick={submitReview} className="btn" disabled={submitting}>
+      <button
+        onClick={submitReview}
+        className="btn bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+        disabled={submitting}
+      >
         {submitting ? "Submitting..." : "Submit"}
       </button>
     </div>

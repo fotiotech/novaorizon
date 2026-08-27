@@ -20,11 +20,12 @@ export default function ReviewForm({ productId, userId }: ReviewFormProps) {
     setError("");
 
     try {
-      // Call the server action directly
-      await addProductReview({ productId, userId, rating, comment: comment.trim() });
-
-      // Optionally, revalidate the page or redirect so the new review appears.
-      // For example, if this page’s path is `/product/[id]`:
+      await addProductReview({
+        productId,
+        userId,
+        rating,
+        comment: comment.trim(),
+      });
       router.refresh();
       setComment("");
       setRating(5);
@@ -35,16 +36,21 @@ export default function ReviewForm({ productId, userId }: ReviewFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded">
-      {error && <p className="text-red-500">{error}</p>}
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 bg-background rounded-lg p-4 border border-border"
+    >
+      {error && <p className="text-destructive">{error}</p>}
 
       <div className="flex flex-col">
-        <label htmlFor="rating" className="font-medium mb-1">Rating</label>
+        <label htmlFor="rating" className="font-medium mb-1 text-foreground">
+          Rating
+        </label>
         <select
           id="rating"
           value={rating}
           onChange={(e) => setRating(Number(e.target.value))}
-          className="border p-2 rounded w-24"
+          className="border border-input bg-background text-foreground p-2 rounded w-24 focus:ring-2 focus:ring-ring focus:border-transparent"
         >
           <option value={5}>5 – Excellent</option>
           <option value={4}>4 – Good</option>
@@ -55,11 +61,13 @@ export default function ReviewForm({ productId, userId }: ReviewFormProps) {
       </div>
 
       <div className="flex flex-col">
-        <label htmlFor="comment" className="font-medium mb-1">Comment</label>
+        <label htmlFor="comment" className="font-medium mb-1 text-foreground">
+          Comment
+        </label>
         <textarea
           id="comment"
           rows={4}
-          className="border p-2 rounded w-full"
+          className="border border-input bg-background text-foreground p-2 rounded w-full focus:ring-2 focus:ring-ring focus:border-transparent"
           placeholder="Write your review here…"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
@@ -68,7 +76,7 @@ export default function ReviewForm({ productId, userId }: ReviewFormProps) {
 
       <button
         type="submit"
-        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition"
+        className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
       >
         Submit Review
       </button>

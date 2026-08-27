@@ -18,9 +18,13 @@ type ExistingReviewsProps = {
 export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
   if (!reviews || reviews?.length === 0) {
     return (
-      <div className="bg-white rounded-lg p-6">
-        <h2 className="text-2xl font-semibold mb-4">Customer Reviews</h2>
-        <p className="text-gray-600">No reviews yet. Be the first to review!</p>
+      <div className="bg-background rounded-lg p-6 border border-border">
+        <h2 className="text-2xl font-semibold text-foreground mb-4">
+          Customer Reviews
+        </h2>
+        <p className="text-muted-foreground">
+          No reviews yet. Be the first to review!
+        </p>
       </div>
     );
   }
@@ -33,18 +37,22 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
   });
 
   return (
-    <div className="bg-white rounded-lg py-6 space-y-6">
-      <h2 className="text-2xl font-semibold">Customer Reviews</h2>
+    <div className="bg-background rounded-lg py-6 space-y-6 border-t border-border mt-4">
+      <h2 className="text-2xl font-semibold text-foreground">
+        Customer Reviews
+      </h2>
       <ul className="space-y-6">
         {sorted?.map((review) => (
-          <li key={review._id} className="border-b pb-4">
+          <li
+            key={review._id}
+            className="border-b border-border pb-4 last:border-0"
+          >
             <div className="flex items-center justify-between">
-              {/* 1) User ID (first 6 chars) */}
               <div>
-                <span className="font-medium">
+                <span className="font-medium text-foreground">
                   {review.user_id.name}
                 </span>
-                <span className="text-gray-500 text-sm ml-2">
+                <span className="text-muted-foreground text-sm ml-2">
                   {new Date(review.created_at).toLocaleDateString("fr-CM", {
                     year: "numeric",
                     month: "short",
@@ -53,7 +61,6 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
                 </span>
               </div>
 
-              {/* 2) Star rating (5 total, filled up to rating) */}
               <div className="flex items-center space-x-0.5">
                 {Array.from({ length: 5 }).map((_, i) => {
                   const filled = i < review.rating;
@@ -65,7 +72,7 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
                       fill={filled ? "currentColor" : "none"}
                       stroke="currentColor"
                       className={`w-5 h-5 ${
-                        filled ? "text-yellow-400" : "text-gray-300"
+                        filled ? "text-yellow-400" : "text-muted-foreground/30"
                       }`}
                     >
                       <path
@@ -79,8 +86,7 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
               </div>
             </div>
 
-            {/* 3) Review comment */}
-            <p className="mt-2 text-gray-800">{review.comment}</p>
+            <p className="mt-2 text-foreground">{review.comment}</p>
           </li>
         ))}
       </ul>
