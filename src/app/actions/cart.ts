@@ -14,6 +14,8 @@ export interface CartItemInput {
 }
 
 // Helper to calculate totals
+// Helper to calculate totals
+
 async function recalculateCart(cart: any) {
   const itemTotals = cart.items.map((item: any) => ({
     ...item,
