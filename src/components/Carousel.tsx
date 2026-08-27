@@ -77,7 +77,7 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
             key={item._id}
             className="carousel-slide flex-shrink-0 snap-start w-[50%] sm:w-[45%] md:w-[30%] lg:w-[22%] p-1"
           >
-            <div className="bg-white rounded shadow-sm overflow-hidden">
+            <div className="bg-white rounded shadow overflow-hidden">
               {showImages && item.image && (
                 <div className="relative w-full aspect-square bg-gray-100">
                   <img

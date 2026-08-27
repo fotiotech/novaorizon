@@ -1,9 +1,9 @@
 "use server";
 
 import { connection } from "@/utils/connection";
+import mongoose from "mongoose";
 import { revalidatePath } from "next/cache";
 import Product from "@/models/Product";
-import mongoose from "mongoose";
 import Cart from "@/models/Cart";
 
 // Types
