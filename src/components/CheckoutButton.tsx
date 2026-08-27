@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, ReactNode, useState, useEffect } from "react";
+import React, { FC, ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { useCart } from "@/app/context/CartContext";
@@ -32,64 +32,50 @@ const CheckoutButton: FC<CheckoutProps> = ({
 }) => {
   const { data: session } = useSession();
   const user = session?.user as any;
-  const { dispatch, cart } = useCart();
+  const { addItem } = useCart(); // ✅ use addItem instead of dispatch + cart
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
-  const [addedProductId, setAddedProductId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
-  const addProductToCart = () => {
-    if (product && addedProductId !== product._id) {
-      dispatch({
-        type: "ADD_ITEM",
-        payload: {
-          id: product._id,
-          name: product?.name ?? "",
-          imageUrl: product?.main_image ?? "",
-          price: product?.price ?? 0,
-          quantity: 1,
-        },
-      });
-      setAddedProductId(product._id);
-    }
-  };
-
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!session) return signIn();
 
-    if (product) addProductToCart();
+    // If a product is provided, add it to the cart first
+    if (product) {
+      setAdding(true);
+      try {
+        await addItem(product._id, undefined, 1);
+      } catch (error) {
+        console.error("Failed to add product to cart:", error);
+        setAdding(false);
+        return;
+      } finally {
+        setAdding(false);
+      }
+    }
 
+    // Trigger notification (optional)
     if (user?.id) {
       triggerNotification(user.id, `${user.name} is checking out!`).catch(
-        console.error
+        console.error,
       );
     }
 
+    // Proceed to checkout
     setProcessing(true);
+    router.push("/checkout");
   };
-
-  useEffect(() => {
-    if (processing && cart.length > 0) {
-      router.push("/checkout");
-    } else if (processing) {
-      // Wait briefly to allow cart update before checking again
-      const timeout = setTimeout(() => {
-        if (cart.length > 0) router.push("/checkout");
-        else setProcessing(false);
-      }, 300);
-
-      return () => clearTimeout(timeout);
-    }
-  }, [processing, cart, router]);
 
   return (
     <button
       title="Check Out"
       type="button"
       onClick={handleClick}
-      className={`${width} ${height} ${bgColor} ${textColor} mx-auto rounded-lg shadow-lg font-semibold flex items-center justify-center p-2 hover:opacity-90`}
+      disabled={adding || processing}
+      className={`${width} ${height} ${bgColor} ${textColor} mx-auto rounded-lg shadow-lg font-semibold flex items-center justify-center p-2 hover:opacity-90 disabled:opacity-50 transition`}
     >
-      {processing ? "Processing..." : children}
+      {adding ? "Adding..." : processing ? "Processing..." : children}
     </button>
   );
 };

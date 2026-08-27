@@ -15,8 +15,7 @@ const DEFAULT_CARRIER_ID = "675eeda75a81d16c81aca736";
 export default function PaymentSuccess() {
   const router = useRouter();
   const params = useSearchParams();
-  const { dispatch: cartDispatch } = useCart();
-  const { cart } = useCart();
+  const { items, clearCart } = useCart(); // using items and clearCart
   const [isProcessing, setIsProcessing] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const orderSummaryRef = useRef<HTMLDivElement>(null);
@@ -69,8 +68,8 @@ export default function PaymentSuccess() {
     fetchCarrier();
   }, [order?.shippingAddress?.region]);
 
-  const calculateTotal = (items: CartItem[]) => {
-    return items.reduce(
+  const calculateTotal = (cartItems: CartItem[]) => {
+    return cartItems.reduce(
       (sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1),
       0,
     );
@@ -110,7 +109,8 @@ export default function PaymentSuccess() {
         setOrder(updatedOrder.order);
 
         if (status === "paid") {
-          cartDispatch({ type: "CLEAR_CART" });
+          // Clear cart on backend via context method
+          await clearCart();
           toast.success("Payment successful! Thank you for your purchase.");
         } else {
           toast.error("Payment was not successful. Please try again.");
@@ -134,7 +134,7 @@ export default function PaymentSuccess() {
     email,
     transaction_id,
     status,
-    cartDispatch,
+    clearCart,
     payment_ref,
     order,
     firstName,
@@ -158,18 +158,18 @@ export default function PaymentSuccess() {
         orderDate: new Date().toLocaleDateString(),
         products:
           order.products ||
-          cart.map((item) => ({
+          items.map((item) => ({
             name: item.name,
             quantity: item.quantity,
             price: item.price,
             imageUrl: item.imageUrl,
           })),
-        subtotal: order.subtotal || calculateTotal(cart),
+        subtotal: order.subtotal || calculateTotal(items),
         shippingCost: order.shippingCost || shippingPrice?.shippingPrice || 0,
         tax: order.tax || 0,
         total:
           order.total ||
-          calculateTotal(cart) + (shippingPrice?.shippingPrice || 0),
+          calculateTotal(items) + (shippingPrice?.shippingPrice || 0),
         shippingAddress: order.shippingAddress || {
           street: "",
           city: "",
@@ -193,7 +193,7 @@ export default function PaymentSuccess() {
     }
   };
 
-  // Hidden component for PDF capture
+  // Hidden component for PDF capture – now uses `items`
   const OrderSummary = () => (
     <div
       ref={orderSummaryRef}
@@ -240,7 +240,7 @@ export default function PaymentSuccess() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-2">Order Items</h2>
         <div className="border rounded-lg">
-          {(order?.products || cart).map((item: any, index: number) => (
+          {(order?.products || items).map((item: any, index: number) => (
             <div
               key={index}
               className="flex justify-between items-center p-3 border-b"
@@ -260,7 +260,7 @@ export default function PaymentSuccess() {
         <div className="flex justify-between mb-2">
           <span>Subtotal:</span>
           <span>
-            ${order?.subtotal?.toFixed(2) || calculateTotal(cart).toFixed(2)}
+            ${order?.subtotal?.toFixed(2) || calculateTotal(items).toFixed(2)}
           </span>
         </div>
         <div className="flex justify-between mb-2">
@@ -282,7 +282,7 @@ export default function PaymentSuccess() {
             $
             {order?.total?.toFixed(2) ||
               (
-                calculateTotal(cart) + (shippingPrice?.shippingPrice || 0)
+                calculateTotal(items) + (shippingPrice?.shippingPrice || 0)
               ).toFixed(2)}
           </span>
         </div>

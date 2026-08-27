@@ -15,7 +15,7 @@ interface MonetbilPaymentProps {
 
 function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
-  const { cart } = useCart();
+  const { items } = useCart(); // ✅ changed from { cart }
   const { user, addresses, paymentMethods } = useUserData();
   const [operator, setOperator] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -61,7 +61,7 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
     fetchOrder();
   }, [payment_ref]);
 
-  // Calculate total from cart (fallback)
+  // Calculate total from cart items (fallback)
   const calculateTotal = (cartItems: CartItem[]) => {
     return cartItems.reduce(
       (total, item) => total + item.price * item.quantity,
@@ -69,8 +69,8 @@ function MonetbilPayment({ payment_ref, orderTotal }: MonetbilPaymentProps) {
     );
   };
 
-  // Determine the total amount to pay
-  const amount = order?.total ?? orderTotal ?? calculateTotal(cart);
+  // Determine the total amount to pay – use order total, prop, or calculate from items
+  const amount = order?.total ?? orderTotal ?? calculateTotal(items);
 
   // Extract billing details from order or fallback to user/address
   const getBillingDetails = () => {
