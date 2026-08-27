@@ -24,7 +24,9 @@ const CartItem = ({ item, onUpdate, onRemove }: any) => {
 
   return (
     <div
-      className={`flex justify-between p-3 bg-white rounded-lg shadow-sm border transition-all duration-300 ${isRemoving ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
+      className={`flex justify-between p-3 bg-background rounded-lg border border-border shadow-sm transition-all duration-300 ${
+        isRemoving ? "opacity-0 scale-95" : "opacity-100 scale-100"
+      }`}
     >
       <div className="flex gap-3 flex-1 min-w-0">
         {item.imageUrl && (
@@ -34,35 +36,35 @@ const CartItem = ({ item, onUpdate, onRemove }: any) => {
               width={80}
               height={80}
               alt={item.name || "Cart item"}
-              className="w-20 h-20 object-contain rounded-md bg-gray-100"
+              className="w-20 h-20 object-contain rounded-md bg-muted"
               placeholder="blur"
               blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjBGMEYwIi8+CjxwYXRoIGQ9Ik00MCA0MEM0MCA0MCA0My4xIDQ0IDQ4IDQ0QzUyLjkgNDQgNTYgNDAgNTYgNDBNMjQgNDBDMjQgNDAgMjcuMSAzNiAzMiAzNkMzNi45IDM2IDQwIDQwIDQwIDQwIiBzdHJva2U9IiNDOEM4QzgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+Cjwvc3ZnPgo="
             />
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
-          <p className="text-gray-600 mt-1">
-            <span className="font-bold ml-1">
+          <h3 className="font-medium text-foreground truncate">{item.name}</h3>
+          <p className="text-muted-foreground mt-1">
+            <span className="font-bold ml-1 text-primary">
               <Prices amount={item.price} />
             </span>
           </p>
           <div className="flex items-center mt-2">
-            <span className="text-gray-600 mr-2">Quantity:</span>
-            <div className="flex items-center border rounded-md">
+            <span className="text-muted-foreground mr-2">Quantity:</span>
+            <div className="flex items-center border border-input rounded-md">
               <button
                 onClick={handleDecrease}
                 disabled={item.quantity <= 1}
-                className="px-2 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-2 py-1 text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 -
               </button>
-              <span className="px-2 py-1 text-gray-800 font-medium min-w-[2rem] text-center">
+              <span className="px-2 py-1 text-foreground font-medium min-w-[2rem] text-center">
                 {item.quantity}
               </span>
               <button
                 onClick={handleIncrease}
-                className="px-2 py-1 text-gray-600 hover:bg-gray-100 transition-colors"
+                className="px-2 py-1 text-foreground hover:bg-muted transition-colors"
               >
                 +
               </button>
@@ -73,11 +75,11 @@ const CartItem = ({ item, onUpdate, onRemove }: any) => {
       <div className="flex flex-col items-end justify-between pl-2">
         <button
           onClick={handleRemove}
-          className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+          className="text-destructive hover:text-destructive/80 p-1 rounded-full hover:bg-destructive/10 transition-colors"
         >
           <Delete fontSize="small" />
         </button>
-        <div className="text-lg hidden lg:block font-bold text-gray-900 whitespace-nowrap">
+        <div className="text-lg hidden lg:block font-bold text-foreground whitespace-nowrap">
           <Prices amount={item.price * item.quantity} />
         </div>
       </div>
@@ -116,14 +118,18 @@ const Cart = () => {
   }, [items, clearCart]);
 
   if (loading && items.length === 0)
-    return <div className="p-4 text-center">Loading cart...</div>;
+    return (
+      <div className="p-4 text-center text-muted-foreground">
+        Loading cart...
+      </div>
+    );
 
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center">
-        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+        <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
           <svg
-            className="w-12 h-12 text-gray-400"
+            className="w-12 h-12 text-muted-foreground"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -136,10 +142,12 @@ const Cart = () => {
             />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <h3 className="text-lg font-medium text-foreground mb-2">
           Your cart is empty
         </h3>
-        <p className="text-gray-500">Add some products to get started</p>
+        <p className="text-muted-foreground">
+          Add some products to get started
+        </p>
       </div>
     );
   }
@@ -147,12 +155,12 @@ const Cart = () => {
   return (
     <div className="p-2">
       <div className="flex justify-between items-center mb-4">
-        <span className="text-gray-600">
+        <span className="text-muted-foreground">
           {items.length} {items.length === 1 ? "item" : "items"}
         </span>
         <button
           onClick={handleClear}
-          className="text-sm text-red-600 hover:text-red-800"
+          className="text-sm text-destructive hover:text-destructive/80 transition-colors"
         >
           Clear Cart
         </button>
@@ -169,15 +177,15 @@ const Cart = () => {
         ))}
       </div>
 
-      <div className="mt-6 border-t pt-4 space-y-1">
-        <div className="flex justify-between text-sm">
+      <div className="mt-6 border-t border-border pt-4 space-y-1">
+        <div className="flex justify-between text-sm text-foreground">
           <span>Subtotal</span>
           <span>
             <Prices amount={subtotal} />
           </span>
         </div>
         {tax > 0 && (
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-sm text-foreground">
             <span>Tax</span>
             <span>
               <Prices amount={tax} />
@@ -185,7 +193,7 @@ const Cart = () => {
           </div>
         )}
         {discount > 0 && (
-          <div className="flex justify-between text-sm text-green-600">
+          <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
             <span>Discount</span>
             <span>
               -<Prices amount={discount} />
@@ -193,14 +201,14 @@ const Cart = () => {
           </div>
         )}
         {shippingCost > 0 && (
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-sm text-foreground">
             <span>Shipping</span>
             <span>
               <Prices amount={shippingCost} />
             </span>
           </div>
         )}
-        <div className="flex justify-between text-lg font-bold border-t pt-2">
+        <div className="flex justify-between text-lg font-bold border-t border-border pt-2 text-foreground">
           <span>Total</span>
           <span>
             <Prices amount={total} />

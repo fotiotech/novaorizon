@@ -232,7 +232,7 @@ const Header = () => {
                 title="Toggle sidebar"
                 type="button"
                 onClick={toggleSidebar}
-                className="hover:bg-muted p-2 rounded-full transition-colors"
+                className="hover:bg-muted py-2 rounded-full transition-colors"
               >
                 <Menu style={{ fontSize: 28 }} className="text-foreground" />
               </button>
