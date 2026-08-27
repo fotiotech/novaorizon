@@ -274,14 +274,14 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
             <ImageRenderer image={image} alt={name} className="rounded-full" />
           </div>
         )}
-        {link && (
+        {/* {link && (
           <Link
             href={link}
             className="menu-fallback-link text-blue-600 hover:text-blue-700"
           >
             {link}
           </Link>
-        )}
+        )} */}
       </div>
 
       <div className="menu-content">{renderContent()}</div>

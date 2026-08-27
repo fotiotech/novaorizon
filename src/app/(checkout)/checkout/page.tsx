@@ -288,6 +288,7 @@ const CheckoutPage = () => {
         carrier: shippingPrice?.carrierName || "",
       },
       carrierId: selectedCarrierId,
+      orderStatus: "pending",
     };
   };
 
