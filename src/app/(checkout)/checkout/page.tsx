@@ -14,6 +14,7 @@ import { db } from "@/utils/firebaseConfig";
 import { toast } from "react-hot-toast";
 import { getCarriers, calculateShippingPrice } from "@/app/actions/carrier";
 import { findProducts } from "@/app/actions/products";
+import Spinner from "@/components/Spinner";
 
 // ---------- Types ----------
 export type CalcShippingPrice = {
@@ -47,7 +48,7 @@ function doesCarrierServeAddress(carrier: any, address: any): boolean {
 
 const CheckoutPage = () => {
   const { user, addresses, paymentMethods, loading } = useUserData();
-  const { items, subtotal, tax, discount } = useCart(); // <-- using items and totals
+  const { items, subtotal, tax, discount } = useCart();
   const router = useRouter();
 
   // ---------- Base state ----------
@@ -67,14 +68,14 @@ const CheckoutPage = () => {
   );
   const [shippingLoading, setShippingLoading] = useState<boolean>(false);
 
-  // ---------- Product fetching for carrier detection ----------
+  // ---------- Product fetching ----------
   const [cartProducts, setCartProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
 
   // ---------- Ref for synchronous processing lock ----------
   const processingRef = useRef(false);
 
-  // Generate order number and room ID (unchanged)
+  // Generate order number and room ID
   useEffect(() => {
     const generateOrderNumber = (): string => {
       const datePart = new Date()
@@ -92,7 +93,7 @@ const CheckoutPage = () => {
     setRoomId(newOrderNumber);
   }, []);
 
-  // Auto‑select default address or first
+  // Auto‑select default address
   useEffect(() => {
     if (addresses.length > 0 && !selectedAddressId) {
       const defaultAddr: any = addresses.find((a) => a.isDefault);
@@ -119,7 +120,7 @@ const CheckoutPage = () => {
     }
   }, [paymentMethods, selectedPaymentMethodId]);
 
-  // ---------- Fetch product details from cart using findProducts ----------
+  // Fetch product details
   useEffect(() => {
     if (items.length === 0) {
       setCartProducts([]);
@@ -131,7 +132,6 @@ const CheckoutPage = () => {
     const fetchProducts = async () => {
       setLoadingProducts(true);
       try {
-        // Use productId from each cart item
         const productIds = items.map((item) => item.productId);
         const products = await Promise.all(
           productIds.map((id) => findProducts(id)),
@@ -149,7 +149,7 @@ const CheckoutPage = () => {
     fetchProducts();
   }, [items]);
 
-  // ---------- Compute common carriers from cart products ----------
+  // Compute common carriers from cart products
   useEffect(() => {
     if (cartProducts.length === 0) {
       setAvailableCarriers([]);
@@ -207,7 +207,7 @@ const CheckoutPage = () => {
     fetchCarriers();
   }, [cartProducts, addresses, selectedAddressId]);
 
-  // ---------- Calculate shipping when carrier or address changes ----------
+  // Calculate shipping
   useEffect(() => {
     if (!selectedCarrierId || !selectedAddressId) {
       setShippingPrice(null);
@@ -240,16 +240,14 @@ const CheckoutPage = () => {
       .finally(() => setShippingLoading(false));
   }, [selectedCarrierId, selectedAddressId, addresses, availableCarriers]);
 
-  // ---------- Build order data (includes carrierId) ----------
+  // Build order data
   const buildOrderData = (
     paymentMethod: string,
     paymentMethodId?: string,
   ): any => {
-    // Use subtotal from context
     const shippingCost = shippingPrice?.shippingPrice || 0;
-    const total = subtotal + tax - discount + shippingCost; // context provides subtotal, tax, discount
+    const total = subtotal + tax - discount + shippingCost;
 
-    // Build products array from items
     const products = items.map((item) => ({
       productId: item.productId,
       name: item.name,
@@ -293,9 +291,8 @@ const CheckoutPage = () => {
     };
   };
 
-  // ----- Handlers (Pay Now & Cash on Delivery) -----
+  // Handlers
   const handlePayNow = async () => {
-    // --- immediate guard ---
     if (processingRef.current) return;
     processingRef.current = true;
     setProcessing(true);
@@ -357,7 +354,6 @@ const CheckoutPage = () => {
   };
 
   const handleCashOnDelivery = async () => {
-    // --- immediate guard ---
     if (processingRef.current) return;
     processingRef.current = true;
     setProcessing(true);
@@ -407,17 +403,23 @@ const CheckoutPage = () => {
 
   // ---------- Render ----------
   if (loading) {
-    return <div className="p-4 text-center">Loading checkout...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spinner size={40} />
+      </div>
+    );
   }
 
   if (!user) {
     return (
-      <div className="p-4 text-center">
-        Please{" "}
-        <Link href="/auth/login" className="text-blue-600 underline">
-          sign in
-        </Link>{" "}
-        to checkout.
+      <div className="p-8 text-center bg-background rounded-lg border border-border">
+        <p className="text-foreground mb-4">Please sign in to checkout.</p>
+        <Link
+          href="/auth/login"
+          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition"
+        >
+          Sign In
+        </Link>
       </div>
     );
   }
@@ -430,213 +432,248 @@ const CheckoutPage = () => {
   );
 
   return (
-    <div className="p-2 lg:p-4 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold">Checkout</h1>
-      <div className="lg:flex lg:justify-between lg:items-start mb-6">
-        <div className="flex flex-col gap-3 my-2">
-          {/* Billing Address */}
-          <div>
-            <p className="font-bold">Billing Address</p>
-            {addresses.length === 0 ? (
-              <div className="border rounded-lg p-4 text-center">
-                <p className="text-gray-600">You have no saved addresses.</p>
-                <Link
-                  href="/profile/address"
-                  className="inline-block mt-2 text-blue-600 hover:underline"
-                >
-                  + Add a billing address
-                </Link>
-              </div>
-            ) : (
-              <div className="border rounded-lg p-3">
-                <select
-                  value={selectedAddressId}
-                  onChange={(e) => setSelectedAddressId(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                >
-                  {addresses.map((addr: any) => (
-                    <option
-                      key={addr._id?.toString()}
-                      value={addr._id?.toString()}
-                    >
-                      {addr.label} – {addr.street}, {addr.city} (
-                      {addr.postalCode})
-                    </option>
-                  ))}
-                </select>
-                {selectedAddress && (
-                  <div className="mt-2 text-sm text-gray-600">
-                    <p>
-                      {selectedAddress.street}, {selectedAddress.city},{" "}
-                      {selectedAddress.state || ""} {selectedAddress.postalCode}
-                      , {selectedAddress.country}
+    <div className="min-h-screen bg-background">
+      <div className="max-w-6xl mx-auto px-4 py-6 md:py-10">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6 border-b border-border pb-4">
+          Checkout
+        </h1>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Left column: Address, Shipping, Payment */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Billing Address */}
+            <div className="bg-background border border-border rounded-lg p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-foreground mb-3">
+                Billing Address
+              </h2>
+              {addresses.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground">
+                    You have no saved addresses.
+                  </p>
+                  <Link
+                    href="/profile/address"
+                    className="inline-block mt-2 text-primary hover:underline"
+                  >
+                    + Add a billing address
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <select
+                    value={selectedAddressId}
+                    onChange={(e) => setSelectedAddressId(e.target.value)}
+                    className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-transparent"
+                  >
+                    {addresses.map((addr: any) => (
+                      <option
+                        key={addr._id?.toString()}
+                        value={addr._id?.toString()}
+                      >
+                        {addr.label} – {addr.street}, {addr.city} (
+                        {addr.postalCode})
+                      </option>
+                    ))}
+                  </select>
+                  {selectedAddress && (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      <p>
+                        {selectedAddress.street}, {selectedAddress.city},{" "}
+                        {selectedAddress.state || ""}{" "}
+                        {selectedAddress.postalCode}, {selectedAddress.country}
+                      </p>
+                    </div>
+                  )}
+                  <Link
+                    href="/profile/address"
+                    className="inline-block mt-2 text-primary hover:underline text-sm"
+                  >
+                    Manage addresses
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {/* Shipping Information */}
+            <div className="bg-background border border-border rounded-lg p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-foreground mb-3">
+                Shipping Information
+              </h2>
+              {selectedAddress ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Shipping to: {selectedAddress.street},{" "}
+                    {selectedAddress.city}, {selectedAddress.country}
+                  </p>
+                  {loadingProducts || carrierLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Spinner size={20} />
+                      Loading carriers...
+                    </div>
+                  ) : availableCarriers.length === 0 ? (
+                    <p className="text-sm text-destructive">
+                      No carrier available for your region. Please update
+                      address or contact support.
                     </p>
-                  </div>
-                )}
-                <Link
-                  href="/profile/address"
-                  className="inline-block mt-2 text-blue-600 hover:underline text-sm"
-                >
-                  Manage addresses
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Shipping Information with Carrier Selection */}
-          <div>
-            <p className="font-bold">Shipping Information</p>
-            {selectedAddress ? (
-              <div className="border rounded-lg p-3 space-y-2">
-                <p>
-                  Shipping to: {selectedAddress.street}, {selectedAddress.city},{" "}
-                  {selectedAddress.country}
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Select Carrier
+                      </label>
+                      <select
+                        value={selectedCarrierId}
+                        onChange={(e) => setSelectedCarrierId(e.target.value)}
+                        className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-transparent"
+                      >
+                        {availableCarriers.map((c) => (
+                          <option key={c._id} value={c._id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {shippingLoading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Spinner size={16} />
+                      Calculating shipping...
+                    </div>
+                  )}
+                  {shippingPrice && !shippingLoading && (
+                    <p className="text-sm font-medium text-secondary-foreground bg-secondary/10 p-2 rounded-lg">
+                      Shipping: {shippingPrice.shippingPrice} CFA (est.
+                      delivery: {shippingPrice.averageDeliveryTime})
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  Please select a billing address.
                 </p>
-                {loadingProducts || carrierLoading ? (
-                  <p className="text-sm text-gray-500">Loading carriers...</p>
-                ) : availableCarriers.length === 0 ? (
-                  <p className="text-sm text-red-500">
-                    No carrier available for your region. Please update address
-                    or contact support.
-                  </p>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-medium">
-                      Select Carrier
-                    </label>
-                    <select
-                      value={selectedCarrierId}
-                      onChange={(e) => setSelectedCarrierId(e.target.value)}
-                      className="w-full p-2 border rounded-md"
-                    >
-                      {availableCarriers.map((c) => (
-                        <option key={c._id} value={c._id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                {shippingLoading && (
-                  <p className="text-sm">Calculating shipping...</p>
-                )}
-                {shippingPrice && !shippingLoading && (
-                  <p className="text-sm font-medium text-green-600">
-                    Shipping: {shippingPrice.shippingPrice} CFA (est. delivery:{" "}
-                    {shippingPrice.averageDeliveryTime})
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-500">Please select a billing address.</p>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
 
-        <div className="flex flex-col gap-3 my-2">
-          <div>
-            <p className="font-bold">Products Summary</p>
-            {shippingLoading ? (
-              <p>Loading shipping cost...</p>
-            ) : (
-              <OrderSummary shippingPrice={shippingPrice} />
-            )}
+            {/* Payment Method */}
+            <div className="bg-background border border-border rounded-lg p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-foreground mb-3">
+                Payment Method
+              </h2>
+              {paymentMethods.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground">
+                    You have no saved payment methods.
+                  </p>
+                  <Link
+                    href="/profile/payment"
+                    className="inline-block mt-2 text-primary hover:underline"
+                  >
+                    + Add a payment method
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <select
+                    value={selectedPaymentMethodId}
+                    onChange={(e) => setSelectedPaymentMethodId(e.target.value)}
+                    className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-transparent"
+                  >
+                    {paymentMethods.map((pm: any) => (
+                      <option
+                        key={pm._id?.toString()}
+                        value={pm._id?.toString()}
+                      >
+                        {pm.methodType} –{" "}
+                        {pm.methodType === "CreditCard"
+                          ? `**** ${(pm as any).details.cardNumber?.slice(-4) || "XXXX"}`
+                          : pm.methodType === "MobileMoney"
+                            ? `${(pm as any).details.provider} ${(pm as any).details.phoneNumber}`
+                            : (pm as any).details.email || ""}
+                      </option>
+                    ))}
+                  </select>
+                  <Link
+                    href="/profile/payment"
+                    className="inline-block mt-2 text-primary hover:underline text-sm"
+                  >
+                    Manage payment methods
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Payment Method */}
-          <div>
-            <p className="font-bold">Payment Method</p>
-            {paymentMethods.length === 0 ? (
-              <div className="border rounded-lg p-4 text-center">
-                <p className="text-gray-600">
-                  You have no saved payment methods.
+          {/* Right column: Order Summary & actions */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-muted/20 border border-border rounded-lg p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-foreground mb-3">
+                Order Summary
+              </h2>
+              {shippingLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Spinner size={20} />
+                  Calculating totals...
+                </div>
+              ) : (
+                <OrderSummary shippingPrice={shippingPrice} />
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <button
+                onClick={handlePayNow}
+                disabled={
+                  !selectedAddressId ||
+                  !selectedPaymentMethodId ||
+                  items.length === 0 ||
+                  shippingLoading ||
+                  processing ||
+                  availableCarriers.length === 0
+                }
+                className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50 transition shadow-sm"
+              >
+                {processing ? "Processing..." : "Pay Now"}
+              </button>
+
+              <button
+                onClick={handleCashOnDelivery}
+                disabled={
+                  !selectedAddressId ||
+                  items.length === 0 ||
+                  shippingLoading ||
+                  processing ||
+                  availableCarriers.length === 0
+                }
+                className="w-full bg-secondary text-secondary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-secondary/90 disabled:opacity-50 transition shadow-sm"
+              >
+                {processing ? "Placing order..." : "Cash on Delivery"}
+              </button>
+            </div>
+
+            {/* Validation messages */}
+            <div className="space-y-1 text-sm">
+              {!selectedAddressId && (
+                <p className="text-destructive">
+                  Please select a billing address.
                 </p>
-                <Link
-                  href="/profile/payment"
-                  className="inline-block mt-2 text-blue-600 hover:underline"
-                >
-                  + Add a payment method
-                </Link>
-              </div>
-            ) : (
-              <div className="border rounded-lg p-3">
-                <select
-                  value={selectedPaymentMethodId}
-                  onChange={(e) => setSelectedPaymentMethodId(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                >
-                  {paymentMethods.map((pm: any) => (
-                    <option key={pm._id?.toString()} value={pm._id?.toString()}>
-                      {pm.methodType} –{" "}
-                      {pm.methodType === "CreditCard"
-                        ? `**** ${(pm as any).details.cardNumber?.slice(-4) || "XXXX"}`
-                        : pm.methodType === "MobileMoney"
-                          ? `${(pm as any).details.provider} ${(pm as any).details.phoneNumber}`
-                          : (pm as any).details.email || ""}
-                    </option>
-                  ))}
-                </select>
-                <Link
-                  href="/profile/payment"
-                  className="inline-block mt-2 text-blue-600 hover:underline text-sm"
-                >
-                  Manage payment methods
-                </Link>
-              </div>
-            )}
+              )}
+              {!selectedPaymentMethodId && (
+                <p className="text-destructive">
+                  Please select a payment method for online payment.
+                </p>
+              )}
+              {availableCarriers.length === 0 &&
+                !loadingProducts &&
+                !carrierLoading && (
+                  <p className="text-destructive">
+                    No carrier available. Please check your address or contact
+                    support.
+                  </p>
+                )}
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4 mt-6">
-        <button
-          onClick={handlePayNow}
-          disabled={
-            !selectedAddressId ||
-            !selectedPaymentMethodId ||
-            items.length === 0 ||
-            shippingLoading ||
-            processing ||
-            availableCarriers.length === 0
-          }
-          className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 transition"
-        >
-          {processing ? "Processing..." : "Pay Now"}
-        </button>
-
-        <button
-          onClick={handleCashOnDelivery}
-          disabled={
-            !selectedAddressId ||
-            items.length === 0 ||
-            shippingLoading ||
-            processing ||
-            availableCarriers.length === 0
-          }
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 transition"
-        >
-          {processing ? "Placing order..." : "Cash on Delivery"}
-        </button>
-      </div>
-
-      {!selectedAddressId && (
-        <p className="text-sm text-red-500 mt-2">
-          Please select a billing address to proceed.
-        </p>
-      )}
-      {!selectedPaymentMethodId && (
-        <p className="text-sm text-red-500 mt-2">
-          Please select a payment method for online payment.
-        </p>
-      )}
-      {availableCarriers.length === 0 &&
-        !loadingProducts &&
-        !carrierLoading && (
-          <p className="text-sm text-red-500 mt-2">
-            No carrier available. Please check your address or contact support.
-          </p>
-        )}
     </div>
   );
 };

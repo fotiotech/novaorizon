@@ -25,14 +25,14 @@ interface CheckoutProps {
 const CheckoutButton: FC<CheckoutProps> = ({
   width = "w-44",
   height = "h-10",
-  bgColor = "bg-[#00002a]",
-  textColor = "text-white",
+  bgColor = "bg-primary-800", // now uses theme primary
+  textColor = "text-primary-foreground",
   product,
   children,
 }) => {
   const { data: session } = useSession();
   const user = session?.user as any;
-  const { addItem } = useCart(); // ✅ use addItem instead of dispatch + cart
+  const { addItem } = useCart();
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -41,7 +41,6 @@ const CheckoutButton: FC<CheckoutProps> = ({
     e.preventDefault();
     if (!session) return signIn();
 
-    // If a product is provided, add it to the cart first
     if (product) {
       setAdding(true);
       try {
@@ -55,14 +54,12 @@ const CheckoutButton: FC<CheckoutProps> = ({
       }
     }
 
-    // Trigger notification (optional)
     if (user?.id) {
       triggerNotification(user.id, `${user.name} is checking out!`).catch(
         console.error,
       );
     }
 
-    // Proceed to checkout
     setProcessing(true);
     router.push("/checkout");
   };

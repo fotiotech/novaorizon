@@ -20,7 +20,7 @@ import { getMenusByLocation } from "@/app/actions/menu";
 import { useUnreadMessages } from "@/app/(checkout)/checkout/chat/_component/useUnreadMessages";
 import Sidebar from "./Sidebar";
 
-// ---------- SearchBar (unchanged) ----------
+// ---------- SearchBar (enhanced) ----------
 const SearchBar = React.memo(
   ({
     searchInput,
@@ -35,7 +35,7 @@ const SearchBar = React.memo(
   }) => {
     return (
       <form
-        className={`flex items-center h-11 bg-background rounded-xl overflow-hidden ${
+        className={`flex items-center h-11 bg-background rounded-full overflow-hidden border border-border focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-all ${
           isMobile ? "w-full" : "w-full"
         }`}
         onSubmit={onSubmit}
@@ -47,15 +47,14 @@ const SearchBar = React.memo(
           value={searchInput}
           placeholder="Search Dyfk"
           onChange={(e) => setSearchInput(e.target.value)}
-          className="flex-1 h-full bg-none py-2 focus:outline-none 
-                 border-none px-3 leading-tight text-foreground bg-background"
+          className="flex-1 h-full bg-transparent py-2 focus:outline-none border-none px-4 leading-tight text-foreground placeholder:text-muted-foreground"
         />
         <button
           type="submit"
           title="Search"
-          className="btn py-1 px-3 m-1 rounded-xl"
+          className="btn py-2 px-4 m-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         >
-          <Search style={{ color: "#fff" }} />
+          <Search style={{ fontSize: 20 }} />
         </button>
       </form>
     );
@@ -63,32 +62,35 @@ const SearchBar = React.memo(
 );
 SearchBar.displayName = "SearchBar";
 
-// ---------- UserProfile (unchanged) ----------
+// ---------- UserProfile (enhanced) ----------
 const UserProfile = React.memo(() => {
   const session = useSession();
   const unreadCount = useUnreadMessages();
   const user = session?.data?.user as any;
 
   return (
-    <div className="flex items-center">
+    <div className="flex items-center gap-2">
       {user ? (
-        <Link href={"/profile"}>
-          <p className="text-foreground">{user?.name}</p>
+        <Link
+          href="/profile"
+          className="text-foreground hover:text-primary transition-colors"
+        >
+          <span className="hidden sm:inline">{user?.name}</span>
         </Link>
       ) : (
         <SignIn />
       )}
-      <span>
+      <span className="text-muted-foreground">
         <NavigateNext style={{ fontSize: 16 }} />
       </span>
       <div className="relative">
         {unreadCount > 0 && (
-          <p className="absolute right-0 -top-2 bg-destructive text-destructive-foreground text-xs rounded-full px-1 min-w-[18px] text-center">
+          <p className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center leading-5">
             {unreadCount}
           </p>
         )}
-        <Link href={"/profile"}>
-          <Person style={{ fontSize: 30 }} />
+        <Link href="/profile" className="hover:scale-110 transition-transform">
+          <Person style={{ fontSize: 28 }} className="text-foreground" />
         </Link>
       </div>
     </div>
@@ -96,33 +98,33 @@ const UserProfile = React.memo(() => {
 });
 UserProfile.displayName = "UserProfile";
 
-// ---------- CartIcon – UPDATED to use items (not cart) ----------
+// ---------- CartIcon (enhanced) ----------
 const CartIcon = React.memo(() => {
-  const { items } = useCart(); // ✅ Changed from { cart } to { items }
+  const { items } = useCart();
   const itemCount = items?.length ?? 0;
 
   return (
-    <span className="relative">
+    <div className="relative hover:scale-110 transition-transform">
       {itemCount > 0 && (
-        <p className="absolute right-0 -top-2 bg-destructive text-destructive-foreground text-xs rounded-full px-1 min-w-[18px] text-center">
+        <p className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center leading-5">
           {itemCount}
         </p>
       )}
-      <Link href={"/cart"}>
-        <ShoppingCart style={{ fontSize: 30 }} />
+      <Link href="/cart">
+        <ShoppingCart style={{ fontSize: 28 }} className="text-foreground" />
       </Link>
-    </span>
+    </div>
   );
 });
 CartIcon.displayName = "CartIcon";
 
-// ---------- Helper: build dynamic route from item ----------
+// ---------- Helper: build dynamic route ----------
 function getItemHref(item: { _id: string; name: string; contentType: string }) {
   const slug = item.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  const prefix = item.contentType.toLowerCase() + "s"; // e.g., products, collections
+  const prefix = item.contentType.toLowerCase() + "s";
   return `/${prefix}/${slug}/${item._id}`;
 }
 
@@ -173,29 +175,32 @@ const Header = () => {
   const sidebarRef = useClickOutside(() => setIsSidebarOpen(false));
 
   const navigationItems = useMemo(() => {
-    if (navItems.length > 0) {
-      return navItems.map((item) => (
-        <li key={item._id} className="inline-block pt-2 px-2">
+    const itemsToRender =
+      navItems.length > 0
+        ? navItems
+        : category.slice(0, 10).map((cat) => ({
+            _id: cat._id,
+            name: cat.name,
+            contentType: "Category",
+            href: `/category?id=${cat._id}`,
+          }));
+
+    return itemsToRender.map((item) => {
+      const href =
+        item.contentType === "Category"
+          ? (item as any).href
+          : getItemHref(item as any);
+      return (
+        <li key={item._id} className="inline-block">
           <Link
-            href={getItemHref(item)}
-            className="text-foreground hover:text-primary"
+            href={href}
+            className="block px-3 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-muted rounded-lg transition-all duration-200"
           >
             {item.name}
           </Link>
         </li>
-      ));
-    }
-
-    return category.slice(0, 10).map((cat) => (
-      <li key={cat._id} className="inline-block pt-2 px-2">
-        <Link
-          href={`/category?id=${cat._id}`}
-          className="text-foreground hover:text-primary"
-        >
-          {cat.name}
-        </Link>
-      </li>
-    ));
+      );
+    });
   }, [navItems, category]);
 
   const handleSearchSubmit = useCallback(
@@ -218,67 +223,78 @@ const Header = () => {
 
   return (
     <>
-      <div className="p-2 lg:px-10 bg-background text-foreground sticky top-0 z-30 shadow-md">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <button title="toggle" type="button" onClick={toggleSidebar}>
-              <Menu style={{ fontSize: 30 }} />
-            </button>
-            <Link href={"/"}>
-              <Image
-                src={"/logo.png"}
-                width={60}
-                height={30}
-                alt="logo"
-                priority
-              />
-            </Link>
-          </div>
+      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border shadow-sm">
+        <div className="px-4 lg:px-10 py-2">
+          {/* Top row */}
+          <div className="flex justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                title="Toggle sidebar"
+                type="button"
+                onClick={toggleSidebar}
+                className="hover:bg-muted p-2 rounded-full transition-colors"
+              >
+                <Menu style={{ fontSize: 28 }} className="text-foreground" />
+              </button>
+              <Link href="/" className="flex-shrink-0">
+                <Image
+                  src="/logo.png"
+                  width={60}
+                  height={30}
+                  alt="logo"
+                  priority
+                  className="h-auto w-auto"
+                />
+              </Link>
+            </div>
 
-          <div className="hidden lg:block w-3/4">
-            <div className="relative w-full">
+            <div className="hidden lg:block flex-1 max-w-2xl">
               <SearchBar
                 searchInput={searchInput}
                 setSearchInput={setSearchInput}
                 onSubmit={handleSearchSubmit}
               />
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <span className="lg:hidden">
-              <Search
+            <div className="flex items-center gap-4">
+              <button
+                title="Search"
+                type="button"
+                className="lg:hidden hover:bg-muted p-2 rounded-full transition-colors"
                 onClick={() => setShowSearchBox((prev) => !prev)}
-                style={{ cursor: "pointer" }}
+              >
+                <Search style={{ fontSize: 24 }} className="text-foreground" />
+              </button>
+              <UserProfile />
+              <CartIcon />
+            </div>
+          </div>
+
+          {/* Mobile search (expanded) */}
+          <div
+            ref={domNode}
+            className={`${
+              showSearchBox ? "max-h-20 opacity-100 mt-3" : "max-h-0 opacity-0"
+            } overflow-hidden transition-all duration-300 ease-in-out lg:hidden`}
+          >
+            <div className="pb-2">
+              <SearchBar
+                searchInput={searchInput}
+                setSearchInput={setSearchInput}
+                isMobile={true}
+                onSubmit={handleSearchSubmit}
               />
-            </span>
-            <UserProfile />
-            <CartIcon />
+            </div>
+          </div>
+
+          {/* Navigation bar */}
+          <div className=" border-border pt-2 overflow-x-auto scrollbar-none">
+            <ul className="flex items-center gap-1 whitespace-nowrap">
+              {navigationItems}
+            </ul>
           </div>
         </div>
-
-        <div
-          ref={domNode}
-          className={`${
-            showSearchBox ? "w-full h-auto mt-2" : "w-0 h-0 overflow-hidden"
-          } transition-all lg:hidden`}
-        >
-          <div className="relative w-full">
-            <SearchBar
-              searchInput={searchInput}
-              setSearchInput={setSearchInput}
-              isMobile={true}
-              onSubmit={handleSearchSubmit}
-            />
-          </div>
-        </div>
-
-        <div className="mt-2">
-          <ul className="whitespace-nowrap overflow-auto scrollbar-none">
-            {navigationItems}
-          </ul>
-        </div>
-      </div>
+      </header>
 
       <Sidebar
         isOpen={isSidebarOpen}

@@ -13,10 +13,10 @@ import ReviewForm from "@/components/product/reviews/ProductReviews";
 import ExistingReviews from "@/components/product/reviews/ExistingReviews";
 import { useProductData } from "./_compnents/hooks";
 import { getCategoryAttributeSets } from "@/app/actions/category";
-import { getCarriers } from "@/app/actions/carrier"; // 👈 new import
-import { useUserData } from "@/app/context/UserDataContext"; // 👈 new import
+import { getCarriers } from "@/app/actions/carrier";
+import { useUserData } from "@/app/context/UserDataContext";
 
-// ---------- Types (same as before) ----------
+// ---------- Types ----------
 interface AttributeUnitFamily {
   id: string;
   name: string;
@@ -51,7 +51,6 @@ interface AttributeSetResult {
   groups: GroupNode[];
 }
 
-// Carrier type (simplified)
 interface Carrier {
   _id: string;
   name: string;
@@ -68,7 +67,7 @@ interface Params {
   dsin: string;
 }
 
-// ---------- Helper to merge variant into product ----------
+// ---------- Helpers ----------
 function applyVariant(product: any, variant: any) {
   if (!product || !variant) return product;
   const merged = JSON.parse(JSON.stringify(product));
@@ -78,7 +77,6 @@ function applyVariant(product: any, variant: any) {
   return merged;
 }
 
-// ---------- Helper to render a single attribute value ----------
 function renderAttributeValue(value: any): string {
   if (value === undefined || value === null) return "";
   if (
@@ -94,10 +92,8 @@ function renderAttributeValue(value: any): string {
   return String(value);
 }
 
-// ---------- Helper: check if a carrier serves a given address ----------
 function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
   if (!address) return false;
-  // Build a list of strings to match against carrier's regions
   const addressStrings = [
     address.city,
     address.state,
@@ -115,7 +111,7 @@ function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
   });
 }
 
-// ---------- Component: Specifications Table (only for "specification" set) ----------
+// ---------- Component: Specifications Table ----------
 const SpecificationTable: React.FC<{
   set: AttributeSetResult;
   product: any;
@@ -134,17 +130,17 @@ const SpecificationTable: React.FC<{
           {group.name}
         </h3>
         {hasAttributes && (
-          <table className="min-w-full border-collapse border border-gray-200">
+          <table className="min-w-full border-collapse border border-border">
             <tbody>
               {group.attributes.map((attr) => {
                 const value = product?.[attr.code];
                 if (value === undefined || value === null) return null;
                 return (
-                  <tr key={attr.id} className="border-b border-gray-200">
-                    <th className="py-2 px-4 text-left font-medium capitalize w-1/3 bg-gray-50">
+                  <tr key={attr.id} className="border-b border-border">
+                    <th className="py-2 px-4 text-left font-medium capitalize w-1/3 bg-muted/50">
                       {attr.name}
                     </th>
-                    <td className="py-2 px-4 text-gray-700">
+                    <td className="py-2 px-4 text-foreground">
                       {renderAttributeValue(value)}
                     </td>
                   </tr>
@@ -179,11 +175,9 @@ const CarrierShippingOptions: React.FC<{
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Get the carrier IDs from the product's "carrier" attribute
   const carrierIds: string[] = product?.carrier || [];
   const hasCarriers = carrierIds.length > 0;
 
-  // Fetch all carriers (we could also fetch only the needed ones, but this is simpler)
   useEffect(() => {
     if (!hasCarriers) {
       setLoading(false);
@@ -202,63 +196,62 @@ const CarrierShippingOptions: React.FC<{
       .finally(() => setLoading(false));
   }, [hasCarriers]);
 
-  // Determine which carriers serve the user's address (pick first address)
   const primaryAddress =
     userAddresses && userAddresses.length > 0 ? userAddresses[0] : null;
   const availableCarriers = carriers.filter((carrier) =>
     doesCarrierServeAddress(carrier, primaryAddress),
   );
 
-  // If no carriers selected for the product
   if (!hasCarriers) return null;
 
   if (loading)
     return (
-      <div className="mt-4 text-gray-500">Loading shipping options...</div>
+      <div className="mt-4 text-muted-foreground">
+        Loading shipping options...
+      </div>
     );
-  if (error) return <div className="mt-4 text-red-500">{error}</div>;
+  if (error) return <div className="mt-4 text-destructive">{error}</div>;
 
   return (
-    <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+    <div className="mt-6 p-4 border border-border rounded-lg bg-muted/30">
       <h3 className="text-lg font-semibold mb-2">Shipping Options</h3>
       {!primaryAddress ? (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Please{" "}
           <Link
             href="/account/addresses"
-            className="text-blue-600 hover:underline"
+            className="text-primary hover:underline"
           >
             add an address
           </Link>{" "}
           to check shipping availability.
         </p>
       ) : availableCarriers.length === 0 ? (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           No carriers serve your region (
           {primaryAddress.city || primaryAddress.state || "your area"}).
         </p>
       ) : (
         <ul className="space-y-3">
           {availableCarriers.map((carrier) => {
-            // Find the matching region details for this address
             const regionDetail = carrier.regionsServed.find((r) =>
               doesCarrierServeAddress(carrier, primaryAddress),
             );
             return (
               <li
                 key={carrier._id}
-                className="flex justify-between items-center border-b border-gray-200 pb-2 last:border-0"
+                className="flex justify-between items-center border-b border-border pb-2 last:border-0"
               >
                 <div>
                   <span className="font-medium">{carrier.name}</span>
                   {regionDetail && (
-                    <span className="text-sm text-gray-600 ml-2">
+                    <span className="text-sm text-muted-foreground ml-2">
                       (Est. delivery: {regionDetail.averageDeliveryTime})
                     </span>
                   )}
                 </div>
                 {regionDetail && (
-                  <span className="font-semibold text-indigo-600">
+                  <span className="font-semibold text-primary">
                     {regionDetail.basePrice} CFA
                   </span>
                 )}
@@ -282,8 +275,6 @@ export default function Details(props: { params: Promise<Params> }) {
   const categoryId = product?.category_id?._id ?? product?.category_id;
   const { data: session } = useSession();
   const user = session?.user as any;
-
-  // Get user addresses from context
   const { addresses: userAddresses } = useUserData();
 
   useEffect(() => {
@@ -314,15 +305,14 @@ export default function Details(props: { params: Promise<Params> }) {
     [product, setProduct],
   );
 
-  // ----- Loading & Error states -----
   if (loading) return <Spinner size={32} />;
   if (error)
     return (
       <div className="w-full p-8 text-center">
-        <div className="text-red-500 mb-4">{error}</div>
+        <div className="text-destructive mb-4">{error}</div>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
         >
           Try Again
         </button>
@@ -334,14 +324,13 @@ export default function Details(props: { params: Promise<Params> }) {
         <div className="text-xl mb-4">Product not found</div>
         <Link
           href="/"
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
         >
           Back to Home
         </Link>
       </div>
     );
 
-  // ----- ProductBasicInfo component (inline) -----
   const ProductBasicInfo = () => {
     const {
       _id = "",
@@ -364,19 +353,19 @@ export default function Details(props: { params: Promise<Params> }) {
             <div className="md:w-1/2">
               {brand?.name && (
                 <Link href={`/brandStore?brandId=${_id}`} className="">
-                  visit <span className="text-blue-600">{brand?.name}</span>
+                  visit <span className="text-primary">{brand?.name}</span>
                 </Link>
               )}
               <DetailImages file={gallery} />
             </div>
           ) : (
-            <div className="w-full md:w-1/2 flex items-center justify-center bg-gray-200 text-gray-500 rounded p-6">
+            <div className="w-full md:w-1/2 flex items-center justify-center bg-muted text-muted-foreground rounded p-6">
               No images available
             </div>
           )}
 
-          <div className="md:w-1/2 text-text">
-            <h1 className="text-sm font-bold text-gray-600 lg:text-lg mb-4">
+          <div className="md:w-1/2 text-foreground">
+            <h1 className="text-sm font-bold text-muted-foreground lg:text-lg mb-4">
               {title} {model}
             </h1>
 
@@ -390,15 +379,14 @@ export default function Details(props: { params: Promise<Params> }) {
               <div
                 className={`${
                   stock_status.join(", ") === "In Stock"
-                    ? "text-green-600"
-                    : "text-red-600"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-destructive"
                 } mb-4`}
               >
                 {stock_status.join(", ")}
               </div>
             )}
 
-            {/* Variant selection */}
             {Array.isArray(variants) && variants.length > 0 && (
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">
@@ -409,7 +397,7 @@ export default function Details(props: { params: Promise<Params> }) {
                     <button
                       key={i}
                       onClick={() => handleVariantSelect(v)}
-                      className="px-3 py-1 border rounded hover:bg-gray-100 transition-colors"
+                      className="px-3 py-1 border border-border rounded hover:bg-muted transition-colors"
                     >
                       {v.sku || `Variant ${i + 1}`}
                     </button>
@@ -427,7 +415,7 @@ export default function Details(props: { params: Promise<Params> }) {
                   price: list_price,
                 }}
                 width="w-full"
-                bgColor="bg-gray-800"
+                // bgColor removed to use theme default
               >
                 Checkout
               </CheckoutButton>
@@ -441,7 +429,6 @@ export default function Details(props: { params: Promise<Params> }) {
               />
             </div>
 
-            {/* 👇 Insert Carrier Shipping Options here */}
             <CarrierShippingOptions
               product={product}
               userAddresses={userAddresses}
@@ -460,27 +447,25 @@ export default function Details(props: { params: Promise<Params> }) {
 
         {short_desc && (
           <div className="my-6 rounded">
-            <p className="text-gray-700">{short_desc}</p>
+            <p className="text-muted-foreground">{short_desc}</p>
           </div>
         )}
       </>
     );
   };
 
-  // ----- Main render -----
   return (
-    <div className="w-full bg-white border-b-2 border-gray-300 p-4 md:p-8">
+    <div className="w-full bg-background border-b-2 border-border p-4 md:p-8">
       <ProductViewAnalytics productId={params.dsin} />
       <div className="max-w-6xl mx-auto">
         <ProductBasicInfo />
 
-        {/* Attribute sets – only render the "specification" set */}
         {setsLoading ? (
           <div className="mt-8 flex justify-center">
             <Spinner size={24} />
           </div>
         ) : setsError ? (
-          <div className="mt-8 text-red-500">{setsError}</div>
+          <div className="mt-8 text-destructive">{setsError}</div>
         ) : attributeSets.length > 0 ? (
           <div className="mt-8 space-y-8">
             {attributeSets.map((set) => {
@@ -498,18 +483,16 @@ export default function Details(props: { params: Promise<Params> }) {
           </div>
         ) : null}
 
-        {/* Long description */}
         {product.long_desc && (
-          <div className="mt-8 bg-white rounded">
+          <div className="mt-8 bg-background rounded">
             <h2 className="text-lg font-semibold mb-2">Description</h2>
             <div
-              className="prose max-w-none text-gray-700"
+              className="prose max-w-none text-foreground"
               dangerouslySetInnerHTML={{ __html: product.long_desc }}
             />
           </div>
         )}
 
-        {/* Related products */}
         {product.related_products?.ids?.length > 0 && (
           <div className="mt-8">
             <h2 className="text-lg font-semibold mb-4">Related Products</h2>
@@ -520,16 +503,18 @@ export default function Details(props: { params: Promise<Params> }) {
                   href={`/${related.url_slug || "product"}/details/${
                     related._id
                   }`}
-                  className="flex flex-col gap-2 p-3 bg-white rounded shadow hover:shadow-md transition-shadow"
+                  className="flex flex-col gap-2 p-3 bg-background rounded shadow hover:shadow-md transition-shadow border border-border"
                 >
                   {related.main_image && (
                     <ImageRenderer image={related.main_image} />
                   )}
-                  <h3 className="font-medium text-sm line-clamp-2">
+                  <h3 className="font-medium text-sm line-clamp-2 text-foreground">
                     {related.title}
                   </h3>
                   {related.list_price && (
-                    <p className="text-gray-700">{related.list_price} CFA</p>
+                    <p className="text-muted-foreground">
+                      {related.list_price} CFA
+                    </p>
                   )}
                 </Link>
               ))}
@@ -537,8 +522,7 @@ export default function Details(props: { params: Promise<Params> }) {
           </div>
         )}
 
-        {/* Reviews section */}
-        <div className="mt-8 bg-white rounded">
+        <div className="mt-8 bg-background rounded">
           <ReviewForm productId={product._id} userId={user?._id} />
           <ExistingReviews reviews={product?.reviews} />
         </div>

@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: "class", // no .dark class → dark mode disabled
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -17,7 +17,7 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
 
-        // Primary (Blue) – combined with shades
+        // Primary (Blue) – unchanged
         primary: {
           50: "hsl(var(--primary-50))",
           100: "hsl(var(--primary-100))",
@@ -33,7 +33,7 @@ const config: Config = {
           foreground: "hsl(var(--primary-foreground))",
         },
 
-        // Secondary (Orange) – combined with shades
+        // Secondary (Green) – updated
         secondary: {
           50: "hsl(var(--secondary-50))",
           100: "hsl(var(--secondary-100))",
@@ -49,7 +49,7 @@ const config: Config = {
           foreground: "hsl(var(--secondary-foreground))",
         },
 
-        // Accent (Green) – combined with shades
+        // Accent (Orange) – updated
         accent: {
           50: "hsl(var(--accent-50))",
           100: "hsl(var(--accent-100))",
@@ -65,7 +65,7 @@ const config: Config = {
           foreground: "hsl(var(--accent-foreground))",
         },
 
-        // Neutral (grey/black/white) – only shades (no DEFAULT needed)
+        // Neutral (grey/white/black) – unchanged
         neutral: {
           50: "hsl(var(--neutral-50))",
           100: "hsl(var(--neutral-100))",
@@ -83,6 +83,11 @@ const config: Config = {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+        },
+        // New: Warning (Yellow)
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",

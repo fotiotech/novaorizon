@@ -1,21 +1,51 @@
 import Cart from "@/components/cart/Cart";
 import CheckoutButton from "@/components/CheckoutButton";
+import Link from "next/link";
 import React from "react";
+import { ArrowLeft } from "lucide-react"; // or any icon set you use
 
 const CartPage = () => {
   return (
-    <>
-      <div className="p-2 ">
-        <h2 className=" font-bold text-xl">Your Cart</h2>
-        <div className="text-center p-2">
-          <CheckoutButton width="full" height="10">
-            Check Out
-          </CheckoutButton>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        {/* Header with back link */}
+        <div className="flex items-center justify-between mb-6 border-b border-border pb-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </Link>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Your Cart
+            </h1>
+          </div>
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
+            Continue Shopping
+          </Link>
         </div>
 
-        <Cart />
+        {/* Cart items */}
+        <div className="bg-background rounded-lg border border-border shadow-sm p-4 md:p-6">
+          <Cart />
+        </div>
+
+        {/* Checkout footer */}
+        <div className="mt-6 bg-background border border-border rounded-lg p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-muted-foreground">
+            {/* Optional: display subtotal if available, but we'll keep it simple */}
+            <p>Ready to place your order?</p>
+          </div>
+          <CheckoutButton width="w-full sm:w-auto" height="h-11">
+            Proceed to Checkout
+          </CheckoutButton>
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 

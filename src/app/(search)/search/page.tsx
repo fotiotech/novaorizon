@@ -30,32 +30,20 @@ const Search = () => {
     priceRange: { min: 0, max: 0 },
   });
 
-  // Enhanced debounced search function with debugging
+  // Enhanced debounced search
   const debouncedSearch = useCallback(
     debounce(async (searchQuery: string, filters: any[]) => {
       setIsLoading(true);
       setError(null);
 
-      console.log('🔍 Searching with:', { 
-        searchQuery, 
-        filters,
-        urlParams: { query, category, brand, priceMin, priceMax }
-      });
-
       try {
         const result = await searchProducts(searchQuery, filters, 1, 20);
-
-        console.log('📦 Search result:', result);
-
-        // Transform the MongoDB results to match the expected format
         const items = result.hits.map((hit: any) => ({
           _id: hit._id,
           ...hit._source,
         }));
 
-        console.log('🔄 Transformed items:', items);
-
-        // Extract available categories and brands for filters
+        // Extract categories, brands, and price range for filters
         const categories = Array.from(
           new Set(
             items
@@ -64,11 +52,11 @@ const Search = () => {
               .map((cat: any) => ({
                 _id: cat._id,
                 name: cat.name,
-                count: items.filter((item: any) => 
-                  item.category?._id === cat._id
-                ).length
-              }))
-          )
+                count: items.filter(
+                  (item: any) => item.category?._id === cat._id,
+                ).length,
+              })),
+          ),
         );
 
         const brands = Array.from(
@@ -79,75 +67,54 @@ const Search = () => {
               .map((brand: any) => ({
                 _id: brand._id,
                 name: brand.name,
-                count: items.filter((item: any) => 
-                  item.brand?._id === brand._id
-                ).length
-              }))
-          )
+                count: items.filter(
+                  (item: any) => item.brand?._id === brand._id,
+                ).length,
+              })),
+          ),
         );
 
-        // Calculate price range from actual products
-        const prices = items.map((item: any) => item.price).filter(price => price != null);
+        const prices = items
+          .map((item: any) => item.price)
+          .filter((price) => price != null);
         const priceRange = {
           min: prices.length > 0 ? Math.min(...prices) : 0,
           max: prices.length > 0 ? Math.max(...prices) : 0,
         };
 
-        console.log('🎯 Filters data:', { categories, brands, priceRange });
-
-        // Update state
-        setFiltersData({
-          categories,
-          brands,
-          priceRange,
-        });
+        setFiltersData({ categories, brands, priceRange });
         setData(items);
       } catch (err) {
-        console.error("❌ Search error:", err);
+        console.error("Search error:", err);
         setError("Failed to load search results. Please try again.");
         setData([]);
       } finally {
         setIsLoading(false);
       }
     }, 300),
-    [query, category, brand, priceMin, priceMax] // Added dependencies
+    [],
   );
 
   // Build filters from URL params
   const buildFilters = useCallback(() => {
     const filters: any[] = [];
-
-    if (category) {
-      filters.push({ term: { category_id: category } });
-      console.log('✅ Added category filter:', category);
-    }
-    if (brand) {
-      filters.push({ term: { brand: brand } });
-      console.log('✅ Added brand filter:', brand);
-    }
+    if (category) filters.push({ term: { category_id: category } });
+    if (brand) filters.push({ term: { brand: brand } });
     if (priceMin || priceMax) {
       const range: any = {};
       if (priceMin) range.gte = Number(priceMin);
       if (priceMax) range.lte = Number(priceMax);
       filters.push({ range: { price: range } });
-      console.log('✅ Added price range filter:', range);
     }
-
-    console.log('🧩 Built filters:', filters);
     return filters;
   }, [category, brand, priceMin, priceMax]);
 
   // Fetch results when search params change
   useEffect(() => {
-    console.log('🔄 Search params changed:', {
-      query, category, brand, priceMin, priceMax
-    });
-
     if (query || category || brand || priceMin || priceMax) {
       const filters = buildFilters();
       debouncedSearch(query, filters);
     } else {
-      console.log('🔄 No search criteria, clearing results');
       setData([]);
       setIsLoading(false);
       setFiltersData({
@@ -169,37 +136,24 @@ const Search = () => {
   // Handle filter changes
   const handleFilterClick = useCallback(
     (key: string, value: string): void => {
-      console.log('🎛️ Filter clicked:', { key, value });
-      
       const params = new URLSearchParams(searchParams.toString());
-
-      if (value) {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
-
-      // Reset to first page when filters change
+      if (value) params.set(key, value);
+      else params.delete(key);
       params.delete("page");
-
-      console.log('🔄 Navigating to new URL with params:', params.toString());
       router.push(`/search?${params.toString()}`);
     },
-    [searchParams, router]
+    [searchParams, router],
   );
 
   // Clear all filters
   const clearFilters = useCallback(() => {
-    console.log('🗑️ Clearing all filters');
     const params = new URLSearchParams();
     if (query) params.set("query", query);
     router.push(`/search?${params.toString()}`);
   }, [query, router]);
 
-  // Memoized product list to avoid unnecessary re-renders
+  // Memoized product list
   const productList = useMemo(() => {
-    console.log('🔄 Rendering product list with', data.length, 'items');
-    
     return data.map((item: any) => {
       const imageUrl = item.main_image || null;
       const title = item.title;
@@ -209,20 +163,24 @@ const Search = () => {
       return (
         <Link
           key={item._id}
-          href={`/${title.slice(0, 15)}/details/${item._id}`}
-          className="bg-white shadow rounded-2xl overflow-hidden hover:shadow-lg transition duration-200"
+          href={`/${title?.slice(0, 15) || "product"}/details/${item._id}`}
+          className="group bg-background border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/30"
         >
-          {imageUrl && (
-            <div className="w-full aspect-[4/3] bg-gray-100">
+          {imageUrl ? (
+            <div className="w-full aspect-[4/3] bg-muted/30">
               <ImageRenderer image={imageUrl} />
+            </div>
+          ) : (
+            <div className="w-full aspect-[4/3] bg-muted flex items-center justify-center text-muted-foreground text-sm">
+              No image
             </div>
           )}
           <div className="p-3">
-            <p className="text-sm font-medium line-clamp-2 text-gray-800">
-              {title}
+            <p className="text-sm font-medium line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+              {title || "Untitled"}
             </p>
             {price != null && (
-              <p className="mt-1 text-blue-600 font-semibold text-sm">
+              <p className="mt-1 text-primary font-semibold text-sm">
                 <Prices amount={price} currency={currency} />
               </p>
             )}
@@ -232,18 +190,10 @@ const Search = () => {
     });
   }, [data]);
 
-  // Check if any filters are active
   const hasActiveFilters = category || brand || priceMin || priceMax;
 
-  console.log('🎯 Current state:', {
-    isLoading,
-    dataCount: data.length,
-    hasActiveFilters,
-    filtersData
-  });
-
   return (
-    <div className="flex flex-col lg:flex-row w-full min-h-screen bg-gray-50">
+    <div className="flex flex-col lg:flex-row w-full min-h-screen bg-background">
       <ListFilter
         openClose={openClose}
         setOpenClose={setOpenClose}
@@ -251,24 +201,25 @@ const Search = () => {
         handleFilterClick={handleFilterClick}
       />
 
-      <div className="flex-1 px-4 py-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-700">
+      <div className="flex-1 px-4 py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <h2 className="text-xl font-semibold text-foreground">
             {query ? (
               <>
                 Search Results for:{" "}
-                <span className="text-blue-600">{query}</span>
+                <span className="text-primary">{query}</span>
               </>
             ) : (
               "All Products"
             )}
           </h2>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="flex items-center space-x-1 text-red-500 text-sm hover:text-red-700 transition-colors"
+                className="flex items-center gap-1 text-destructive hover:text-destructive/80 text-sm font-medium transition-colors"
               >
                 <Clear fontSize="small" />
                 <span>Clear filters</span>
@@ -276,7 +227,7 @@ const Search = () => {
             )}
 
             <button
-              className="lg:hidden flex items-center space-x-2 text-blue-500 hover:text-blue-700 transition-colors"
+              className="lg:hidden flex items-center gap-2 text-primary hover:text-primary/80 transition-colors bg-muted/50 px-3 py-2 rounded-lg"
               onClick={() => setOpenClose((prev) => !prev)}
             >
               <FilterList fontSize="medium" />
@@ -285,27 +236,41 @@ const Search = () => {
           </div>
         </div>
 
+        {/* Error / Loading / Empty states */}
         {error ? (
-          <div className="flex justify-center items-center h-60 text-lg text-red-500">
-            {error}
+          <div className="flex flex-col items-center justify-center h-60 text-destructive">
+            <p className="text-lg">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition"
+            >
+              Try Again
+            </button>
           </div>
         ) : isLoading ? (
-          <div className="flex justify-center items-center h-60">
-            <Spinner />
-            <span className="ml-2 text-gray-600">Searching...</span>
+          <div className="flex flex-col items-center justify-center h-60">
+            <Spinner size={40} />
+            <p className="mt-3 text-muted-foreground">Searching...</p>
           </div>
         ) : data.length === 0 ? (
-          <div className="flex justify-center items-center h-60 text-lg text-gray-500">
-            {query ? "No results found." : "No products available."}
+          <div className="flex flex-col items-center justify-center h-60 text-muted-foreground">
+            <p className="text-lg">
+              {query ? "No results found." : "No products available."}
+            </p>
+            {query && (
+              <p className="text-sm mt-1">
+                Try adjusting your search or filters.
+              </p>
+            )}
           </div>
         ) : (
           <>
-            <div className="mb-4 text-sm text-gray-600">
+            <div className="mb-4 text-sm text-muted-foreground">
               Found {data.length} {data.length === 1 ? "result" : "results"}
               {hasActiveFilters && " (filtered)"}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
               {productList}
             </div>
           </>

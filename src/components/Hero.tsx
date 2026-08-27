@@ -16,7 +16,6 @@ const HeaderScroll: React.FC = () => {
 
   const slides = heroContent.slice(0, MAX_SLIDES);
 
-  // Memoized content fetcher
   const fetchHeroContent = useCallback(async () => {
     try {
       const content = await findHeroContent();
@@ -31,7 +30,6 @@ const HeaderScroll: React.FC = () => {
     fetchHeroContent();
   }, [fetchHeroContent]);
 
-  // Auto-rotation with pause control
   useEffect(() => {
     if (slides.length <= 1 || isPaused) return;
 
@@ -49,11 +47,10 @@ const HeaderScroll: React.FC = () => {
     [slides.length],
   );
 
-  // Preload images - Fixed implementation
+  // Preload next image
   useEffect(() => {
     if (typeof window === "undefined" || slides.length === 0) return;
 
-    // Preload next image for smoother transitions
     const nextIndex = (currentIndex + 1) % slides.length;
     const nextSlide = slides[nextIndex];
 
@@ -64,7 +61,6 @@ const HeaderScroll: React.FC = () => {
       link.href = nextSlide.imageUrl;
       document.head.appendChild(link);
 
-      // Clean up after preloading
       return () => {
         document.head.removeChild(link);
       };
@@ -73,8 +69,8 @@ const HeaderScroll: React.FC = () => {
 
   if (slides.length === 0) {
     return (
-      <div className="w-full h-60 md:h-72 lg:h-screen bg-gray-200 flex items-center justify-center">
-        <div className="text-gray-500">No hero content available</div>
+      <div className="w-full h-60 md:h-72 lg:h-[400px] bg-muted flex items-center justify-center rounded-xl">
+        <div className="text-muted-foreground">No hero content available</div>
       </div>
     );
   }
@@ -82,15 +78,15 @@ const HeaderScroll: React.FC = () => {
   return (
     <section
       aria-label="Hero carousel"
-      className="relative  h-60 md:h-72 lg:h-96 overflow-hidden m-2 lg:m-10 rounded-lg "
+      className="relative h-60 md:h-72 lg:h-[400px] overflow-hidden mx-2 lg:mx-10 my-4 rounded-xl shadow-lg"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       <div
-        className="flex h-full transition-transform duration-700 ease-in-out "
+        className="flex h-full transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
-        {slides.map((hero, index) => {
+        {slides.map((hero: any, index) => {
           const imageUrl = hero.imageUrl || PLACEHOLDER_IMAGE;
           const title = hero.title || "Novaorizon";
 
@@ -107,18 +103,24 @@ const HeaderScroll: React.FC = () => {
                   fill
                   className="object-cover"
                   priority={index === 0}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
                 />
-                <div className="absolute inset-0 bg-black/30" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
 
                 <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center text-white">
-                  <h1 className="max-w-4xl text-2xl md:text-4xl font-bold line-clamp-3">
+                  <h1 className="max-w-4xl text-3xl md:text-5xl font-extrabold drop-shadow-lg line-clamp-3">
                     {title}
                   </h1>
-                  {/* {hero.subtitle && (
-                    <p className="mt-2 text-lg md:text-xl max-w-2xl">
+                  {hero.subtitle && (
+                    <p className="mt-2 text-base md:text-xl max-w-2xl text-white/90 drop-shadow">
                       {hero.subtitle}
                     </p>
-                  )} */}
+                  )}
+                  {hero.cta_text && (
+                    <span className="mt-4 inline-block bg-primary text-primary-foreground px-6 py-2 rounded-full text-sm font-medium hover:bg-primary/90 transition-colors">
+                      {hero.cta_text}
+                    </span>
+                  )}
                 </div>
               </Link>
             </div>
@@ -136,8 +138,8 @@ const HeaderScroll: React.FC = () => {
               aria-label={`Go to slide ${index + 1}`}
               className={`h-3 w-3 rounded-full transition-all duration-300 ${
                 index === currentIndex
-                  ? "bg-blue-600 scale-110"
-                  : "bg-white/60 hover:bg-white/80"
+                  ? "bg-primary scale-125 shadow-lg"
+                  : "bg-white/50 hover:bg-white/80"
               }`}
             />
           ))}

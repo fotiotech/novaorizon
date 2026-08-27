@@ -33,7 +33,7 @@ const AddToCart = ({ product }: { product: Product | null }) => {
       type="button"
       onClick={handleAddToCart}
       disabled={isAdding || loading}
-      className="border rounded-lg p-2 bg-blue-600 hover:bg-blue-700 w-full shadow-lg font-semibold text-white transition disabled:opacity-50"
+      className="border border-border rounded-lg p-2 bg-accent text-primary-foreground hover:bg-primary/90 w-full shadow-lg font-semibold transition disabled:opacity-50"
     >
       {isAdding ? "Adding..." : "Add To Cart"}
     </button>
