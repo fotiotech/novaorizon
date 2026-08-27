@@ -415,7 +415,6 @@ export default function Details(props: { params: Promise<Params> }) {
                   price: list_price,
                 }}
                 width="w-full"
-                // bgColor removed to use theme default
               >
                 Checkout
               </CheckoutButton>
@@ -483,15 +482,18 @@ export default function Details(props: { params: Promise<Params> }) {
           </div>
         ) : null}
 
-        {product.long_desc && (
-          <div className="mt-8 bg-background rounded">
-            <h2 className="text-lg font-semibold mb-2">Description</h2>
+        {/* Description section - updated with fallback */}
+        <div className="mt-8 bg-background rounded">
+          <h2 className="text-lg font-semibold mb-2">Description</h2>
+          {product.long_desc ? (
             <div
               className="prose max-w-none text-foreground"
               dangerouslySetInnerHTML={{ __html: product.long_desc }}
             />
-          </div>
-        )}
+          ) : (
+            <p className="text-muted-foreground">No description available.</p>
+          )}
+        </div>
 
         {product.related_products?.ids?.length > 0 && (
           <div className="mt-8">
