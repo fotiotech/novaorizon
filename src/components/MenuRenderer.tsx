@@ -17,6 +17,8 @@ type Menu = {
   description?: string;
   image?: string;
   link?: string;
+  ctaText?: string;
+  ctaLink?: string;
   collectionId?: string | null;
   location?: string;
   display: string;
@@ -74,6 +76,8 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
     name,
     image,
     link,
+    ctaText,
+    ctaLink,
     display,
     position,
     columns = 4,
@@ -274,14 +278,11 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
             <ImageRenderer image={image} alt={name} className="rounded-full" />
           </div>
         )}
-        {/* {link && (
-          <Link
-            href={link}
-            className="menu-fallback-link text-blue-600 hover:text-blue-700"
-          >
-            {link}
-          </Link>
-        )} */}
+        {ctaText && ctaLink && (
+          <a href={ctaLink} className="...">
+            {ctaText}
+          </a>
+        )}
       </div>
 
       <div className="menu-content">{renderContent()}</div>
