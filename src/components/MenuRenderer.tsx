@@ -267,21 +267,24 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
       }`}
       style={style}
     >
-      <div className="flex items-center justify-between">
-        {sectionTitle && (
-          <h2 className="menu-section-title text-xl font-semibold mb-2 line-clamp-1">
-            {sectionTitle}
-          </h2>
-        )}
+      <div>
+        <div className="flex items-center justify-between">
+          {sectionTitle && (
+            <h2 className="menu-section-title text-xl font-semibold mb-2 line-clamp-1">
+              {sectionTitle}
+            </h2>
+          )}
+
+          {ctaText && ctaLink && (
+            <a href={ctaLink} className="text-primary hover:text-primary-600">
+              {ctaText}
+            </a>
+          )}
+        </div>
         {image && (
           <div className="relative w-8 h-8 inline-block mr-2">
             <ImageRenderer image={image} alt={name} className="rounded-full" />
           </div>
-        )}
-        {ctaText && ctaLink && (
-          <a href={ctaLink} className="text-primary hover:text-primary-600">
-            {ctaText}
-          </a>
         )}
       </div>
 
