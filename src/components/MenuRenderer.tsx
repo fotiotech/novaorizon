@@ -279,7 +279,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
           </div>
         )}
         {ctaText && ctaLink && (
-          <a href={ctaLink} className="...">
+          <a href={ctaLink} className="text-primary hover:text-primary-600">
             {ctaText}
           </a>
         )}
