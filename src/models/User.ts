@@ -27,6 +27,20 @@ const UserSchema = new mongoose.Schema(
     },
     accounts: [],
     sessions: [],
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      default: null,
+    },
+    tokenExpiry: {
+      type: Date,
+      default: null,
+    },
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpiry: { type: Date, default: null },
     status: {
       type: String,
       enum: ["active", "inactive"],
@@ -41,7 +55,7 @@ const UserSchema = new mongoose.Schema(
       default: Date.now,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Hash the password before saving the user model
