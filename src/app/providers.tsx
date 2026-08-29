@@ -7,6 +7,7 @@ import { Provider as ReduxProvider } from "react-redux";
 import { CartProvider } from "./context/CartContext";
 import { store } from "./store/store";
 import { UserDataProvider } from "./context/UserDataContext";
+import { SessionObserver } from "@/components/SessionObserver";
 
 interface ProviderProps {
   children: ReactNode;
@@ -19,7 +20,7 @@ const Providers = ({ children }: ProviderProps) => {
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         <ReduxProvider store={store}>
-          {/* <PersistGate loading={null} persistor={persistor}> */}
+          <SessionObserver />
           <UserDataProvider>
             <CartProvider>{children}</CartProvider>
           </UserDataProvider>

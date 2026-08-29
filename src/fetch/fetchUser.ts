@@ -1,4 +1,4 @@
-import { fetchUserEvent } from "@/app/actions/user_events";
+import { fetchUserEvent } from "@/app/actions/events";
 import { normalizeUserEvent } from "@/app/store/slices/normalizedData";
 import { setUserEvents } from "@/app/store/slices/userEventSlice";
 import { AppDispatch } from "@/app/store/store";
@@ -24,7 +24,7 @@ export const fetchUserEvents =
 
       // Normalize the data
       const normalizedData = normalizeUserEvent(
-        Array.isArray(data) ? data : [data]
+        Array.isArray(data) ? data : [data],
       );
       console.log("Normalized user data:", normalizedData);
 
@@ -33,7 +33,7 @@ export const fetchUserEvents =
         setUserEvents({
           events: normalizedData.entities.events || {},
           eventIds: Object.keys(normalizedData.entities.events || {}),
-        })
+        }),
       );
 
       console.log("Users successfully dispatched to Redux store.");

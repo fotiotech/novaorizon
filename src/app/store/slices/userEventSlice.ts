@@ -1,4 +1,4 @@
-import { createUserEvents } from "@/app/actions/user_events";
+import { createUserEvents } from "@/app/actions/events";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export async function createUserEvent(data: any) {
@@ -25,7 +25,10 @@ const userEventSlice = createSlice({
   reducers: {
     setUserEvents: (
       state,
-      action: PayloadAction<{ events: Record<string, any>; eventIds: string[] }>
+      action: PayloadAction<{
+        events: Record<string, any>;
+        eventIds: string[];
+      }>,
     ) => {
       state.events = action.payload.events;
       state.eventIds = action.payload.eventIds;
@@ -43,7 +46,7 @@ const userEventSlice = createSlice({
       if (!eventData || typeof eventData !== "object") {
         console.error(
           "Invalid product data. Skipping addProduct. Payload:",
-          action.payload
+          action.payload,
         );
         return;
       }

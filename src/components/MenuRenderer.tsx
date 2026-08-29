@@ -166,7 +166,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
       case "Grid":
         return (
           <div className={`menu-grid grid gap-2 lg:gap-4 ${getGridCols()}`}>
-            {items.map((item) => (
+            {items.slice(0, 4).map((item) => (
               <div key={item._id} className="menu-grid-item p-2 rounded">
                 {showImages && item.image && (
                   <div className="relative w-full aspect-square mb-2 bg-gray-100">
@@ -192,7 +192,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
       case "Carousel":
         return (
           <Carousel
-            items={items.map((item) => ({
+            items={items.slice(0, 4).map((item) => ({
               _id: item._id,
               name: item.name,
               image: item.image,

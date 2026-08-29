@@ -442,7 +442,7 @@ const RelatedProductsSection: React.FC<{ relatedRefs: any[] }> = ({
                 return (
                   <Link
                     key={related._id}
-                    href={`/${related.url_slug || "product"}/details/${related._id}`}
+                    href={`/products/${related.url_slug || "product"}/${related._id}`}
                     className="flex flex-col gap-2 p-3 bg-background rounded shadow hover:shadow-md transition-shadow"
                   >
                     <div>

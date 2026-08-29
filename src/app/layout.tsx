@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import { Suspense } from "react";
 import Loading from "./loading";
 import { cn } from "@/lib/utils";
+import { PageViewTracker } from "@/components/PageViewTracker";
 
 // Use Geist as the default font (includes a CSS variable)
 const geist = Geist({
@@ -104,6 +105,7 @@ export default function RootLayout({
         </noscript>
 
         <Providers>
+          <PageViewTracker />
           <div className="flex flex-col min-h-screen">
             <Header />
             <Suspense fallback={<Loading />}>
