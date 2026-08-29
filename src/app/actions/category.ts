@@ -1,15 +1,13 @@
 "use server";
 
 import mongoose, { Types } from "mongoose";
-import slugify from "slugify";
 import { connection } from "@/utils/connection";
 import Category from "@/models/Category";
 import CategoryProperty, { ICategoryProperty } from "@/models/CategoryProperty";
 import AttributeSet from "@/models/AttributeSet";
 import Attribute from "@/models/Attribute";
-import AttributeGroup from "@/models/AttributeGroup"; // only imported once
+import "@/models/AttributeGroup";
 import "@/models/UnitFamily";
-import { revalidatePath } from "next/cache";
 
 // ---------- Helper: Deep Serialize ----------
 function serialize(obj: any): any {
@@ -47,11 +45,6 @@ function serialize(obj: any): any {
   return obj;
 }
 
-// ---------- Helper: Slug ----------
-function generateSlug(name: string) {
-  return slugify(name, { lower: true });
-}
-
 // ---------- Category Property CRUD ----------
 export async function getCategoryProperty(id?: string) {
   await connection();
@@ -62,113 +55,6 @@ export async function getCategoryProperty(id?: string) {
   } else {
     const properties = await CategoryProperty.find().lean();
     return serialize(properties);
-  }
-}
-
-export async function createCategoryPropertyWithMappings(data: {
-  name: string;
-  description?: string;
-  mappings: {
-    set: string;
-    groups: {
-      group: string;
-      attributes: {
-        attribute: string;
-        isRequired: boolean;
-      }[];
-    }[];
-  }[];
-}) {
-  await connection();
-  const { name, description, mappings } = data;
-
-  // Validate all referenced IDs exist
-  for (const m of mappings) {
-    const setExists = await AttributeSet.findById(m.set);
-    if (!setExists) return { error: `Set ${m.set} not found` };
-    for (const g of m.groups) {
-      const groupExists = await AttributeGroup.findById(g.group);
-      if (!groupExists) return { error: `Group ${g.group} not found` };
-      for (const a of g.attributes) {
-        const attrExists = await Attribute.findById(a.attribute);
-        if (!attrExists) return { error: `Attribute ${a.attribute} not found` };
-      }
-    }
-  }
-
-  const property = new CategoryProperty({
-    name,
-    description,
-    mappings: mappings.map((m) => ({
-      set: new mongoose.Types.ObjectId(m.set),
-      groups: m.groups.map((g) => ({
-        group: new mongoose.Types.ObjectId(g.group),
-        attributes: g.attributes.map((a) => ({
-          attribute: new mongoose.Types.ObjectId(a.attribute),
-          isRequired: a.isRequired,
-        })),
-      })),
-    })),
-  });
-
-  await property.save();
-  revalidatePath("/category-properties");
-  // Serialize the property before returning
-  return { success: true, property: serialize(property.toObject()) };
-}
-
-export async function updateCategoryPropertyWithMappings(
-  id: string,
-  data: {
-    name?: string;
-    description?: string;
-    mappings?: {
-      set: string;
-      groups: {
-        group: string;
-        attributes: {
-          attribute: string;
-          isRequired: boolean;
-        }[];
-      }[];
-    }[];
-  },
-) {
-  await connection();
-  const property = await CategoryProperty.findById(id);
-  if (!property) return { error: "Category property not found" };
-
-  if (data.name) property.name = data.name;
-  if (data.description !== undefined) property.description = data.description;
-  if (data.mappings) {
-    property.mappings = data.mappings.map((m) => ({
-      set: new mongoose.Types.ObjectId(m.set),
-      groups: m.groups.map((g) => ({
-        group: new mongoose.Types.ObjectId(g.group),
-        attributes: g.attributes.map((a) => ({
-          attribute: new mongoose.Types.ObjectId(a.attribute),
-          isRequired: a.isRequired,
-        })),
-      })),
-    }));
-  }
-
-  await property.save();
-  revalidatePath("/category-properties");
-  return { success: true, property: serialize(property.toObject()) };
-}
-
-export async function deleteCategoryProperty(id: string) {
-  try {
-    await connection();
-    const property = await CategoryProperty.findByIdAndDelete(id);
-    if (!property) return { error: "Category property not found." };
-    await Category.updateMany({ property: id }, { $unset: { property: "" } });
-    revalidatePath("/category-properties");
-    return { success: true, message: "Category property deleted." };
-  } catch (error: any) {
-    console.error("Error deleting category property:", error);
-    return { error: error.message || "Failed to delete category property." };
   }
 }
 
@@ -198,78 +84,6 @@ export async function getCategory(
   } else {
     const categories = await Category.find().populate("property").lean();
     return serialize(categories);
-  }
-}
-
-export async function createCategory(
-  formData: {
-    _id?: string;
-    name?: string;
-    parent_id?: string;
-    description?: string;
-    imageUrl?: string[];
-    propertyId?: string;
-  },
-  id?: string | null,
-) {
-  try {
-    const { name, parent_id, description, imageUrl, propertyId } = formData;
-    const url_slug = generateSlug(name + (description || ""));
-    await connection();
-    const existingCategory = id ? await Category.findById(id) : null;
-    if (propertyId) {
-      const propertyExists = await CategoryProperty.findById(propertyId);
-      if (!propertyExists) {
-        return { error: "Invalid propertyId: CategoryProperty not found." };
-      }
-    }
-    if (existingCategory) {
-      const updateData: any = {
-        url_slug,
-        name,
-        parent_id: parent_id || null,
-        description,
-        imageUrl: imageUrl || [],
-      };
-      if (propertyId !== undefined) {
-        updateData.property = propertyId || null;
-      }
-      await Category.findOneAndUpdate(
-        { _id: existingCategory._id },
-        { $set: updateData },
-      );
-    } else {
-      const newCategory = new Category({
-        url_slug,
-        name,
-        parent_id: parent_id || null,
-        description,
-        imageUrl: imageUrl || [],
-        property: propertyId || null,
-      });
-      await newCategory.save();
-    }
-    revalidatePath("/categories");
-    return { success: true };
-  } catch (error: any) {
-    console.error(
-      "Error processing category request:",
-      error.message,
-      error.stack,
-    );
-    return { error: "Something went wrong." };
-  }
-}
-
-export async function deleteCategory(id: string) {
-  try {
-    await connection();
-    await Category.findByIdAndDelete(id);
-    revalidatePath("/categories");
-    return { success: true, message: "Category deleted successfully" };
-  } catch (error) {
-    console.error("Error deleting category:", error);
-    return { error: "Could not delete the category." };
   }
 }
 
@@ -532,33 +346,4 @@ export async function getCategoryAttributeSets(
   }
 
   return [];
-}
-
-export async function getAllAttributeSets() {
-  await connection();
-  const sets = await AttributeSet.find().select("_id title code").lean();
-  return serialize(sets);
-}
-
-export async function getGroupsBySet(setId: string) {
-  await connection();
-  const set = await AttributeSet.findById(setId).populate("groups").lean();
-  const groups = set?.groups || [];
-  return serialize(groups);
-}
-
-export async function getAttributesByGroup(groupId: string) {
-  await connection();
-  const group: any = await AttributeGroup.findById(groupId)
-    .populate("attributes.id")
-    .lean();
-  if (!group) return [];
-  const attributes = (group.attributes || []).map((sub: any) => ({
-    _id: sub.id._id.toString(),
-    code: sub.id.code,
-    name: sub.id.name,
-    type: sub.id.type,
-    isRequired: sub.isRequired,
-  }));
-  return serialize(attributes);
 }

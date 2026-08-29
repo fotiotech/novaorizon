@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import React, { useCallback, useEffect, useState, use } from "react";
+import React, { useCallback, useEffect, useState, use, useRef } from "react";
 import AddToCart from "@/components/AddToCart";
 import CheckoutButton from "@/components/CheckoutButton";
 import DetailImages from "@/components/DetailImages";
@@ -15,6 +15,8 @@ import { useProductData } from "./_compnents/hooks";
 import { getCategoryAttributeSets } from "@/app/actions/category";
 import { getCarriers } from "@/app/actions/carrier";
 import { useUserData } from "@/app/context/UserDataContext";
+import { findProducts } from "@/app/actions/products";
+import Image from "next/image";
 
 // ---------- Types ----------
 interface AttributeUnitFamily {
@@ -68,12 +70,47 @@ interface Params {
 }
 
 // ---------- Helpers ----------
+function getFirstImage(val: any): string | null {
+  if (!val) return null;
+  if (Array.isArray(val) && val.length > 0) return val[0];
+  if (typeof val === "string") return val;
+  return null;
+}
+
 function applyVariant(product: any, variant: any) {
   if (!product || !variant) return product;
   const merged = JSON.parse(JSON.stringify(product));
   for (const key of Object.keys(variant)) {
     merged[key] = variant[key];
   }
+
+  // Normalize main_image and gallery
+  const vMain = variant.main_image;
+  const vGallery = variant.gallery;
+
+  if (typeof vMain === "string" && vMain) {
+    merged.main_image = vMain;
+    if (!Array.isArray(merged.gallery)) {
+      merged.gallery = [vMain];
+    } else if (!merged.gallery.includes(vMain)) {
+      merged.gallery = [vMain, ...merged.gallery];
+    }
+  } else if (Array.isArray(vMain) && vMain.length > 0) {
+    merged.main_image = vMain[0];
+    merged.gallery = vMain;
+  }
+
+  if (Array.isArray(vGallery) && vGallery.length > 0) {
+    merged.gallery = vGallery;
+    if (!merged.main_image) {
+      merged.main_image = vGallery[0];
+    }
+  }
+
+  if (!merged.gallery || !Array.isArray(merged.gallery)) {
+    merged.gallery = merged.main_image ? [merged.main_image] : [];
+  }
+
   return merged;
 }
 
@@ -264,6 +301,187 @@ const CarrierShippingOptions: React.FC<{
   );
 };
 
+// ---------- Variant Card Component ----------
+const VariantCard: React.FC<{
+  variant: any;
+  onSelect: (variant: any) => void;
+  isActive: boolean;
+}> = ({ variant, onSelect, isActive }) => {
+  const image =
+    getFirstImage(variant.main_image) || getFirstImage(variant.gallery);
+  const price = variant.sale_price ?? variant.list_price ?? variant.price ?? 0;
+
+  const themeKeys = Object.keys(variant).filter(
+    (key) =>
+      ![
+        "_id",
+        "sku",
+        "price",
+        "sale_price",
+        "list_price",
+        "quantity",
+        "main_image",
+        "gallery",
+        "stock",
+        "stock_status",
+        "createdAt",
+        "updatedAt",
+        "__v",
+      ].includes(key),
+  );
+
+  return (
+    <div
+      onClick={() => onSelect(variant)}
+      className={`border-2 rounded-lg p-3 bg-background shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col ${
+        isActive
+          ? "border-primary ring-2 ring-primary/20"
+          : "border-border hover:border-primary/50"
+      }`}
+    >
+      {themeKeys.length > 0 && (
+        <div className="text-xs text-muted-foreground truncate mb-1">
+          {themeKeys.map((key) => (
+            <span key={key} className="mr-1">
+              {key}: {variant[key]}
+            </span>
+          ))}
+        </div>
+      )}
+      {image ? (
+        <div className="relative w-full h-32">
+          <ImageRenderer image={image} />
+        </div>
+      ) : (
+        <div className="w-full h-32 bg-muted flex items-center justify-center text-muted-foreground text-sm">
+          No image
+        </div>
+      )}
+      <div className="mt-2 w-full">
+        <div className="font-semibold text-primary">
+          {typeof price === "number" ? `${price} CFA` : "Price unavailable"}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------- Related Products Component (fetches and groups) ----------
+const RelatedProductsSection: React.FC<{ relatedRefs: any[] }> = ({
+  relatedRefs,
+}) => {
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (!relatedRefs || relatedRefs.length === 0) {
+      setRelatedProducts([]);
+      setLoading(false);
+      return;
+    }
+
+    const fetchRelated = async () => {
+      setLoading(true);
+      try {
+        const ids = relatedRefs.map((ref) => ref.id).filter(Boolean);
+        if (ids.length === 0) {
+          setRelatedProducts([]);
+          setLoading(false);
+          return;
+        }
+
+        const promises = ids.map((id) => findProducts(id));
+        const results = await Promise.all(promises);
+        const products = results
+          .filter((res) => res && !res.error)
+          .map((res, idx) => ({
+            ...res,
+            relationship_type: relatedRefs[idx]?.relationship_type || "related",
+          }));
+        setRelatedProducts(products);
+      } catch (err) {
+        console.error("Failed to fetch related products:", err);
+        setRelatedProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRelated();
+  }, [relatedRefs]);
+
+  if (loading) return <div className="mt-4">Loading related products...</div>;
+  if (relatedProducts.length === 0) return null;
+
+  const groups = relatedProducts.reduce<Record<string, any[]>>((acc, item) => {
+    const type = item.relationship_type || "related";
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(item);
+    return acc;
+  }, {});
+
+  const typeLabels: Record<string, string> = {
+    related: "Related Products",
+    similar: "Similar Products",
+    cross_sell: "Cross‑Sell Products",
+    "cross-sell": "Cross‑Sell Products",
+  };
+
+  return (
+    <div className="mt-8 space-y-8">
+      {Object.entries(groups).map(([type, items]) => {
+        const label = typeLabels[type] || type;
+        return (
+          <div key={type}>
+            <h2 className="text-lg font-semibold mb-4">{label}</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {items.map((related) => {
+                const image =
+                  getFirstImage(related.main_image) ||
+                  getFirstImage(related.gallery);
+                return (
+                  <Link
+                    key={related._id}
+                    href={`/${related.url_slug || "product"}/details/${related._id}`}
+                    className="flex flex-col gap-2 p-3 bg-background rounded shadow hover:shadow-md transition-shadow"
+                  >
+                    <div>
+                      {related.main_image && (
+                        <div className="w-full h-40 relative">
+                          <Image
+                            src={
+                              getFirstImage(related.main_image) ||
+                              related.main_image
+                            }
+                            alt={
+                              related.title || related.name || "Related product"
+                            }
+                            fill
+                            className="object-contain"
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                          />
+                        </div>
+                      )}
+                      <h3 className="font-medium text-sm line-clamp-2 text-foreground">
+                        {related.title || related.name || "Untitled Product"}
+                      </h3>
+                      {related.list_price && (
+                        <p className="text-muted-foreground">
+                          {related.list_price} CFA
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ---------- Main Page Component ----------
 export default function Details(props: { params: Promise<Params> }) {
   const params = use(props.params);
@@ -271,12 +489,19 @@ export default function Details(props: { params: Promise<Params> }) {
   const [attributeSets, setAttributeSets] = useState<AttributeSetResult[]>([]);
   const [setsLoading, setSetsLoading] = useState<boolean>(true);
   const [setsError, setSetsError] = useState<string | null>(null);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<
+    number | null
+  >(null);
+  const initialLoadComplete = useRef(false);
+
+  console.log("attributeSets", attributeSets);
 
   const categoryId = product?.category_id?._id ?? product?.category_id;
   const { data: session } = useSession();
   const user = session?.user as any;
   const { addresses: userAddresses } = useUserData();
 
+  // Fetch attribute sets
   useEffect(() => {
     if (!categoryId) {
       setSetsLoading(false);
@@ -295,11 +520,96 @@ export default function Details(props: { params: Promise<Params> }) {
       .finally(() => setSetsLoading(false));
   }, [categoryId]);
 
+  // Active variant detection & initial sync
+  useEffect(() => {
+    if (
+      !product ||
+      !product.variants ||
+      product.variants.length === 0 ||
+      initialLoadComplete.current
+    ) {
+      return;
+    }
+
+    const firstVariant = product.variants[0];
+    const themeKeys = Object.keys(firstVariant).filter(
+      (key) =>
+        ![
+          "_id",
+          "sku",
+          "price",
+          "sale_price",
+          "list_price",
+          "quantity",
+          "main_image",
+          "gallery",
+          "stock",
+          "stock_status",
+          "createdAt",
+          "updatedAt",
+          "__v",
+        ].includes(key),
+    );
+
+    let foundIndex = -1;
+    for (let i = 0; i < product.variants.length; i++) {
+      const variant = product.variants[i];
+      let matches = true;
+      for (const key of themeKeys) {
+        if (product[key] !== undefined && product[key] !== variant[key]) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        foundIndex = i;
+        break;
+      }
+    }
+
+    if (foundIndex === -1) {
+      foundIndex = 0;
+      const merged = applyVariant(product, product.variants[0]);
+      setProduct(merged);
+    } else {
+      const currentVariant = product.variants[foundIndex];
+      let needsUpdate = false;
+      for (const key of Object.keys(currentVariant)) {
+        if (
+          ![
+            "_id",
+            "sku",
+            "quantity",
+            "main_image",
+            "gallery",
+            "stock",
+            "stock_status",
+            "createdAt",
+            "updatedAt",
+            "__v",
+          ].includes(key) &&
+          product[key] !== currentVariant[key]
+        ) {
+          needsUpdate = true;
+          break;
+        }
+      }
+      if (needsUpdate) {
+        const merged = applyVariant(product, currentVariant);
+        setProduct(merged);
+      }
+    }
+
+    setSelectedVariantIndex(foundIndex);
+    initialLoadComplete.current = true;
+  }, [product, setProduct]);
+
   const handleVariantSelect = useCallback(
-    (variant: any) => {
+    (variant: any, index: number) => {
       if (product) {
         const merged = applyVariant(product, variant);
         setProduct(merged);
+        setSelectedVariantIndex(index);
       }
     },
     [product, setProduct],
@@ -338,6 +648,7 @@ export default function Details(props: { params: Promise<Params> }) {
       title = "Untitled Product",
       model = "",
       list_price = 0,
+      sale_price,
       gallery = [],
       stock_status = [],
       main_image = "",
@@ -345,6 +656,8 @@ export default function Details(props: { params: Promise<Params> }) {
       short_desc = "",
       variants = [],
     } = product || {};
+
+    const displayPrice = sale_price ?? list_price ?? 0;
 
     return (
       <>
@@ -369,9 +682,9 @@ export default function Details(props: { params: Promise<Params> }) {
               {title} {model}
             </h1>
 
-            {typeof list_price === "number" && (
+            {typeof displayPrice === "number" && (
               <div className="text-2xl font-semibold mb-4">
-                {list_price} CFA
+                {displayPrice} CFA
               </div>
             )}
 
@@ -387,20 +700,18 @@ export default function Details(props: { params: Promise<Params> }) {
               </div>
             )}
 
+            {/* Variant Cards */}
             {Array.isArray(variants) && variants.length > 0 && (
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">
-                  Select Variant:
-                </label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {variants.map((v: any, i: number) => (
-                    <button
-                      key={i}
-                      onClick={() => handleVariantSelect(v)}
-                      className="px-3 py-1 border border-border rounded hover:bg-muted transition-colors"
-                    >
-                      {v.sku || `Variant ${i + 1}`}
-                    </button>
+                <h3 className="text-sm font-medium mb-2">Available Variants</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {variants.map((v: any, idx: number) => (
+                    <VariantCard
+                      key={idx}
+                      variant={v}
+                      onSelect={(variant) => handleVariantSelect(variant, idx)}
+                      isActive={selectedVariantIndex === idx}
+                    />
                   ))}
                 </div>
               </div>
@@ -412,7 +723,7 @@ export default function Details(props: { params: Promise<Params> }) {
                   _id,
                   name: title,
                   main_image,
-                  price: list_price,
+                  price: displayPrice,
                 }}
                 width="w-full"
               >
@@ -423,7 +734,7 @@ export default function Details(props: { params: Promise<Params> }) {
                   _id,
                   name: title,
                   image: main_image,
-                  price: list_price,
+                  price: displayPrice,
                 }}
               />
             </div>
@@ -453,8 +764,12 @@ export default function Details(props: { params: Promise<Params> }) {
     );
   };
 
+  // Extract related references (either from product.related_products or product.related_products?.ids)
+  const relatedRefs =
+    product?.related_products?.ids || product?.related_products || [];
+
   return (
-    <div className="w-full bg-background border-b-2 border-border p-4 md:p-8">
+    <div className="w-full bg-background border-b-2 border-border py-2 md:py-6 px-4 md:px-8">
       <ProductViewAnalytics productId={params.dsin} />
       <div className="max-w-6xl mx-auto">
         <ProductBasicInfo />
@@ -482,8 +797,7 @@ export default function Details(props: { params: Promise<Params> }) {
           </div>
         ) : null}
 
-        {/* Description section - updated with fallback */}
-        <div className="mt-8 bg-background rounded">
+        <div className="mt-8 bg-background rounded lg:max-w-1/2">
           <h2 className="text-lg font-semibold mb-2">Description</h2>
           {product.long_desc ? (
             <div
@@ -495,33 +809,9 @@ export default function Details(props: { params: Promise<Params> }) {
           )}
         </div>
 
-        {product.related_products?.ids?.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold mb-4">Related Products</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {product.related_products.ids.map((related: any) => (
-                <Link
-                  key={related._id}
-                  href={`/${related.url_slug || "product"}/details/${
-                    related._id
-                  }`}
-                  className="flex flex-col gap-2 p-3 bg-background rounded shadow hover:shadow-md transition-shadow border border-border"
-                >
-                  {related.main_image && (
-                    <ImageRenderer image={related.main_image} />
-                  )}
-                  <h3 className="font-medium text-sm line-clamp-2 text-foreground">
-                    {related.title}
-                  </h3>
-                  {related.list_price && (
-                    <p className="text-muted-foreground">
-                      {related.list_price} CFA
-                    </p>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </div>
+        {/* Related Products */}
+        {relatedRefs.length > 0 && (
+          <RelatedProductsSection relatedRefs={relatedRefs} />
         )}
 
         <div className="mt-8 bg-background rounded">

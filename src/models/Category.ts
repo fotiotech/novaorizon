@@ -8,6 +8,7 @@ interface ICategory extends Document {
   description?: string;
   imageUrl?: string[];
   property?: mongoose.Types.ObjectId; // Reference to CategoryProperty
+  inheritProperty: boolean;
   seo_title?: string;
   seo_desc?: string;
   keywords?: string;
@@ -23,11 +24,9 @@ const CategorySchema = new Schema<ICategory>({
     type: String,
     unique: true,
     required: [true, "URL slug is required"],
-    match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
   },
   name: {
     type: String,
-    unique: true,
     required: [true, "Category name is required"],
   },
 
@@ -50,7 +49,10 @@ const CategorySchema = new Schema<ICategory>({
     type: Schema.Types.ObjectId,
     ref: "CategoryProperty",
   },
-
+  inheritProperty: {
+    type: Boolean,
+    default: true,
+  },
   seo_title: { type: String, maxLength: 60 },
   seo_desc: { type: String, maxLength: 160 },
   keywords: { type: String },
