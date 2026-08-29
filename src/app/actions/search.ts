@@ -1,146 +1,221 @@
 "use server";
 
 import { connection } from "@/utils/connection";
-import Brand from "@/models/Brand";
-import Category from "@/models/Category";
 import Product from "@/models/Product";
+import { Types } from "mongoose";
 
-// Improved detection with word boundaries
-async function detectCategory(query: string) {
-  await connection();
-  const normalizedQuery = query.toLowerCase().trim();
-  const categories = await Category.find();
-
-  for (const category of categories) {
-    if (!category.name) continue;
-
-    const categoryName = category.name.toLowerCase();
-
-    // Use regex for word boundary matching to avoid partial matches
-    const regex = new RegExp(`\\b${categoryName}\\b`, "i");
-    if (regex.test(query)) {
-      return category._id?.toString();
-    }
-
-    // Also check for partial matches as fallback, but with spaces
-    if (
-      normalizedQuery.includes(` ${categoryName} `) ||
-      normalizedQuery.startsWith(`${categoryName} `) ||
-      normalizedQuery.endsWith(` ${categoryName}`)
-    ) {
-      return category._id?.toString();
-    }
+// Helper to convert string to ObjectId (for filtering)
+const toObjectId = (id: string) => {
+  try {
+    return new Types.ObjectId(id);
+  } catch {
+    return null;
   }
-  return null;
-}
-
-async function detectBrand(query: string) {
-  await connection();
-  const normalizedQuery = query.toLowerCase().trim();
-  const brands = await Brand.find();
-
-  for (const brand of brands) {
-    if (!brand.name) continue;
-
-    const brandName = brand.name.toLowerCase();
-
-    // Use regex for word boundary matching
-    const regex = new RegExp(`\\b${brandName}\\b`, "i");
-    if (regex.test(query)) {
-      return brand._id?.toString();
-    }
-
-    // Partial match with space boundaries
-    if (
-      normalizedQuery.includes(` ${brandName} `) ||
-      normalizedQuery.startsWith(`${brandName} `) ||
-      normalizedQuery.endsWith(` ${brandName}`)
-    ) {
-      return brand._id?.toString();
-    }
-  }
-  return null;
-}
+};
 
 export async function searchProducts(
   query: string,
   filters: any[] = [],
   page = 1,
-  size = 10
+  size = 20,
 ) {
   await connection();
 
-  // Add await here
-  const category = await detectCategory(query);
-  const brand = await detectBrand(query);
+  // ----- 1. Build the $search stage -----
+  const searchStage: any = {
+    index: "default",
+  };
 
-  console.log("Detected category:", category);
-  console.log("Detected brand:", brand);
-
-  // Create a copy of filters to avoid mutating the original
-  const updatedFilters = [...filters];
-
-  if (category) {
-    updatedFilters.push({ term: { category_id: category } });
-  }
-
-  if (brand) {
-    updatedFilters.push({ term: { brand: brand } });
-  }
-
-  // Convert Elasticsearch filters to MongoDB format
-  const mongoFilters: any = {};
-
-  updatedFilters.forEach((filter) => {
-    if (filter.term) {
-      Object.assign(mongoFilters, filter.term);
-    }
-    if (filter.range) {
-      Object.keys(filter.range).forEach((key) => {
-        mongoFilters[key] = { ...mongoFilters[key], ...filter.range[key] };
-      });
-    }
-  });
-
-  // Build MongoDB query
-  const mongoQuery: any = {};
-
+  const textClause: any = {};
   if (query && query.trim() !== "") {
-    mongoQuery.$text = { $search: query };
-  }
-
-  if (Object.keys(mongoFilters).length > 0) {
-    mongoQuery.$and = [mongoFilters];
-  }
-
-  console.log("Final MongoDB query:", { mongoQuery });
-
-  try {
-    const products = await Product.find(mongoQuery)
-      .skip((page - 1) * size)
-      .limit(size)
-      .populate("category_id")
-      .populate("brand")
-      .exec();
-
-    // Transform results to match expected format
-    const hits = products.map((product) => ({
-      _id: product._id.toString(),
-      _source: {
-        ...product.toObject(),
-        category: product.category_id,
-        brand: product.brand,
+    // ✅ Correct boosting syntax using `multi` inside `path`
+    textClause.text = {
+      query: query,
+      path: {
+        multi: [
+          { value: "title", score: { boost: 2 } },
+          { value: "description", score: { boost: 1 } },
+          { value: "category.name", score: { boost: 1 } },
+          { value: "brand.name", score: { boost: 1 } },
+        ],
       },
-    }));
-
-    return {
-      hits,
-      total: {
-        value: hits.length,
+      fuzzy: {
+        maxEdits: 2,
+        prefixLength: 1,
       },
     };
-  } catch (err) {
-    console.error("MongoDB search error:", err);
-    throw err;
   }
+
+  // ----- 2. Build filter clauses from URL params -----
+  const filterClauses: any[] = [];
+
+  const addTerm = (path: string, value: string) => {
+    const objectId = toObjectId(value);
+    if (objectId) {
+      filterClauses.push({ equals: { path, value: objectId.toString() } });
+    } else if (value) {
+      filterClauses.push({ equals: { path, value } });
+    }
+  };
+
+  // Parse the `filters` array (built from URL search params)
+  for (const f of filters) {
+    if (f.term) {
+      const [path, value] = Object.entries(f.term)[0];
+      addTerm(path, value as string);
+    }
+    if (f.range) {
+      const [path, range]: any = Object.entries(f.range)[0];
+      const rangeClause: any = {};
+      if (range.gte !== undefined) rangeClause.gte = range.gte;
+      if (range.lte !== undefined) rangeClause.lte = range.lte;
+      if (Object.keys(rangeClause).length) {
+        filterClauses.push({ range: { path, ...rangeClause } });
+      }
+    }
+  }
+
+  // ----- 3. Compose compound clause -----
+  const must = [];
+  if (textClause.text) must.push(textClause);
+  const filter = filterClauses.length > 0 ? filterClauses : undefined;
+
+  if (must.length > 0 || filter) {
+    searchStage.compound = {
+      must: must.length ? must : undefined,
+      filter: filter,
+    };
+  } else {
+    // No query and no filters – return empty to avoid heavy scan
+    return {
+      hits: [],
+      total: { value: 0 },
+      aggregations: {
+        categories: [],
+        brands: [],
+        priceRange: { min: 0, max: 0 },
+      },
+    };
+  }
+
+  // ----- 4. Aggregation pipeline with $facet -----
+  const pipeline: any[] = [];
+
+  // $search stage
+  pipeline.push({ $search: searchStage });
+
+  // $facet for hits (paginated) + aggregations
+  pipeline.push({
+    $facet: {
+      // Main hits with pagination
+      hits: [
+        { $skip: (page - 1) * size },
+        { $limit: size },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            list_price: 1,
+            currency: 1,
+            main_image: 1,
+            category: "$category_id",
+            brand: "$brand",
+            inStock: 1,
+            score: { $meta: "searchScore" },
+          },
+        },
+      ],
+      // Category aggregation (with lookup to get names)
+      categories: [
+        { $unwind: { path: "$category_id", preserveNullAndEmptyArrays: true } },
+        {
+          $group: {
+            _id: "$category_id",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "_id",
+            foreignField: "_id",
+            as: "categoryInfo",
+          },
+        },
+        {
+          $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: "$categoryInfo.name",
+            count: 1,
+          },
+        },
+        { $sort: { count: -1 } },
+      ],
+      // Brand aggregation
+      brands: [
+        { $unwind: { path: "$brand", preserveNullAndEmptyArrays: true } },
+        {
+          $group: {
+            _id: "$brand",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $lookup: {
+            from: "brands",
+            localField: "_id",
+            foreignField: "_id",
+            as: "brandInfo",
+          },
+        },
+        { $unwind: { path: "$brandInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            name: "$brandInfo.name",
+            count: 1,
+          },
+        },
+        { $sort: { count: -1 } },
+      ],
+      // Price range
+      priceRange: [
+        {
+          $group: {
+            _id: null,
+            min: { $min: "$list_price" },
+            max: { $max: "$list_price" },
+          },
+        },
+      ],
+      // Total count
+      totalCount: [{ $count: "total" }],
+    },
+  });
+
+  // Execute pipeline
+  const [result] = await Product.aggregate(pipeline);
+
+  const hits = result.hits || [];
+  const categories = result.categories || [];
+  const brands = result.brands || [];
+  const priceRange = result.priceRange?.[0] || { min: 0, max: 0 };
+  const total = result.totalCount?.[0]?.total || 0;
+
+  return {
+    hits: hits.map((hit: any) => ({
+      _id: hit._id.toString(),
+      _source: hit,
+    })),
+    total: { value: total },
+    aggregations: {
+      categories,
+      brands,
+      priceRange,
+    },
+  };
 }

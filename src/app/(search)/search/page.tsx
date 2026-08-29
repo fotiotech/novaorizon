@@ -19,6 +19,7 @@ const Search = () => {
   const brand = searchParams.get("brand") || "";
   const priceMin = searchParams.get("priceMin") || "";
   const priceMax = searchParams.get("priceMax") || "";
+  const page = parseInt(searchParams.get("page") || "1", 10);
 
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +30,7 @@ const Search = () => {
     brands: [],
     priceRange: { min: 0, max: 0 },
   });
+  const [totalCount, setTotalCount] = useState(0);
 
   // Enhanced debounced search
   const debouncedSearch = useCallback(
@@ -37,62 +39,30 @@ const Search = () => {
       setError(null);
 
       try {
-        const result = await searchProducts(searchQuery, filters, 1, 20);
+        const result = await searchProducts(searchQuery, filters, page, 20);
         const items = result.hits.map((hit: any) => ({
           _id: hit._id,
           ...hit._source,
         }));
 
-        // Extract categories, brands, and price range for filters
-        const categories = Array.from(
-          new Set(
-            items
-              .map((item: any) => item.category)
-              .filter(Boolean)
-              .map((cat: any) => ({
-                _id: cat._id,
-                name: cat.name,
-                count: items.filter(
-                  (item: any) => item.category?._id === cat._id,
-                ).length,
-              })),
-          ),
-        );
-
-        const brands = Array.from(
-          new Set(
-            items
-              .map((item: any) => item.brand)
-              .filter(Boolean)
-              .map((brand: any) => ({
-                _id: brand._id,
-                name: brand.name,
-                count: items.filter(
-                  (item: any) => item.brand?._id === brand._id,
-                ).length,
-              })),
-          ),
-        );
-
-        const prices = items
-          .map((item: any) => item.price)
-          .filter((price) => price != null);
-        const priceRange = {
-          min: prices.length > 0 ? Math.min(...prices) : 0,
-          max: prices.length > 0 ? Math.max(...prices) : 0,
-        };
-
-        setFiltersData({ categories, brands, priceRange });
+        // Use aggregations from server
+        setFiltersData({
+          categories: result.aggregations?.categories || [],
+          brands: result.aggregations?.brands || [],
+          priceRange: result.aggregations?.priceRange || { min: 0, max: 0 },
+        });
         setData(items);
+        setTotalCount(result.total.value || 0);
       } catch (err) {
         console.error("Search error:", err);
         setError("Failed to load search results. Please try again.");
         setData([]);
+        setTotalCount(0);
       } finally {
         setIsLoading(false);
       }
     }, 300),
-    [],
+    [page],
   );
 
   // Build filters from URL params
@@ -104,7 +74,7 @@ const Search = () => {
       const range: any = {};
       if (priceMin) range.gte = Number(priceMin);
       if (priceMax) range.lte = Number(priceMax);
-      filters.push({ range: { price: range } });
+      filters.push({ range: { list_price: range } });
     }
     return filters;
   }, [category, brand, priceMin, priceMax]);
@@ -116,7 +86,7 @@ const Search = () => {
       debouncedSearch(query, filters);
     } else {
       setData([]);
-      setIsLoading(false);
+      setTotalCount(0);
       setFiltersData({
         categories: [],
         brands: [],
@@ -129,6 +99,7 @@ const Search = () => {
     brand,
     priceMin,
     priceMax,
+    page,
     debouncedSearch,
     buildFilters,
   ]);
@@ -151,6 +122,13 @@ const Search = () => {
     if (query) params.set("query", query);
     router.push(`/search?${params.toString()}`);
   }, [query, router]);
+
+  // Pagination handler (optional)
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(newPage));
+    router.push(`/search?${params.toString()}`);
+  };
 
   // Memoized product list
   const productList = useMemo(() => {
@@ -266,13 +244,16 @@ const Search = () => {
         ) : (
           <>
             <div className="mb-4 text-sm text-muted-foreground">
-              Found {data.length} {data.length === 1 ? "result" : "results"}
+              Found {totalCount} {totalCount === 1 ? "result" : "results"}
               {hasActiveFilters && " (filtered)"}
             </div>
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
               {productList}
             </div>
+
+            {/* Pagination (add as needed) */}
+            {/* You can compute total pages and show a pagination component */}
           </>
         )}
       </div>

@@ -102,7 +102,7 @@ importers:
         specifier: ^4.0.4
         version: 4.1.0
       mongodb:
-        specifier: ^7.1.0
+        specifier: ^7.5.0
         version: 7.5.0(socks@2.8.9)
       mongoose:
         specifier: ^8.5.3
