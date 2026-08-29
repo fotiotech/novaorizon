@@ -29,13 +29,7 @@ export async function searchProducts(
   if (query && query.trim() !== "") {
     textClause.text = {
       query: query,
-      // ✅ Correct boosting: use `path: { multi: { fieldName: boost } }`
-      path: {
-        multi: {
-          title: 2, // title gets twice the weight
-          description: 1, // description normal weight
-        },
-      },
+      path: ["title", "description"], // simple array – title gets higher relevance by default
       fuzzy: {
         maxEdits: 2,
         prefixLength: 1,
