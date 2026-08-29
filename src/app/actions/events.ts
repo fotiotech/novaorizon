@@ -2,10 +2,10 @@
 
 import { connection } from "@/utils/connection";
 import { Event, IEvent } from "@/models/Event";
-import "@/models/Product";
 import { getCurrentUserId } from "@/app/lib/getUserId";
 import { revalidatePath } from "next/cache";
 import { Types } from "mongoose";
+import Product from "@/models/Product";
 
 type EventType = IEvent["eventType"];
 
@@ -22,6 +22,8 @@ export async function trackEvent(params: TrackEventParams) {
   await connection();
   const { itemId, eventType, sessionId, metadata } = params;
   const userId = await getCurrentUserId();
+
+  console.log(await Event.find().sort({ timestamp: -1 }).limit(10));
 
   const scoreMap: Record<EventType, number> = {
     view: 1,
@@ -51,15 +53,21 @@ export async function getRecommendations(limit: number = 10) {
   await connection();
   const userId = await getCurrentUserId();
 
-  // Items the user has interacted with
+  console.log(`[getRecommendations] userId: ${userId}`);
+
+  // 1. Count user interactions
   const userInteractions = await Event.find({ userId }).select("itemId").lean();
   const interactedIds = userInteractions.map((i) => i.itemId);
+  console.log(
+    `[getRecommendations] User has ${interactedIds.length} interactions`,
+  );
 
   if (interactedIds.length === 0) {
+    console.log("[getRecommendations] No interactions, returning trending");
     return getTrendingItems(limit);
   }
 
-  // Collaborative filtering
+  // 2. Collaborative filtering pipeline
   const recommendations = await Event.aggregate([
     { $match: { itemId: { $in: interactedIds }, userId: { $ne: userId } } },
     {
@@ -89,19 +97,25 @@ export async function getRecommendations(limit: number = 10) {
         as: "product",
       },
     },
-    { $unwind: "$product" },
+    { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+    { $match: { product: { $ne: null } } }, // Only keep products that exist
     { $replaceRoot: { newRoot: "$product" } },
   ]);
 
+  console.log(
+    `[getRecommendations] Found ${recommendations.length} recommendations`,
+  );
   return recommendations;
 }
 
 // ─── 3. Trending (fallback) ────────────────────────────
 
+// app/actions/events.ts – updated getTrendingItems
+
 export async function getTrendingItems(limit: number = 10) {
   await connection();
 
-  return Event.aggregate([
+  const trending = await Event.aggregate([
     {
       $match: {
         timestamp: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
@@ -134,6 +148,16 @@ export async function getTrendingItems(limit: number = 10) {
     { $unwind: "$product" },
     { $replaceRoot: { newRoot: "$product" } },
   ]);
+
+  // 🔥 If no trending products, fallback to recently added products
+  if (trending.length === 0) {
+    console.log(
+      "[getTrendingItems] No trending events, returning recent products",
+    );
+    return Product.find().sort({ createdAt: -1 }).limit(limit).lean();
+  }
+
+  return trending;
 }
 
 // ─── 4. Recently viewed ─────────────────────────────────

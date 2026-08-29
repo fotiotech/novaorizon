@@ -75,7 +75,7 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
         {items.map((item) => (
           <div
             key={item._id}
-            className="carousel-slide flex-shrink-0 snap-start w-[50%] sm:w-[45%] md:w-[30%] lg:w-[22%] p-1"
+            className="carousel-slide flex-shrink-0 snap-start w-[40%] sm:w-[45%] md:w-[30%] lg:w-[22%] p-1"
           >
             <div className="bg-white rounded shadow overflow-hidden">
               {showImages && item.image && (

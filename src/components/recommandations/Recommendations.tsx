@@ -26,10 +26,13 @@ export default async function Recommendations({
   }
 
   return (
-    <div className={className}>
-      {products.slice(0, 4).map((product) => (
-        <ProductCard key={product._id} product={product} />
-      ))}
+    <div>
+      <h1 className="text-lg font-bold mb-2">For You</h1>
+      <div className={className}>
+        {products.slice(0, 4).map((product) => (
+          <ProductCard key={product._id} product={product} />
+        ))}
+      </div>
     </div>
   );
 }
