@@ -141,7 +141,7 @@ const Search = () => {
       return (
         <Link
           key={item._id}
-          href={`/${title?.slice(0, 15) || "product"}/details/${item._id}`}
+          href={`/products/${title?.slice(0, 15) || "product"}/${item._id}`}
           className="group bg-background border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/30"
         >
           {imageUrl ? (

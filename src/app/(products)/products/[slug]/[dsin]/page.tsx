@@ -301,7 +301,7 @@ const CarrierShippingOptions: React.FC<{
   );
 };
 
-// ---------- Variant Card Component ----------
+// ---------- Variant Card Component (even smaller) ----------
 const VariantCard: React.FC<{
   variant: any;
   onSelect: (variant: any) => void;
@@ -333,14 +333,14 @@ const VariantCard: React.FC<{
   return (
     <div
       onClick={() => onSelect(variant)}
-      className={`border-2 rounded-lg p-3 bg-background shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col ${
+      className={`min-w-[100px] max-w-[130px] flex-shrink-0 border-2 rounded-lg p-1.5 bg-background shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col ${
         isActive
           ? "border-primary ring-2 ring-primary/20"
           : "border-border hover:border-primary/50"
       }`}
     >
       {themeKeys.length > 0 && (
-        <div className="text-xs text-muted-foreground truncate mb-1">
+        <div className="text-[10px] text-muted-foreground truncate mb-0.5">
           {themeKeys.map((key) => (
             <span key={key} className="mr-1">
               {key}: {variant[key]}
@@ -349,16 +349,22 @@ const VariantCard: React.FC<{
         </div>
       )}
       {image ? (
-        <div className="relative w-full h-32">
-          <ImageRenderer image={image} />
+        <div className="relative aspect-square w-full h-16">
+          <Image
+            src={image}
+            alt=""
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 33vw"
+          />
         </div>
       ) : (
-        <div className="w-full h-32 bg-muted flex items-center justify-center text-muted-foreground text-sm">
+        <div className="w-full h-16 bg-muted flex items-center justify-center text-muted-foreground text-xs">
           No image
         </div>
       )}
-      <div className="mt-2 w-full">
-        <div className="font-semibold text-primary">
+      <div className="mt-0.5 w-full">
+        <div className="font-semibold text-sm text-primary">
           {typeof price === "number" ? `${price} CFA` : "Price unavailable"}
         </div>
       </div>
@@ -493,8 +499,6 @@ export default function Details(props: { params: Promise<Params> }) {
     number | null
   >(null);
   const initialLoadComplete = useRef(false);
-
-  console.log("attributeSets", attributeSets);
 
   const categoryId = product?.category_id?._id ?? product?.category_id;
   const { data: session } = useSession();
@@ -700,11 +704,11 @@ export default function Details(props: { params: Promise<Params> }) {
               </div>
             )}
 
-            {/* Variant Cards */}
+            {/* Variant Cards – responsive horizontal scroll on mobile, grid on larger screens */}
             {Array.isArray(variants) && variants.length > 0 && (
               <div className="mb-4">
                 <h3 className="text-sm font-medium mb-2">Available Variants</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="flex overflow-x-auto gap-2 pb-2 md:grid md:grid-cols-2 lg:grid-cols-3 scrollbar-hide">
                   {variants.map((v: any, idx: number) => (
                     <VariantCard
                       key={idx}
@@ -797,7 +801,7 @@ export default function Details(props: { params: Promise<Params> }) {
           </div>
         ) : null}
 
-        <div className="mt-8 bg-background rounded lg:max-w-1/2">
+        <div className="mt-8 bg-background rounded">
           <h2 className="text-lg font-semibold mb-2">Description</h2>
           {product.long_desc ? (
             <div

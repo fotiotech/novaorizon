@@ -13,7 +13,7 @@ interface RecommendationsProps {
 export default async function Recommendations({
   limit = 10,
   className = "grid grid-cols-2 md:grid-cols-5 gap-4",
-  emptyMessage = "No recommendations yet. Start browsing to get personalized picks!",
+  emptyMessage = "Start browsing to get personalized picks!",
 }: RecommendationsProps) {
   const products = await getRecommendations(limit);
 
