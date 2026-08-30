@@ -8,6 +8,7 @@ type CarouselItem = {
   _id: string;
   name: string;
   image: string | null;
+  price: number | null;
   contentType: string; // "Product", "Collection", "Category", etc.
 };
 
@@ -95,6 +96,7 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
                   title={item.name}
                 >
                   <p className="line-clamp-2 text-sm">{item.name}</p>
+                  <p className="font-semibold text-sm">{item.price} cfa</p>
                 </Link>
               </div>
             </div>

@@ -8,6 +8,7 @@ type Item = {
   _id: string;
   name: string;
   image: string | null;
+  price: number | null;
   contentType: string; // "Product", "Collection", "Category", etc.
 };
 
@@ -183,6 +184,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
                   title={item.name}
                 >
                   <p className="line-clamp-2 text-sm">{item.name}</p>
+                  <p className="font-semibold text-sm">{item.price} cfa</p>
                 </Link>
               </div>
             ))}
@@ -196,6 +198,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
               _id: item._id,
               name: item.name,
               image: item.image,
+              price: item.price,
               contentType: item.contentType, // ✅ passes contentType
             }))}
             showImages={showImages}

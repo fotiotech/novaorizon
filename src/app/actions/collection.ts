@@ -7,12 +7,33 @@ import Product from "@/models/Product";
 import Category from "@/models/Category";
 import Brand from "@/models/Brand";
 import Promotion from "@/models/Promotion";
-import Page from "@/models/Page"; // assuming you have a Page model
+import Page from "@/models/Page";
 import { Collection } from "@/models/Collection";
 import {
-  getModelForTargetType,
-  buildQueryFromRules,
-} from "@/lib/collection-helpers";
+  getTrendingItems,
+  getRecommendations,
+  getRecentlyViewed,
+} from "./events"; // 👈 recommendation functions
+
+// ---------- Helper: get model by targetType ----------
+function getModelForTargetType(targetType: string) {
+  switch (targetType) {
+    case "Product":
+      return Product;
+    case "Category":
+      return Category;
+    case "Brand":
+      return Brand;
+    case "Promotion":
+      return Promotion;
+    case "Page":
+      return Page;
+    case "Collection":
+      return Collection;
+    default:
+      return null;
+  }
+}
 
 // ---------- Helper: parse rule value ----------
 function parseRuleValue(value: any, operator: string) {
@@ -46,7 +67,43 @@ function parseRuleValue(value: any, operator: string) {
   return value;
 }
 
-// ---------- Get all collections ----------
+// ---------- Build query from rules (only for Product & Collection) ----------
+function buildQueryFromRules(rules: any[], targetType: string) {
+  if (!["Product", "Collection"].includes(targetType)) return {};
+  if (!rules || rules.length === 0) return {};
+
+  const query: any = { $and: [] };
+
+  for (const rule of rules) {
+    if (!rule.attribute || !rule.operator) continue;
+    const value = parseRuleValue(rule.value, rule.operator);
+
+    if (targetType === "Product" && rule.attribute === "category_id") {
+      if (Array.isArray(value)) {
+        const objectIds = value
+          .filter((v) => mongoose.Types.ObjectId.isValid(v))
+          .map((v) => new mongoose.Types.ObjectId(v));
+        if (objectIds.length) {
+          query.$and.push({
+            [rule.attribute]: { [rule.operator]: objectIds },
+          });
+        }
+      } else if (mongoose.Types.ObjectId.isValid(value)) {
+        query.$and.push({
+          [rule.attribute]: new mongoose.Types.ObjectId(value),
+        });
+      }
+    } else {
+      query.$and.push({
+        [rule.attribute]: { [rule.operator]: value },
+      });
+    }
+  }
+
+  return query.$and.length > 0 ? query : {};
+}
+
+// ---------- Get all collections (without items) ----------
 export async function getAllCollections() {
   try {
     await connection();
@@ -60,7 +117,7 @@ export async function getAllCollections() {
   }
 }
 
-// ---------- Get collections with resolved items ----------
+// ---------- Get collections with resolved items (for preview / client) ----------
 export async function getCollectionsWithProducts() {
   try {
     await connection();
@@ -84,7 +141,32 @@ export async function getCollectionsWithProducts() {
         if (Object.keys(query).length > 0) {
           matchingItems = await (Model as any).find(query).limit(50).lean();
         }
+      } else if (collection.type === "recommendation") {
+        // 👇 Dynamically resolve recommendation items
+        const limit = collection.recommendationLimit || 10;
+        switch (collection.recommendationType) {
+          case "trending":
+            matchingItems = await getTrendingItems(limit);
+            break;
+          case "personalized":
+            matchingItems = await getRecommendations(limit);
+            break;
+          case "recentlyViewed":
+            matchingItems = await getRecentlyViewed(limit);
+            break;
+          default:
+            matchingItems = [];
+        }
+        // Normalize for consistency (all recommendation functions return Product docs)
+        matchingItems = matchingItems.map((item: any) => ({
+          _id: item._id,
+          title: item.title || item.name || "Unnamed",
+          image: item.main_image || item.image || item.imageUrl || null,
+          contentType: "Product",
+          // keep other product fields as needed
+        }));
       } else {
+        // manual
         matchingItems = collection.items || [];
       }
 
@@ -101,6 +183,8 @@ export async function getCollectionsWithProducts() {
           status: collection.status,
           order: collection.order,
           showName: collection.showName,
+          recommendationType: collection.recommendationType,
+          recommendationLimit: collection.recommendationLimit,
           created_at: collection.created_at,
           updated_at: collection.updated_at,
         },
@@ -132,11 +216,17 @@ export async function createCollection(formData: FormData) {
     const order = parseInt(formData.get("order") as string) || 0;
     const showName = formData.get("showName") === "true";
 
+    // --- Recommendation fields ---
+    const recommendationType =
+      (formData.get("recommendationType") as string) || "";
+    const recommendationLimit =
+      parseInt(formData.get("recommendationLimit") as string) || 10;
+
     if (!name?.trim()) {
       return { success: false, error: "Name is required" };
     }
 
-    if (!["rule", "manual"].includes(type)) {
+    if (!["rule", "manual", "recommendation"].includes(type)) {
       return { success: false, error: "Invalid collection type" };
     }
     const validTargets = [
@@ -151,6 +241,27 @@ export async function createCollection(formData: FormData) {
       return { success: false, error: "Invalid target type" };
     }
 
+    // Validate recommendation config
+    if (type === "recommendation") {
+      if (
+        !["trending", "personalized", "recentlyViewed"].includes(
+          recommendationType,
+        )
+      ) {
+        return { success: false, error: "Invalid recommendation type" };
+      }
+      if (recommendationLimit < 1) {
+        return {
+          success: false,
+          error: "Recommendation limit must be at least 1",
+        };
+      }
+      // (Optional) enforce targetType = Product because recommendation functions return products
+      // if (targetType !== "Product") {
+      //   return { success: false, error: "Recommendation collections only support Product target type" };
+      // }
+    }
+
     let rules = [];
     if (type === "rule") {
       try {
@@ -158,7 +269,7 @@ export async function createCollection(formData: FormData) {
         if (!Array.isArray(rules)) {
           return { success: false, error: "Rules must be an array" };
         }
-        for (const [index, rule] of rules.entries() as any) {
+        for (const [index, rule] of rules.entries()) {
           if (!rule.attribute || !rule.operator) {
             return {
               success: false,
@@ -219,6 +330,10 @@ export async function createCollection(formData: FormData) {
       items: type === "manual" ? items : [],
       order,
       showName,
+      recommendationType:
+        type === "recommendation" ? recommendationType : undefined,
+      recommendationLimit:
+        type === "recommendation" ? recommendationLimit : undefined,
     });
 
     await collection.save();
@@ -252,9 +367,13 @@ export async function updateCollection(id: string, formData: FormData) {
     const itemsJson = formData.get("items") as string;
     const order = parseInt(formData.get("order") as string) || 0;
     const showName = formData.get("showName") === "true";
+    const recommendationType =
+      (formData.get("recommendationType") as string) || "";
+    const recommendationLimit =
+      parseInt(formData.get("recommendationLimit") as string) || 10;
 
     if (!name?.trim()) return { success: false, error: "Name is required" };
-    if (!["rule", "manual"].includes(type)) {
+    if (!["rule", "manual", "recommendation"].includes(type)) {
       return { success: false, error: "Invalid collection type" };
     }
     const validTargets = [
@@ -269,6 +388,22 @@ export async function updateCollection(id: string, formData: FormData) {
       return { success: false, error: "Invalid target type" };
     }
 
+    if (type === "recommendation") {
+      if (
+        !["trending", "personalized", "recentlyViewed"].includes(
+          recommendationType,
+        )
+      ) {
+        return { success: false, error: "Invalid recommendation type" };
+      }
+      if (recommendationLimit < 1) {
+        return {
+          success: false,
+          error: "Recommendation limit must be at least 1",
+        };
+      }
+    }
+
     let rules = [];
     if (type === "rule") {
       try {
@@ -276,7 +411,7 @@ export async function updateCollection(id: string, formData: FormData) {
         if (!Array.isArray(rules)) {
           return { success: false, error: "Rules must be an array" };
         }
-        for (const [index, rule] of rules.entries() as any) {
+        for (const [index, rule] of rules.entries()) {
           if (!rule.attribute || !rule.operator) {
             return {
               success: false,
@@ -340,6 +475,10 @@ export async function updateCollection(id: string, formData: FormData) {
       items: type === "manual" ? items : [],
       order,
       showName,
+      recommendationType:
+        type === "recommendation" ? recommendationType : undefined,
+      recommendationLimit:
+        type === "recommendation" ? recommendationLimit : undefined,
       updated_at: new Date(),
     };
 
@@ -365,18 +504,56 @@ export async function updateCollection(id: string, formData: FormData) {
   }
 }
 
-// ---------- Get collection by ID ----------
+// ---------- Get collection by ID (with resolved items) ----------
 export async function getCollectionById(id: string) {
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return { success: false, error: "Invalid collection ID" };
     }
     await connection();
-    const collection = await Collection.findById(id).populate("items").lean();
+    const collection: any = await Collection.findById(id)
+      .populate("items")
+      .lean();
     if (!collection) {
       return { success: false, error: "Collection not found" };
     }
-    return { success: true, data: collection };
+
+    // 👇 If it's a recommendation type, resolve items dynamically
+    let resolvedItems = [];
+    if (collection.type === "recommendation") {
+      const limit = collection.recommendationLimit || 10;
+      switch (collection.recommendationType) {
+        case "trending":
+          resolvedItems = await getTrendingItems(limit);
+          break;
+        case "personalized":
+          resolvedItems = await getRecommendations(limit);
+          break;
+        case "recentlyViewed":
+          resolvedItems = await getRecentlyViewed(limit);
+          break;
+        default:
+          resolvedItems = [];
+      }
+      // Normalize (all return Product docs)
+      resolvedItems = resolvedItems.map((item: any) => ({
+        _id: item._id,
+        title: item.title || item.name || "Unnamed",
+        // ... other fields
+      }));
+    } else {
+      // For rule/manual, use populated items (already done via populate)
+      resolvedItems = collection.items || [];
+    }
+
+    // Return the collection with resolved items attached (override `items` field)
+    return {
+      success: true,
+      data: {
+        ...collection,
+        items: resolvedItems,
+      },
+    };
   } catch (error) {
     console.error("Error fetching collection:", error);
     return { success: false, error: "Failed to fetch collection" };
@@ -402,6 +579,33 @@ export async function deleteCollection(id: string) {
   }
 }
 
+// ---------- Delete image (admin only) ----------
+export async function deleteCollectionImage(collectionId: string) {
+  try {
+    await connection();
+    if (!mongoose.Types.ObjectId.isValid(collectionId)) {
+      return { success: false, error: "Invalid collection ID" };
+    }
+    const collection = await Collection.findById(collectionId);
+    if (!collection) {
+      return { success: false, error: "Collection not found" };
+    }
+    if (!collection.imageUrl) {
+      return { success: false, error: "No image to delete" };
+    }
+    // Assuming deleteS3Object is imported from "./s3" (you may need to add import)
+    // import { deleteS3Object } from "./s3";
+    // await deleteS3Object(collection.imageUrl);
+    collection.imageUrl = "";
+    await collection.save();
+    revalidatePath("/marketing/content/navigation/collections");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting collection image:", error);
+    return { success: false, error: "Failed to delete image" };
+  }
+}
+
 // ---------- Fetch available items for manual selection ----------
 export async function fetchAvailableItems(targetType: string, search?: string) {
   try {
@@ -415,9 +619,6 @@ export async function fetchAvailableItems(targetType: string, search?: string) {
     }
 
     const filter: any = {};
-    // Optionally filter by status if model has status field
-    // filter.status = "active"; // uncomment if you want active only
-
     if (search) {
       const searchField = targetType === "Product" ? "title" : "name";
       filter[searchField] = { $regex: search, $options: "i" };
@@ -443,4 +644,6 @@ export async function fetchAvailableItems(targetType: string, search?: string) {
     return { success: false, error: "Failed to fetch items" };
   }
 }
-export { getModelForTargetType, buildQueryFromRules, parseRuleValue };
+
+// Export helpers for external use (e.g., in menu.ts)
+export { getModelForTargetType, parseRuleValue, buildQueryFromRules };
