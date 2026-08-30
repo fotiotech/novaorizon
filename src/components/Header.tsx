@@ -314,7 +314,7 @@ const Header = () => {
     Array<{ _id: string; name: string; contentType: string }>
   >([]);
   const [sidebarMenus, setSidebarMenus] = useState<any[]>([]);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isNavigationVisible, setIsNavigationVisible] = useState(true);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
@@ -322,9 +322,9 @@ const Header = () => {
       const currentScrollY = window.scrollY;
 
       if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
-        setIsHeaderVisible(false);
+        setIsNavigationVisible(false);
       } else {
-        setIsHeaderVisible(true);
+        setIsNavigationVisible(true);
       }
 
       lastScrollY.current = currentScrollY;
@@ -419,9 +419,7 @@ const Header = () => {
   return (
     <>
       <header
-        className={`sticky top-0 z-30 border-b border-border bg-background/80 shadow-sm backdrop-blur-md transition-transform duration-300 ${
-          isHeaderVisible ? "translate-y-0" : "-translate-y-full"
-        }`}
+        className="sticky top-0 z-30 border-b border-border bg-background/80 shadow-sm backdrop-blur-md"
         role="banner"
       >
         <div className="mx-auto max-w-7xl px-2 py-1 sm:px-4 lg:px-6">
@@ -477,12 +475,20 @@ const Header = () => {
               </div>
             </div>
 
-            <div className="w-full overflow-x-auto border-border pt-0.5 scrollbar-none">
-              <nav aria-label="Main navigation">
-                <ul className="flex items-center gap-0.5 whitespace-nowrap">
-                  {navigationItems}
-                </ul>
-              </nav>
+            <div
+              className={`w-full overflow-hidden transition-all duration-300 ${
+                isNavigationVisible
+                  ? "max-h-12 translate-y-0 opacity-100 pt-0.5"
+                  : "max-h-0 -translate-y-1 opacity-0"
+              }`}
+            >
+              <div className="overflow-x-auto scrollbar-none">
+                <nav aria-label="Main navigation">
+                  <ul className="flex items-center gap-0.5 whitespace-nowrap">
+                    {navigationItems}
+                  </ul>
+                </nav>
+              </div>
             </div>
           </div>
         </div>
