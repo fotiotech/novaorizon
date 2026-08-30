@@ -39,6 +39,7 @@ type MenuRendererProps = {
   location: string;
   className?: string;
   depth?: number;
+  context?: any;
 };
 
 function slugify(text: string): string {
@@ -52,8 +53,9 @@ export default async function MenuRenderer({
   location,
   className = "",
   depth = 0,
+  context,
 }: MenuRendererProps) {
-  const { success, data, error } = await getMenusByLocation(location);
+  const { success, data, error } = await getMenusByLocation(location, context);
 
   if (!success || !data || data.length === 0) {
     return (

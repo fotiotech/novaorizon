@@ -14,6 +14,7 @@ import {
   getTrendingItems,
   getRecommendations,
   getRecentlyViewed,
+  getRelatedProducts,
 } from "./events"; // 👈 recommendation functions
 
 // ---------- Helper: get model by target type ----------
@@ -105,7 +106,10 @@ function buildQueryFromRules(rules: any[], targetType: string) {
 }
 
 // ---------- Resolve items from a collection (returns normalized items) ----------
-async function resolveCollectionItems(collectionId: string) {
+async function resolveCollectionItems(
+  collectionId: string,
+  context?: { productId?: string },
+) {
   const collection: any = await Collection.findById(collectionId).lean();
   if (!collection) return [];
 
@@ -141,6 +145,24 @@ async function resolveCollectionItems(collectionId: string) {
         contentType: "Product",
       };
     });
+  }
+
+  // ---------- RELATED (new) ----------
+  else if (collection.type === "related") {
+    if (!context?.productId) {
+      // If no product context, return empty (or you could return trending fallback)
+      return [];
+    }
+    const limit = collection.recommendationLimit || 10;
+    rawItems = await getRelatedProducts(context.productId, limit);
+    // Normalise to the shape the frontend expects
+    return rawItems.map((item: any) => ({
+      _id: item._id.toString(),
+      name: item.title || item.name || "Unnamed",
+      image: item.main_image || item.image || item.imageUrl || null,
+      price: item.sale_price || item.price || null,
+      contentType: "Product",
+    }));
   }
 
   // ---------- RULE & MANUAL ----------
@@ -190,7 +212,7 @@ async function resolveCollectionItems(collectionId: string) {
 }
 
 // ---------- Get menus by location (with items) ----------
-export async function getMenusByLocation(location: string) {
+export async function getMenusByLocation(location: string, context?: any) {
   try {
     await connection();
     const menus = await Menu.find({ location }).sort({ order: 1 }).lean();
@@ -198,7 +220,10 @@ export async function getMenusByLocation(location: string) {
       menus.map(async (menu) => {
         let items: any[] = [];
         if (menu.collectionId) {
-          items = await resolveCollectionItems(menu.collectionId.toString());
+          items = await resolveCollectionItems(
+            menu.collectionId.toString(),
+            context,
+          );
         }
         return {
           ...menu,
@@ -213,7 +238,7 @@ export async function getMenusByLocation(location: string) {
 }
 
 // ---------- Get single menu by ID (with items) ----------
-export async function getMenuById(id: string) {
+export async function getMenuById(id: string, context?: any) {
   try {
     await connection();
     const menu = await Menu.findById(id).lean();
@@ -221,7 +246,10 @@ export async function getMenuById(id: string) {
 
     let items: any[] = [];
     if (menu.collectionId) {
-      items = await resolveCollectionItems(menu.collectionId.toString());
+      items = await resolveCollectionItems(
+        menu.collectionId.toString(),
+        context,
+      );
     }
 
     return {

@@ -18,8 +18,13 @@ const CollectionSchema = new Schema(
     imageUrl: { type: String },
     type: {
       type: String,
-      enum: ["rule", "manual", "recommendation"],
+      enum: ["rule", "manual", "recommendation", "related"],
       default: "rule",
+    },
+    contextType: {
+      type: String,
+      enum: ["product"],
+      default: undefined,
     },
     recommendationType: {
       type: String,

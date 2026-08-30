@@ -15,8 +15,9 @@ import { useProductData } from "./_compnents/hooks";
 import { getCategoryAttributeSets } from "@/app/actions/category";
 import { getCarriers } from "@/app/actions/carrier";
 import { useUserData } from "@/app/context/UserDataContext";
-import { findProducts } from "@/app/actions/products";
 import Image from "next/image";
+import { getMenusByLocation } from "@/app/actions/menu";
+import Carousel from "@/components/Carousel";
 
 // ---------- Types ----------
 interface AttributeUnitFamily {
@@ -75,6 +76,13 @@ function getFirstImage(val: any): string | null {
   if (Array.isArray(val) && val.length > 0) return val[0];
   if (typeof val === "string") return val;
   return null;
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function applyVariant(product: any, variant: any) {
@@ -301,7 +309,7 @@ const CarrierShippingOptions: React.FC<{
   );
 };
 
-// ---------- Variant Card Component (even smaller) ----------
+// ---------- Variant Card Component ----------
 const VariantCard: React.FC<{
   variant: any;
   onSelect: (variant: any) => void;
@@ -372,115 +380,132 @@ const VariantCard: React.FC<{
   );
 };
 
-// ---------- Related Products Component (fetches and groups) ----------
-const RelatedProductsSection: React.FC<{ relatedRefs: any[] }> = ({
-  relatedRefs,
-}) => {
-  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    if (!relatedRefs || relatedRefs.length === 0) {
-      setRelatedProducts([]);
-      setLoading(false);
-      return;
-    }
-
-    const fetchRelated = async () => {
-      setLoading(true);
-      try {
-        const ids = relatedRefs.map((ref) => ref.id).filter(Boolean);
-        if (ids.length === 0) {
-          setRelatedProducts([]);
-          setLoading(false);
-          return;
-        }
-
-        const promises = ids.map((id) => findProducts(id));
-        const results = await Promise.all(promises);
-        const products = results
-          .filter((res) => res && !res.error)
-          .map((res, idx) => ({
-            ...res,
-            relationship_type: relatedRefs[idx]?.relationship_type || "related",
-          }));
-        setRelatedProducts(products);
-      } catch (err) {
-        console.error("Failed to fetch related products:", err);
-        setRelatedProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRelated();
-  }, [relatedRefs]);
-
-  if (loading) return <div className="mt-4">Loading related products...</div>;
-  if (relatedProducts.length === 0) return null;
-
-  const groups = relatedProducts.reduce<Record<string, any[]>>((acc, item) => {
-    const type = item.relationship_type || "related";
-    if (!acc[type]) acc[type] = [];
-    acc[type].push(item);
-    return acc;
-  }, {});
-
-  const typeLabels: Record<string, string> = {
-    related: "Related Products",
-    similar: "Similar Products",
-    cross_sell: "Cross‑Sell Products",
-    "cross-sell": "Cross‑Sell Products",
-  };
+// ---------- Component: Menu-based Related Products Renderer ----------
+const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
+  if (!menus || menus.length === 0) return null;
 
   return (
-    <div className="mt-8 space-y-8">
-      {Object.entries(groups).map(([type, items]) => {
-        const label = typeLabels[type] || type;
-        return (
-          <div key={type}>
-            <h2 className="text-lg font-semibold mb-4">{label}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {items.map((related) => {
-                const image =
-                  getFirstImage(related.main_image) ||
-                  getFirstImage(related.gallery);
-                return (
-                  <Link
-                    key={related._id}
-                    href={`/products/${related.url_slug || "product"}/${related._id}`}
-                    className="flex flex-col gap-2 p-3 bg-background rounded shadow hover:shadow-md transition-shadow"
-                  >
-                    <div>
-                      {related.main_image && (
-                        <div className="w-full h-40 relative">
-                          <Image
-                            src={
-                              getFirstImage(related.main_image) ||
-                              related.main_image
-                            }
-                            alt={
-                              related.title || related.name || "Related product"
-                            }
-                            fill
-                            className="object-contain"
-                            sizes="(max-width: 768px) 100vw, 33vw"
+    <div className="related-menus mt-8 space-y-8">
+      {menus.map((menu) => {
+        const {
+          _id,
+          name,
+          sectionTitle,
+          display,
+          showImages = false,
+          columns = 4,
+          items = [],
+        } = menu;
+
+        if (!items || items.length === 0) return null;
+
+        const getItemHref = (item: any) => {
+          const slug = slugify(item.name);
+          const prefix = item.contentType?.toLowerCase() + "s" || "products";
+          return `/${prefix}/${slug}/${item._id}`;
+        };
+
+        const getGridCols = () => {
+          const cols = Math.min(columns || 4, 6);
+          const colMap: Record<number, string> = {
+            1: "grid-cols-1",
+            2: "grid-cols-2",
+            3: "grid-cols-2 md:grid-cols-3",
+            4: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+            5: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+            6: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
+          };
+          return colMap[cols] || colMap[4];
+        };
+
+        const renderContent = () => {
+          switch (display) {
+            case "List":
+              return (
+                <ul className="space-y-2">
+                  {items.map((item: any) => (
+                    <li key={item._id} className="flex items-center gap-3">
+                      {showImages && item.image && (
+                        <div className="relative w-10 h-10 flex-shrink-0">
+                          <ImageRenderer
+                            image={item.image}
+                            alt={item.name}
+                            className="rounded"
                           />
                         </div>
                       )}
-                      <h3 className="font-medium text-sm line-clamp-2 text-foreground">
-                        {related.title || related.name || "Untitled Product"}
-                      </h3>
-                      {related.list_price && (
-                        <p className="text-muted-foreground">
-                          {related.list_price} CFA
-                        </p>
+                      <Link
+                        href={getItemHref(item)}
+                        className="hover:underline line-clamp-1"
+                        title={item.name}
+                      >
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              );
+
+            case "Grid":
+              return (
+                <div className={`grid gap-4 ${getGridCols()}`}>
+                  {items.slice(0, 4).map((item: any) => (
+                    <div key={item._id} className="p-2 rounded">
+                      {showImages && item.image && (
+                        <div className="relative w-full aspect-square mb-2 bg-gray-100">
+                          <ImageRenderer
+                            image={item.image}
+                            alt={item.name}
+                            className="rounded"
+                          />
+                        </div>
                       )}
+                      <Link
+                        href={getItemHref(item)}
+                        className="block"
+                        title={item.name}
+                      >
+                        <p className="line-clamp-2 text-sm">{item.name}</p>
+                        {item.price && (
+                          <p className="font-semibold text-sm">
+                            {item.price} CFA
+                          </p>
+                        )}
+                      </Link>
                     </div>
-                  </Link>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              );
+
+            case "Carousel":
+              return (
+                <Carousel
+                  items={items.slice(0, 4).map((item: any) => ({
+                    _id: item._id,
+                    name: item.name,
+                    image: item.image,
+                    price: item.price,
+                    contentType: item.contentType || "Product",
+                  }))}
+                  showImages={showImages}
+                />
+              );
+
+            default:
+              return (
+                <div className="text-yellow-600">
+                  Unknown display type: {display}
+                </div>
+              );
+          }
+        };
+
+        return (
+          <div key={_id} className="menu-node p-4 bg-white rounded shadow">
+            {sectionTitle && (
+              <h2 className="text-xl font-semibold mb-4">{sectionTitle}</h2>
+            )}
+            <div className="menu-content">{renderContent()}</div>
           </div>
         );
       })}
@@ -504,6 +529,26 @@ export default function Details(props: { params: Promise<Params> }) {
   const { data: session } = useSession();
   const user = session?.user as any;
   const { addresses: userAddresses } = useUserData();
+
+  // State for related product menus
+  const [menus, setMenus] = useState<any[]>([]);
+  const [menusLoading, setMenusLoading] = useState(false);
+
+  // Fetch menus for "product_related" location with product context
+  useEffect(() => {
+    if (!product?._id) return;
+    setMenusLoading(true);
+    getMenusByLocation("product_related", { productId: product._id })
+      .then((res) => {
+        if (res.success) {
+          setMenus(res.data || []);
+        } else {
+          console.error("Failed to load related menus:", res.error);
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setMenusLoading(false));
+  }, [product?._id]);
 
   // Fetch attribute sets
   useEffect(() => {
@@ -645,6 +690,7 @@ export default function Details(props: { params: Promise<Params> }) {
       </div>
     );
 
+  // ProductBasicInfo component (unchanged)
   const ProductBasicInfo = () => {
     const {
       _id = "",
@@ -704,7 +750,7 @@ export default function Details(props: { params: Promise<Params> }) {
               </div>
             )}
 
-            {/* Variant Cards – responsive horizontal scroll on mobile, grid on larger screens */}
+            {/* Variant Cards */}
             {Array.isArray(variants) && variants.length > 0 && (
               <div className="mb-4">
                 <h3 className="text-sm font-medium mb-2">Available Variants</h3>
@@ -768,10 +814,6 @@ export default function Details(props: { params: Promise<Params> }) {
     );
   };
 
-  // Extract related references (either from product.related_products or product.related_products?.ids)
-  const relatedRefs =
-    product?.related_products?.ids || product?.related_products || [];
-
   return (
     <div className="w-full bg-background border-b-2 border-border py-2 md:py-6 px-4 md:px-8">
       <ProductViewAnalytics productId={params.dsin} />
@@ -813,9 +855,13 @@ export default function Details(props: { params: Promise<Params> }) {
           )}
         </div>
 
-        {/* Related Products */}
-        {relatedRefs.length > 0 && (
-          <RelatedProductsSection relatedRefs={relatedRefs} />
+        {/* Render related product menus */}
+        {menusLoading ? (
+          <div className="mt-8 flex justify-center">
+            <Spinner size={24} />
+          </div>
+        ) : (
+          <RelatedMenusRenderer menus={menus} />
         )}
 
         <div className="mt-8 bg-background rounded">
