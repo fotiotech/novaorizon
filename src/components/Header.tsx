@@ -34,12 +34,10 @@ const SearchBarWithAutocomplete = React.memo(
   ({
     searchInput,
     setSearchInput,
-    isMobile = false,
     onSearchSubmit,
   }: {
     searchInput: string;
     setSearchInput: (value: string) => void;
-    isMobile?: boolean;
     onSearchSubmit: (e: React.FormEvent) => void;
   }) => {
     const router = useRouter();
@@ -50,10 +48,8 @@ const SearchBarWithAutocomplete = React.memo(
     const inputRef = useRef<HTMLInputElement>(null);
     const suggestionsRef = useRef<HTMLDivElement>(null);
 
-    // Close suggestions on outside click
     const dropdownRef = useClickOutside(() => setShowSuggestions(false));
 
-    // Debounced fetch of suggestions
     const fetchSuggestions = useCallback(
       debounce(async (value: string) => {
         if (value.trim().length < 2) {
@@ -96,31 +92,23 @@ const SearchBarWithAutocomplete = React.memo(
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (!showSuggestions || suggestions.length === 0) return;
 
-      // Arrow Down
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) =>
           prev < suggestions.length - 1 ? prev + 1 : prev,
         );
-      }
-      // Arrow Up
-      else if (e.key === "ArrowUp") {
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
-      }
-      // Enter
-      else if (e.key === "Enter" && selectedIndex >= 0) {
+      } else if (e.key === "Enter" && selectedIndex >= 0) {
         e.preventDefault();
         handleSuggestionClick(suggestions[selectedIndex]);
-      }
-      // Escape
-      else if (e.key === "Escape") {
+      } else if (e.key === "Escape") {
         setShowSuggestions(false);
         setSelectedIndex(-1);
       }
     };
 
-    // Navigate on suggestion hover
     const handleSuggestionHover = (index: number) => {
       setSelectedIndex(index);
     };
@@ -128,9 +116,7 @@ const SearchBarWithAutocomplete = React.memo(
     return (
       <div ref={dropdownRef} className="relative w-full">
         <form
-          className={`flex items-center h-11 bg-background rounded-full overflow-hidden border border-border focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-all ${
-            isMobile ? "w-full" : "w-full"
-          }`}
+          className="flex items-center h-9 bg-background rounded-full overflow-hidden border border-border focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-all w-full"
           onSubmit={onSearchSubmit}
         >
           <input
@@ -145,31 +131,28 @@ const SearchBarWithAutocomplete = React.memo(
             onFocus={() => {
               if (searchInput.trim().length >= 2) setShowSuggestions(true);
             }}
-            className="flex-1 h-full bg-transparent py-2 focus:outline-none border-none px-4 leading-tight text-foreground placeholder:text-muted-foreground"
+            className="flex-1 h-full bg-transparent py-1.5 focus:outline-none border-none px-3 leading-tight text-foreground placeholder:text-muted-foreground text-sm"
           />
           <button
             type="submit"
             title="Search"
-            className="btn py-2 px-4 m-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="btn py-1 px-3 m-0.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            <Search style={{ fontSize: 20 }} />
+            <Search style={{ fontSize: 18 }} />
           </button>
         </form>
 
-        {/* Autocomplete Dropdown */}
         {showSuggestions && searchInput.trim().length >= 2 && (
           <div
             ref={suggestionsRef}
-            className={`absolute ${
-              isMobile ? "top-12" : "top-12"
-            } left-0 right-0 z-50 mt-1 bg-background border border-border rounded-xl shadow-2xl max-h-72 overflow-y-auto py-2`}
+            className="absolute top-10 left-0 right-0 z-50 mt-1 bg-background border border-border rounded-xl shadow-2xl max-h-72 overflow-y-auto py-2"
           >
             {isLoadingSuggestions ? (
-              <div className="px-4 py-3 text-sm text-muted-foreground">
+              <div className="px-4 py-2 text-sm text-muted-foreground">
                 Searching...
               </div>
             ) : suggestions.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-muted-foreground">
+              <div className="px-4 py-2 text-sm text-muted-foreground">
                 No suggestions found
               </div>
             ) : (
@@ -178,13 +161,12 @@ const SearchBarWithAutocomplete = React.memo(
                   key={suggestion._id}
                   onClick={() => handleSuggestionClick(suggestion)}
                   onMouseEnter={() => handleSuggestionHover(index)}
-                  className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                  className={`w-full text-left px-4 py-2 flex items-center gap-3 transition-colors ${
                     index === selectedIndex
                       ? "bg-primary/10 text-primary"
                       : "hover:bg-muted/50 text-foreground"
                   }`}
                 >
-                  {/* Optional thumbnail */}
                   {suggestion.main_image && (
                     <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 bg-muted">
                       <ImageRenderer image={suggestion.main_image} />
@@ -215,18 +197,18 @@ const SearchBarWithAutocomplete = React.memo(
 );
 SearchBarWithAutocomplete.displayName = "SearchBarWithAutocomplete";
 
-// ---------- UserProfile (unchanged) ----------
+// ---------- UserProfile ----------
 const UserProfile = React.memo(() => {
   const session = useSession();
   const unreadCount = useUnreadMessages();
   const user = session?.data?.user as any;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       {user ? (
         <Link
           href="/profile"
-          className="text-foreground hover:text-primary transition-colors"
+          className="text-foreground hover:text-primary transition-colors text-sm"
         >
           <span className="hidden sm:inline">{user?.name}</span>
         </Link>
@@ -234,7 +216,7 @@ const UserProfile = React.memo(() => {
         <SignIn />
       )}
       <span className="text-muted-foreground">
-        <NavigateNext style={{ fontSize: 16 }} />
+        <NavigateNext style={{ fontSize: 14 }} />
       </span>
       <div className="relative">
         {unreadCount > 0 && (
@@ -243,7 +225,7 @@ const UserProfile = React.memo(() => {
           </p>
         )}
         <Link href="/profile" className="hover:scale-110 transition-transform">
-          <Person style={{ fontSize: 28 }} className="text-foreground" />
+          <Person style={{ fontSize: 24 }} className="text-foreground" />
         </Link>
       </div>
     </div>
@@ -251,7 +233,7 @@ const UserProfile = React.memo(() => {
 });
 UserProfile.displayName = "UserProfile";
 
-// ---------- CartIcon (unchanged) ----------
+// ---------- CartIcon ----------
 const CartIcon = React.memo(() => {
   const { items } = useCart();
   const itemCount = items?.length ?? 0;
@@ -264,7 +246,7 @@ const CartIcon = React.memo(() => {
         </p>
       )}
       <Link href="/cart">
-        <ShoppingCart style={{ fontSize: 28 }} className="text-foreground" />
+        <ShoppingCart style={{ fontSize: 24 }} className="text-foreground" />
       </Link>
     </div>
   );
@@ -284,7 +266,6 @@ function getItemHref(item: { _id: string; name: string; contentType: string }) {
 // ---------- Main Header ----------
 const Header = () => {
   const router = useRouter();
-  const [showSearchBox, setShowSearchBox] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [category, setCategory] = useState<Category[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -293,8 +274,27 @@ const Header = () => {
   >([]);
   const [sidebarMenus, setSidebarMenus] = useState<any[]>([]);
 
-  // Close mobile search on outside click
-  const mobileSearchRef = useClickOutside(() => setShowSearchBox(false));
+  // Scroll hiding state
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      // If scrolling down and past threshold, hide; else show
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        setIsHeaderVisible(false);
+      } else {
+        setIsHeaderVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const sidebarRef = useClickOutside(() => setIsSidebarOpen(false));
 
   useEffect(() => {
     async function fetchData() {
@@ -328,8 +328,6 @@ const Header = () => {
     fetchData();
   }, []);
 
-  const sidebarRef = useClickOutside(() => setIsSidebarOpen(false));
-
   const navigationItems = useMemo(() => {
     const itemsToRender =
       navItems.length > 0
@@ -350,7 +348,7 @@ const Header = () => {
         <li key={item._id} className="inline-block">
           <Link
             href={href}
-            className="block px-3 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-muted rounded-lg transition-all duration-200"
+            className="block px-3 py-1.5 text-sm font-medium text-foreground hover:text-primary hover:bg-muted rounded-lg transition-all duration-200"
           >
             {item.name}
           </Link>
@@ -364,7 +362,6 @@ const Header = () => {
       e.preventDefault();
       if (searchInput.trim()) {
         router.push(`/search?query=${encodeURIComponent(searchInput)}`);
-        setShowSearchBox(false);
       }
     },
     [searchInput, router],
@@ -380,33 +377,46 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border shadow-sm">
-        <div className="px-4 lg:px-10 py-2">
-          {/* Top row */}
-          <div className="flex justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-              <button
-                title="Toggle sidebar"
-                type="button"
-                onClick={toggleSidebar}
-                className="hover:bg-muted p-2 rounded-full transition-colors"
-              >
-                <Menu style={{ fontSize: 28 }} className="text-foreground" />
-              </button>
-              <Link href="/" className="flex-shrink-0">
-                <Image
-                  src="/logo.png"
-                  width={60}
-                  height={30}
-                  alt="logo"
-                  priority
-                  className="h-auto w-auto"
-                />
-              </Link>
+      <header
+        className={`sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border shadow-sm transition-transform duration-300 ${
+          isHeaderVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <div className="px-4 lg:px-8 py-1.5">
+          {/* Grid layout: on mobile, first row = logo + actions, second row = search, third row = nav */}
+          {/* On large screens, logo, search, actions in one row, nav below */}
+          <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr,auto] gap-y-2 lg:gap-x-4 items-center">
+            {/* Left section: Menu + Logo on all screens, Actions hidden on large */}
+            <div className="flex items-center justify-between lg:justify-start">
+              <div className="flex items-center gap-2">
+                <button
+                  title="Toggle sidebar"
+                  type="button"
+                  onClick={toggleSidebar}
+                  className="hover:bg-muted p-1.5 rounded-full transition-colors"
+                >
+                  <Menu style={{ fontSize: 24 }} className="text-foreground" />
+                </button>
+                <Link href="/" className="flex-shrink-0">
+                  <Image
+                    src="/logo.png"
+                    width={50}
+                    height={25}
+                    alt="logo"
+                    priority
+                    className="h-auto w-auto"
+                  />
+                </Link>
+              </div>
+              {/* Show actions on mobile only (they'll be hidden on large) */}
+              <div className="flex items-center gap-2 lg:hidden">
+                <UserProfile />
+                <CartIcon />
+              </div>
             </div>
 
-            {/* Desktop search with autocomplete */}
-            <div className="hidden lg:block flex-1 max-w-2xl">
+            {/* Center: Search bar - always visible, full width on mobile, flex-1 on large */}
+            <div className="w-full">
               <SearchBarWithAutocomplete
                 searchInput={searchInput}
                 setSearchInput={setSearchInput}
@@ -414,40 +424,16 @@ const Header = () => {
               />
             </div>
 
-            <div className="flex items-center gap-4">
-              <button
-                title="Search"
-                type="button"
-                className="lg:hidden hover:bg-muted p-2 rounded-full transition-colors"
-                onClick={() => setShowSearchBox((prev) => !prev)}
-              >
-                <Search style={{ fontSize: 24 }} className="text-foreground" />
-              </button>
+            {/* Right section: Actions on large screens only */}
+            <div className="hidden lg:flex items-center gap-2 justify-end">
               <UserProfile />
               <CartIcon />
             </div>
           </div>
 
-          {/* Mobile search (expanded) with autocomplete */}
-          <div
-            ref={mobileSearchRef}
-            className={`${
-              showSearchBox ? "max-h-96 opacity-100 mt-3" : "max-h-0 opacity-0"
-            } overflow-hidden transition-all duration-300 ease-in-out lg:hidden`}
-          >
-            <div className="pb-2">
-              <SearchBarWithAutocomplete
-                searchInput={searchInput}
-                setSearchInput={setSearchInput}
-                isMobile={true}
-                onSearchSubmit={handleSearchSubmit}
-              />
-            </div>
-          </div>
-
-          {/* Navigation bar */}
-          <div className="border-border pt-2 overflow-x-auto scrollbar-none">
-            <ul className="flex items-center gap-1 whitespace-nowrap">
+          {/* Navigation bar - always below */}
+          <div className="border-border pt-0.5 overflow-x-auto scrollbar-none mt-1">
+            <ul className="flex items-center gap-0.5 whitespace-nowrap">
               {navigationItems}
             </ul>
           </div>

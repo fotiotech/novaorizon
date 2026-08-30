@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import Image from "next/image"; 
+import Image from "next/image";
 import ImageRenderer from "./ImageRenderer";
 
 interface DetailImagesProps {
@@ -38,7 +38,7 @@ const DetailImages: React.FC<DetailImagesProps> = ({
         }
       });
     },
-    [totalImages]
+    [totalImages],
   );
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -67,7 +67,7 @@ const DetailImages: React.FC<DetailImagesProps> = ({
         setIsPlaying((prev) => !prev);
       }
     },
-    [slideToIndex]
+    [slideToIndex],
   );
 
   // Auto-play functionality
@@ -215,31 +215,42 @@ const DetailImages: React.FC<DetailImagesProps> = ({
 
       {/* Thumbnail Navigation */}
       {showThumbnails && totalImages > 1 && (
-        <div className="flex justify-start items-center gap-2 mt-4 overflow-x-auto py-2 px-1">
-          {file.map((image, index) => (
-            <button
-              key={index}
-              onClick={() => slideToIndex(index)}
-              aria-label={`View image ${index + 1}`}
-              className={`flex-shrink-0 w-16 h-16 overflow-hidden rounded-md border-2 
-                        transition-all duration-200 hover:opacity-100 ${
-                          index === currentImageIndex
-                            ? "border-blue-500 opacity-100"
-                            : "border-gray-300 opacity-70"
-                        }`}
-            >
-              <div className="relative w-full h-full">
-                <Image
-                  src={image}
-                  alt={`Thumbnail ${index + 1}`}
-                  fill
-                  className="object-cover"
-                  sizes="64px"
-                />
-              </div>
-            </button>
-          ))}
-        </div>
+        <>
+          <style>{`
+            .thumbnail-scrollbar-hide {
+              -ms-overflow-style: none;  /* IE and Edge */
+              scrollbar-width: none;  /* Firefox */
+            }
+            .thumbnail-scrollbar-hide::-webkit-scrollbar {
+              display: none;  /* Chrome, Safari and Opera */
+            }
+          `}</style>
+          <div className="thumbnail-scrollbar-hide flex justify-start items-center gap-2 mt-4 overflow-x-auto px-1">
+            {file.map((image, index) => (
+              <button
+                key={index}
+                onClick={() => slideToIndex(index)}
+                aria-label={`View image ${index + 1}`}
+                className={`flex-shrink-0 w-16 h-16 overflow-hidden rounded-md border-2 
+                          transition-all duration-200 hover:opacity-100 ${
+                            index === currentImageIndex
+                              ? "border-blue-500 opacity-100"
+                              : "border-gray-300 opacity-70"
+                          }`}
+              >
+                <div className="relative w-full h-full">
+                  <Image
+                    src={image}
+                    alt={`Thumbnail ${index + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Dots Navigation */}

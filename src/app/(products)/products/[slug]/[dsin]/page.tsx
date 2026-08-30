@@ -168,9 +168,9 @@ const SpecificationTable: React.FC<{
     if (!hasAttributes && !hasChildren) return null;
 
     return (
-      <div key={group.id} className={`mb-6 ${level > 0 ? "ml-4 mt-4" : ""}`}>
+      <div key={group.id} className={`${level > 0 ? "ml-4 mt-2" : "mb-3"}`}>
         <h3
-          className={`font-semibold ${level === 0 ? "text-lg" : "text-md"} mb-2`}
+          className={`font-semibold ${level === 0 ? "text-lg" : "text-md"} mb-1`}
         >
           {group.name}
         </h3>
@@ -182,10 +182,10 @@ const SpecificationTable: React.FC<{
                 if (value === undefined || value === null) return null;
                 return (
                   <tr key={attr.id} className="border-b border-border">
-                    <th className="py-2 px-4 text-left font-medium capitalize w-1/3 bg-muted/50">
+                    <th className="py-1 px-3 text-left font-medium capitalize w-1/3 bg-muted/50">
                       {attr.name}
                     </th>
-                    <td className="py-2 px-4 text-foreground">
+                    <td className="py-1 px-3 text-foreground">
                       {renderAttributeValue(value)}
                     </td>
                   </tr>
@@ -195,7 +195,7 @@ const SpecificationTable: React.FC<{
           </table>
         )}
         {hasChildren && (
-          <div className="mt-4">
+          <div className="mt-2">
             {group.children.map((child) => renderGroup(child, level + 1))}
           </div>
         )}
@@ -204,8 +204,8 @@ const SpecificationTable: React.FC<{
   };
 
   return (
-    <div className="mt-8">
-      <h2 className="text-xl font-semibold mb-4">{set.title}</h2>
+    <div className="mt-4">
+      <h2 className="text-xl font-semibold mb-2">{set.title}</h2>
       {set.groups.map((group) => renderGroup(group, 0))}
     </div>
   );
@@ -251,15 +251,15 @@ const CarrierShippingOptions: React.FC<{
 
   if (loading)
     return (
-      <div className="mt-4 text-muted-foreground">
+      <div className="mt-2 text-muted-foreground">
         Loading shipping options...
       </div>
     );
-  if (error) return <div className="mt-4 text-destructive">{error}</div>;
+  if (error) return <div className="mt-2 text-destructive">{error}</div>;
 
   return (
-    <div className="mt-6 p-4 border border-border rounded-lg bg-muted/30">
-      <h3 className="text-lg font-semibold mb-2">Shipping Options</h3>
+    <div className="mt-4 p-4 border border-border rounded-lg bg-muted/30">
+      <h3 className="text-lg font-semibold mb-1">Shipping Options</h3>
       {!primaryAddress ? (
         <p className="text-sm text-muted-foreground">
           Please{" "}
@@ -277,7 +277,7 @@ const CarrierShippingOptions: React.FC<{
           {primaryAddress.city || primaryAddress.state || "your area"}).
         </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {availableCarriers.map((carrier) => {
             const regionDetail = carrier.regionsServed.find((r) =>
               doesCarrierServeAddress(carrier, primaryAddress),
@@ -285,7 +285,7 @@ const CarrierShippingOptions: React.FC<{
             return (
               <li
                 key={carrier._id}
-                className="flex justify-between items-center border-b border-border pb-2 last:border-0"
+                className="flex justify-between items-center border-b border-border pb-1 last:border-0"
               >
                 <div>
                   <span className="font-medium">{carrier.name}</span>
@@ -341,7 +341,7 @@ const VariantCard: React.FC<{
   return (
     <div
       onClick={() => onSelect(variant)}
-      className={`min-w-[100px] max-w-[130px] flex-shrink-0 border-2 rounded-lg p-1.5 bg-background shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col ${
+      className={`min-w-[100px] max-w-[130px] flex-shrink-0 border-2 rounded-lg p-1 bg-background shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col ${
         isActive
           ? "border-primary ring-2 ring-primary/20"
           : "border-border hover:border-primary/50"
@@ -385,7 +385,7 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
   if (!menus || menus.length === 0) return null;
 
   return (
-    <div className="related-menus mt-8 space-y-8">
+    <div className="related-menus mt-4 space-y-4">
       {menus.map((menu) => {
         const {
           _id,
@@ -422,11 +422,11 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
           switch (display) {
             case "List":
               return (
-                <ul className="space-y-2">
+                <ul className="space-y-1">
                   {items.map((item: any) => (
-                    <li key={item._id} className="flex items-center gap-3">
+                    <li key={item._id} className="flex items-center gap-2">
                       {showImages && item.image && (
-                        <div className="relative w-10 h-10 flex-shrink-0">
+                        <div className="relative w-8 h-8 flex-shrink-0">
                           <ImageRenderer
                             image={item.image}
                             alt={item.name}
@@ -448,11 +448,11 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
 
             case "Grid":
               return (
-                <div className={`grid gap-4 ${getGridCols()}`}>
+                <div className={`grid gap-3 ${getGridCols()}`}>
                   {items.slice(0, 4).map((item: any) => (
-                    <div key={item._id} className="p-2 rounded">
+                    <div key={item._id} className="p-1 rounded">
                       {showImages && item.image && (
-                        <div className="relative w-full aspect-square mb-2 bg-gray-100">
+                        <div className="relative w-full aspect-square mb-1 bg-gray-100">
                           <ImageRenderer
                             image={item.image}
                             alt={item.name}
@@ -501,9 +501,9 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
         };
 
         return (
-          <div key={_id} className="menu-node p-4 bg-white rounded shadow">
+          <div key={_id} className="menu-node p-3 bg-white rounded shadow">
             {sectionTitle && (
-              <h2 className="text-xl font-semibold mb-4">{sectionTitle}</h2>
+              <h2 className="text-xl font-semibold mb-2">{sectionTitle}</h2>
             )}
             <div className="menu-content">{renderContent()}</div>
           </div>
@@ -711,7 +711,7 @@ export default function Details(props: { params: Promise<Params> }) {
 
     return (
       <>
-        <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex flex-col md:flex-row gap-4">
           {Array.isArray(gallery) && gallery.length > 0 ? (
             <div className="md:w-1/2">
               {brand?.name && (
@@ -728,12 +728,12 @@ export default function Details(props: { params: Promise<Params> }) {
           )}
 
           <div className="md:w-1/2 text-foreground">
-            <h1 className="text-sm font-bold text-muted-foreground lg:text-lg mb-4">
+            <h1 className="text-sm font-bold text-muted-foreground lg:text-lg mb-2">
               {title} {model}
             </h1>
 
             {typeof displayPrice === "number" && (
-              <div className="text-2xl font-semibold mb-4">
+              <div className="text-2xl font-semibold mb-2">
                 {displayPrice} CFA
               </div>
             )}
@@ -744,7 +744,7 @@ export default function Details(props: { params: Promise<Params> }) {
                   stock_status.join(", ") === "In Stock"
                     ? "text-green-600 dark:text-green-400"
                     : "text-destructive"
-                } mb-4`}
+                } mb-2`}
               >
                 {stock_status.join(", ")}
               </div>
@@ -752,9 +752,9 @@ export default function Details(props: { params: Promise<Params> }) {
 
             {/* Variant Cards */}
             {Array.isArray(variants) && variants.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">Available Variants</h3>
-                <div className="flex overflow-x-auto gap-2 pb-2 md:grid md:grid-cols-2 lg:grid-cols-3 scrollbar-hide">
+              <div className="mb-2">
+                <h3 className="text-sm font-medium mb-1">Available Variants</h3>
+                <div className="flex overflow-x-auto gap-2 pb-1 md:grid md:grid-cols-2 lg:grid-cols-3 scrollbar-hide">
                   {variants.map((v: any, idx: number) => (
                     <VariantCard
                       key={idx}
@@ -767,7 +767,7 @@ export default function Details(props: { params: Promise<Params> }) {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 w-full">
               <CheckoutButton
                 product={{
                   _id,
@@ -796,7 +796,7 @@ export default function Details(props: { params: Promise<Params> }) {
           </div>
         </div>
 
-        <div className="my-6 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="my-3 rounded grid grid-cols-1 md:grid-cols-2 gap-3">
           {Array.isArray(condition) && condition.length > 0 && (
             <div>
               <span className="font-semibold">Condition:</span>{" "}
@@ -806,8 +806,8 @@ export default function Details(props: { params: Promise<Params> }) {
         </div>
 
         {short_desc && (
-          <div className="my-6 rounded">
-            <p className="text-muted-foreground">{short_desc}</p>
+          <div className="my-3 rounded">
+            <p className="text-muted-foreground text-sm">{short_desc}</p>
           </div>
         )}
       </>
@@ -815,19 +815,19 @@ export default function Details(props: { params: Promise<Params> }) {
   };
 
   return (
-    <div className="w-full bg-background border-b-2 border-border py-2 md:py-6 px-4 md:px-8">
+    <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-4 md:px-8">
       <ProductViewAnalytics productId={params.dsin} />
       <div className="max-w-6xl mx-auto">
         <ProductBasicInfo />
 
         {setsLoading ? (
-          <div className="mt-8 flex justify-center">
+          <div className="mt-4 flex justify-center">
             <Spinner size={24} />
           </div>
         ) : setsError ? (
-          <div className="mt-8 text-destructive">{setsError}</div>
+          <div className="mt-4 text-destructive">{setsError}</div>
         ) : attributeSets.length > 0 ? (
-          <div className="mt-8 space-y-8">
+          <div className="mt-4 space-y-4">
             {attributeSets.map((set) => {
               if (set.code === "specifications") {
                 return (
@@ -843,8 +843,8 @@ export default function Details(props: { params: Promise<Params> }) {
           </div>
         ) : null}
 
-        <div className="mt-8 bg-background rounded">
-          <h2 className="text-lg font-semibold mb-2">Description</h2>
+        <div className="mt-4 bg-background rounded">
+          <h2 className="text-lg font-semibold mb-1">Description</h2>
           {product.long_desc ? (
             <div
               className="prose max-w-none text-foreground"
@@ -857,14 +857,14 @@ export default function Details(props: { params: Promise<Params> }) {
 
         {/* Render related product menus */}
         {menusLoading ? (
-          <div className="mt-8 flex justify-center">
+          <div className="mt-4 flex justify-center">
             <Spinner size={24} />
           </div>
         ) : (
           <RelatedMenusRenderer menus={menus} />
         )}
 
-        <div className="mt-8 bg-background rounded">
+        <div className="mt-4 bg-background rounded">
           <ReviewForm productId={product._id} userId={user?._id} />
           <ExistingReviews reviews={product?.reviews} />
         </div>
