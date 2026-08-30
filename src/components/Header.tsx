@@ -124,7 +124,7 @@ const SearchBarWithAutocomplete = React.memo(
     return (
       <div ref={dropdownRef} className="relative w-full">
         <form
-          className="flex h-9 w-full items-center overflow-hidden rounded-full border border-border bg-background transition-all focus-within:border-transparent focus-within:ring-2 focus-within:ring-ring"
+          className="flex h-10 w-full items-center overflow-hidden rounded-full border border-border bg-background transition-all focus-within:border-transparent focus-within:ring-2 focus-within:ring-ring"
           onSubmit={onSearchSubmit}
           role="search"
         >
@@ -139,7 +139,7 @@ const SearchBarWithAutocomplete = React.memo(
             onFocus={() => {
               if (searchInput.trim().length >= 2) setShowSuggestions(true);
             }}
-            className="h-full flex-1 border-none bg-transparent px-3 py-1.5 text-sm leading-tight text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="h-full flex-1 border-none bg-transparent px-4 py-2 text-base leading-tight text-foreground placeholder:text-muted-foreground focus:outline-none"
             aria-label="Search for products"
             autoComplete="off"
           />
@@ -150,15 +150,15 @@ const SearchBarWithAutocomplete = React.memo(
               className="flex items-center justify-center p-1 text-muted-foreground transition-colors hover:text-foreground"
               aria-label="Clear search"
             >
-              <Close style={{ fontSize: 16 }} />
+              <Close style={{ fontSize: 18 }} />
             </button>
           )}
           <button
             type="submit"
-            className="btn m-0.5 rounded-full bg-primary px-3 py-1 text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            className="btn m-0.5 rounded-full bg-primary px-3.5 py-1.5 text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             aria-label="Submit search"
           >
-            <Search style={{ fontSize: 18 }} />
+            <Search style={{ fontSize: 20 }} />
           </button>
         </form>
 
@@ -240,7 +240,7 @@ const UserProfile = React.memo(() => {
         <SignIn />
       )}
       <span className="text-muted-foreground" aria-hidden="true">
-        <NavigateNext style={{ fontSize: 14 }} />
+        <NavigateNext style={{ fontSize: 16 }} />
       </span>
       <div className="relative">
         {unreadCount > 0 && (
@@ -256,7 +256,7 @@ const UserProfile = React.memo(() => {
           className="rounded-full transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring"
           aria-label="Profile"
         >
-          <Person style={{ fontSize: 24 }} className="text-foreground" />
+          <Person style={{ fontSize: 28 }} className="text-foreground" />
         </Link>
       </div>
     </div>
@@ -285,7 +285,7 @@ const CartIcon = React.memo(() => {
         className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring"
         aria-label="Shopping cart"
       >
-        <ShoppingCart style={{ fontSize: 24 }} className="text-foreground" />
+        <ShoppingCart style={{ fontSize: 28 }} className="text-foreground" />
       </Link>
     </div>
   );
@@ -388,7 +388,7 @@ const Header = () => {
         <li key={item._id} className="inline-block">
           <Link
             href={href}
-            className="block rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition-all duration-200 hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+            className="block rounded-lg px-4 py-2 text-base font-medium text-foreground transition-all duration-200 hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {item.name}
           </Link>
@@ -422,19 +422,19 @@ const Header = () => {
         className="sticky top-0 z-30 border-b border-border bg-background/80 shadow-sm backdrop-blur-md"
         role="banner"
       >
-        <div className="mx-auto max-w-7xl px-2 py-1 sm:px-4 lg:px-6">
-          <div className="flex flex-col gap-y-1">
-            <div className="flex flex-wrap items-center gap-y-1 lg:flex-nowrap lg:gap-x-4">
+        <div className="mx-auto max-w-7xl px-3 py-2 sm:px-4 lg:px-6">
+          <div className="flex flex-col gap-y-2">
+            <div className="flex flex-wrap items-center gap-y-2 lg:flex-nowrap lg:gap-x-5">
               <div className="flex w-full items-center justify-between lg:w-auto lg:flex-none">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={toggleSidebar}
-                    className="rounded-full p-1.5 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-full p-2 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
                     aria-label="Toggle navigation menu"
                   >
                     <Menu
-                      style={{ fontSize: 24 }}
+                      style={{ fontSize: 28 }}
                       className="text-foreground"
                     />
                   </button>
@@ -445,8 +445,8 @@ const Header = () => {
                   >
                     <Image
                       src="/logo.png"
-                      width={50}
-                      height={25}
+                      width={60}
+                      height={30}
                       alt="logo"
                       priority
                       className="h-auto w-auto"
@@ -454,7 +454,7 @@ const Header = () => {
                   </Link>
                 </div>
 
-                <div className="flex items-center gap-2 lg:hidden">
+                <div className="flex items-center gap-3 lg:hidden">
                   <UserProfile />
                   <CartIcon />
                 </div>
@@ -469,7 +469,7 @@ const Header = () => {
                 />
               </div>
 
-              <div className="hidden flex-none items-center gap-2 lg:flex">
+              <div className="hidden flex-none items-center gap-3 lg:flex">
                 <UserProfile />
                 <CartIcon />
               </div>
@@ -478,7 +478,7 @@ const Header = () => {
             <div
               className={`w-full overflow-hidden transition-all duration-300 ${
                 isNavigationVisible
-                  ? "max-h-12 translate-y-0 opacity-100 pt-0.5"
+                  ? "max-h-14 translate-y-0 opacity-100 pt-0.5"
                   : "max-h-0 -translate-y-1 opacity-0"
               }`}
             >
