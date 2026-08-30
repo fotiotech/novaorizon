@@ -127,14 +127,20 @@ async function resolveCollectionItems(collectionId: string) {
       default:
         rawItems = [];
     }
-    // Normalise – all recommendation functions return Product documents
-    return rawItems.map((item: any) => ({
-      _id: item._id.toString(),
-      name: item.title || item.name || "Unnamed",
-      image: item?.main_image || item.image || item.imageUrl || null,
-      price: item.sale_price || "Unnamed",
-      contentType: "Product",
-    }));
+
+    // Normalise – explicitly extract main_image
+    return rawItems.map((item: any) => {
+      // Explicitly check for main_image first
+      const image = item.main_image || item.image || item.imageUrl || null;
+
+      return {
+        _id: item._id.toString(),
+        name: item.title || item.name || "Unnamed",
+        image: image,
+        price: item.sale_price || item.price || null,
+        contentType: "Product",
+      };
+    });
   }
 
   // ---------- RULE & MANUAL ----------
