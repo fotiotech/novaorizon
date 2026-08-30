@@ -13,6 +13,7 @@ import {
   getTrendingItems,
   getRecommendations,
   getRecentlyViewed,
+  getRelatedProducts,
 } from "./events"; // 👈 recommendation functions
 
 // ---------- Helper: get model by targetType ----------
@@ -165,6 +166,9 @@ export async function getCollectionsWithProducts() {
           contentType: "Product",
           // keep other product fields as needed
         }));
+      } else if (collection.type === "related") {
+        // Related collections require a product context and cannot be previewed globally.
+        matchingItems = [];
       } else {
         // manual
         matchingItems = collection.items || [];
@@ -190,6 +194,7 @@ export async function getCollectionsWithProducts() {
         },
         items: matchingItems,
         itemCount: matchingItems.length,
+        requiresProductContext: collection.type === "related",
       });
     }
 
@@ -210,7 +215,7 @@ export async function createCollection(formData: FormData) {
     const imageUrl = formData.get("imageUrl") as string;
     const status = formData.get("status") as string;
     const type = (formData.get("type") as string) || "rule";
-    const targetType = (formData.get("targetType") as string) || "Product";
+    let targetType = (formData.get("targetType") as string) || "Product";
     const rulesJson = formData.get("rules") as string;
     const itemsJson = formData.get("items") as string;
     const order = parseInt(formData.get("order") as string) || 0;
@@ -226,8 +231,11 @@ export async function createCollection(formData: FormData) {
       return { success: false, error: "Name is required" };
     }
 
-    if (!["rule", "manual", "recommendation"].includes(type)) {
+    if (!["rule", "manual", "recommendation", "related"].includes(type)) {
       return { success: false, error: "Invalid collection type" };
+    }
+    if (["recommendation", "related"].includes(type)) {
+      targetType = "Product";
     }
     const validTargets = [
       "Category",
@@ -241,7 +249,7 @@ export async function createCollection(formData: FormData) {
       return { success: false, error: "Invalid target type" };
     }
 
-    // Validate recommendation config
+    // Validate dynamic product collection configuration
     if (type === "recommendation") {
       if (
         !["trending", "personalized", "recentlyViewed"].includes(
@@ -250,16 +258,12 @@ export async function createCollection(formData: FormData) {
       ) {
         return { success: false, error: "Invalid recommendation type" };
       }
-      if (recommendationLimit < 1) {
-        return {
-          success: false,
-          error: "Recommendation limit must be at least 1",
-        };
-      }
-      // (Optional) enforce targetType = Product because recommendation functions return products
-      // if (targetType !== "Product") {
-      //   return { success: false, error: "Recommendation collections only support Product target type" };
-      // }
+    }
+    if (["recommendation", "related"].includes(type) && recommendationLimit < 1) {
+      return {
+        success: false,
+        error: "Collection item limit must be at least 1",
+      };
     }
 
     let rules = [];
@@ -333,7 +337,9 @@ export async function createCollection(formData: FormData) {
       recommendationType:
         type === "recommendation" ? recommendationType : undefined,
       recommendationLimit:
-        type === "recommendation" ? recommendationLimit : undefined,
+        type === "recommendation" || type === "related"
+          ? recommendationLimit
+          : undefined,
     });
 
     await collection.save();
@@ -362,7 +368,7 @@ export async function updateCollection(id: string, formData: FormData) {
     const imageUrl = formData.get("imageUrl") as string;
     const status = formData.get("status") as string;
     const type = formData.get("type") as string;
-    const targetType = formData.get("targetType") as string;
+    let targetType = formData.get("targetType") as string;
     const rulesJson = formData.get("rules") as string;
     const itemsJson = formData.get("items") as string;
     const order = parseInt(formData.get("order") as string) || 0;
@@ -373,8 +379,11 @@ export async function updateCollection(id: string, formData: FormData) {
       parseInt(formData.get("recommendationLimit") as string) || 10;
 
     if (!name?.trim()) return { success: false, error: "Name is required" };
-    if (!["rule", "manual", "recommendation"].includes(type)) {
+    if (!["rule", "manual", "recommendation", "related"].includes(type)) {
       return { success: false, error: "Invalid collection type" };
+    }
+    if (["recommendation", "related"].includes(type)) {
+      targetType = "Product";
     }
     const validTargets = [
       "Category",
@@ -396,12 +405,12 @@ export async function updateCollection(id: string, formData: FormData) {
       ) {
         return { success: false, error: "Invalid recommendation type" };
       }
-      if (recommendationLimit < 1) {
-        return {
-          success: false,
-          error: "Recommendation limit must be at least 1",
-        };
-      }
+    }
+    if (["recommendation", "related"].includes(type) && recommendationLimit < 1) {
+      return {
+        success: false,
+        error: "Collection item limit must be at least 1",
+      };
     }
 
     let rules = [];
@@ -478,7 +487,9 @@ export async function updateCollection(id: string, formData: FormData) {
       recommendationType:
         type === "recommendation" ? recommendationType : undefined,
       recommendationLimit:
-        type === "recommendation" ? recommendationLimit : undefined,
+        type === "recommendation" || type === "related"
+          ? recommendationLimit
+          : undefined,
       updated_at: new Date(),
     };
 
@@ -505,7 +516,10 @@ export async function updateCollection(id: string, formData: FormData) {
 }
 
 // ---------- Get collection by ID (with resolved items) ----------
-export async function getCollectionById(id: string) {
+export async function getCollectionById(
+  id: string,
+  context?: { productId?: string },
+) {
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return { success: false, error: "Invalid collection ID" };
@@ -541,6 +555,13 @@ export async function getCollectionById(id: string) {
         title: item.title || item.name || "Unnamed",
         // ... other fields
       }));
+    } else if (collection.type === "related") {
+      resolvedItems = context?.productId
+        ? await getRelatedProducts(
+            context.productId,
+            collection.recommendationLimit || 10,
+          )
+        : [];
     } else {
       // For rule/manual, use populated items (already done via populate)
       resolvedItems = collection.items || [];

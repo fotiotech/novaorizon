@@ -66,7 +66,7 @@ CollectionSchema.pre("save", function (next) {
   next();
 });
 
-CollectionSchema.index({ name: 1 });
+CollectionSchema.index({ name: 1 }, { unique: true });
 CollectionSchema.index({ status: 1 });
 CollectionSchema.index({ "rules.attribute": 1 });
 CollectionSchema.index({ targetType: 1 });
