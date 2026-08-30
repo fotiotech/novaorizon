@@ -168,12 +168,8 @@ const SpecificationTable: React.FC<{
     if (!hasAttributes && !hasChildren) return null;
 
     return (
-      <div key={group.id} className={`${level > 0 ? "ml-4 mt-2" : "mb-3"}`}>
-        <h3
-          className={`font-semibold ${level === 0 ? "text-lg" : "text-md"} mb-1`}
-        >
-          {group.name}
-        </h3>
+      <div key={group.id} className={``}>
+        <h3 className={`font-semibold text-neutral-600 mb-1`}>{group.name}</h3>
         {hasAttributes && (
           <table className="min-w-full border-collapse border border-border">
             <tbody>
@@ -341,10 +337,10 @@ const VariantCard: React.FC<{
   return (
     <div
       onClick={() => onSelect(variant)}
-      className={`min-w-[100px] max-w-[130px] flex-shrink-0 border-2 rounded-lg p-1 bg-background shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col ${
+      className={`min-w-[100px] max-w-[130px] flex-shrink-0 border rounded-lg p-1 bg-background hover:shadow-md transition-all cursor-pointer flex flex-col ${
         isActive
           ? "border-primary ring-2 ring-primary/20"
-          : "border-border hover:border-primary/50"
+          : " hover:border-primary/50"
       }`}
     >
       {themeKeys.length > 0 && (
@@ -372,7 +368,7 @@ const VariantCard: React.FC<{
         </div>
       )}
       <div className="mt-0.5 w-full">
-        <div className="font-semibold text-sm text-primary">
+        <div className="font-semibold text-xs text-primary">
           {typeof price === "number" ? `${price} CFA` : "Price unavailable"}
         </div>
       </div>
