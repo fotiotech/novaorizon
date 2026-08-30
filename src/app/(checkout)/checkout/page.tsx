@@ -58,6 +58,9 @@ const CheckoutPage = () => {
   const [roomId, setRoomId] = useState<string>("");
   const [orderNumber, setOrderNumber] = useState<string>("");
   const [processing, setProcessing] = useState<boolean>(false);
+  const [processingAction, setProcessingAction] = useState<
+    "pay-now" | "cash-on-delivery" | null
+  >(null);
 
   // ---------- Carrier & shipping state ----------
   const [selectedCarrierId, setSelectedCarrierId] = useState<string>("");
@@ -297,6 +300,7 @@ const CheckoutPage = () => {
     if (processingRef.current) return;
     processingRef.current = true;
     setProcessing(true);
+    setProcessingAction("pay-now");
 
     let finalOrderNumber = orderNumber;
     if (!finalOrderNumber) {
@@ -319,6 +323,7 @@ const CheckoutPage = () => {
       );
       processingRef.current = false;
       setProcessing(false);
+      setProcessingAction(null);
       return;
     }
 
@@ -326,6 +331,7 @@ const CheckoutPage = () => {
       toast.error("Selected payment method not found. Please choose again.");
       processingRef.current = false;
       setProcessing(false);
+      setProcessingAction(null);
       return;
     }
 
@@ -351,6 +357,7 @@ const CheckoutPage = () => {
     } finally {
       processingRef.current = false;
       setProcessing(false);
+      setProcessingAction(null);
     }
   };
 
@@ -358,6 +365,7 @@ const CheckoutPage = () => {
     if (processingRef.current) return;
     processingRef.current = true;
     setProcessing(true);
+    setProcessingAction("cash-on-delivery");
 
     let finalOrderNumber = orderNumber;
     if (!finalOrderNumber) {
@@ -380,6 +388,7 @@ const CheckoutPage = () => {
       );
       processingRef.current = false;
       setProcessing(false);
+      setProcessingAction(null);
       return;
     }
 
@@ -399,6 +408,7 @@ const CheckoutPage = () => {
     } finally {
       processingRef.current = false;
       setProcessing(false);
+      setProcessingAction(null);
     }
   };
 
@@ -622,7 +632,12 @@ const CheckoutPage = () => {
             {/* Action Buttons */}
             <div className="space-y-3">
               <button
-                onClick={handlePayNow}
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handlePayNow();
+                }}
                 disabled={
                   !selectedAddressId ||
                   !selectedPaymentMethodId ||
@@ -633,11 +648,16 @@ const CheckoutPage = () => {
                 }
                 className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50 transition shadow-sm"
               >
-                {processing ? "Processing..." : "Pay Now"}
+                {processingAction === "pay-now" ? "Processing..." : "Pay Now"}
               </button>
 
               <button
-                onClick={handleCashOnDelivery}
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleCashOnDelivery();
+                }}
                 disabled={
                   !selectedAddressId ||
                   items.length === 0 ||
@@ -647,7 +667,9 @@ const CheckoutPage = () => {
                 }
                 className="w-full bg-secondary text-secondary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-secondary/90 disabled:opacity-50 transition shadow-sm"
               >
-                {processing ? "Placing order..." : "Cash on Delivery"}
+                {processingAction === "cash-on-delivery"
+                  ? "Placing order..."
+                  : "Cash on Delivery"}
               </button>
             </div>
 

@@ -58,11 +58,7 @@ export default async function MenuRenderer({
   const { success, data, error } = await getMenusByLocation(location, context);
 
   if (!success || !data || data.length === 0) {
-    return (
-      <div className="text-gray-500 p-4 text-center">
-        No menus found for location: <strong>{location}</strong>
-      </div>
-    );
+    return <div className="text-gray-500 p-4 text-center" />;
   }
 
   return (
