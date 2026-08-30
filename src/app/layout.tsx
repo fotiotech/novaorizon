@@ -105,16 +105,14 @@ export default function RootLayout({
         </noscript>
 
         <Providers>
-          <Suspense fallback={<Loading />}>
-            <PageViewTracker />
-            <div className="flex flex-col min-h-screen">
-              <Header />
-
-              <div className="flex-1 ">{children}</div>
-
-              <Footer />
-            </div>
-          </Suspense>
+          <PageViewTracker />
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <Suspense fallback={<Loading />}>
+              <main className="flex-1">{children}</main>
+            </Suspense>
+            <Footer />
+          </div>
         </Providers>
       </body>
     </html>

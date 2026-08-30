@@ -13,6 +13,7 @@ import {
   Person,
   Search,
   ShoppingCart,
+  Close,
 } from "@mui/icons-material";
 import Image from "next/image";
 import Link from "next/link";
@@ -83,6 +84,13 @@ const SearchBarWithAutocomplete = React.memo(
       fetchSuggestions(val);
     };
 
+    const handleClear = () => {
+      setSearchInput("");
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      inputRef.current?.focus();
+    };
+
     const handleSuggestionClick = (suggestion: any) => {
       setSearchInput(suggestion.title);
       setShowSuggestions(false);
@@ -116,12 +124,12 @@ const SearchBarWithAutocomplete = React.memo(
     return (
       <div ref={dropdownRef} className="relative w-full">
         <form
-          className="flex items-center h-9 bg-background rounded-full overflow-hidden border border-border focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-all w-full"
+          className="flex h-9 w-full items-center overflow-hidden rounded-full border border-border bg-background transition-all focus-within:border-transparent focus-within:ring-2 focus-within:ring-ring"
           onSubmit={onSearchSubmit}
+          role="search"
         >
           <input
             ref={inputRef}
-            title="search"
             type="text"
             name="searchInput"
             value={searchInput}
@@ -131,12 +139,24 @@ const SearchBarWithAutocomplete = React.memo(
             onFocus={() => {
               if (searchInput.trim().length >= 2) setShowSuggestions(true);
             }}
-            className="flex-1 h-full bg-transparent py-1.5 focus:outline-none border-none px-3 leading-tight text-foreground placeholder:text-muted-foreground text-sm"
+            className="h-full flex-1 border-none bg-transparent px-3 py-1.5 text-sm leading-tight text-foreground placeholder:text-muted-foreground focus:outline-none"
+            aria-label="Search for products"
+            autoComplete="off"
           />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="flex items-center justify-center p-1 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <Close style={{ fontSize: 16 }} />
+            </button>
+          )}
           <button
             type="submit"
-            title="Search"
-            className="btn py-1 px-3 m-0.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="btn m-0.5 rounded-full bg-primary px-3 py-1 text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            aria-label="Submit search"
           >
             <Search style={{ fontSize: 18 }} />
           </button>
@@ -145,7 +165,8 @@ const SearchBarWithAutocomplete = React.memo(
         {showSuggestions && searchInput.trim().length >= 2 && (
           <div
             ref={suggestionsRef}
-            className="absolute top-10 left-0 right-0 z-50 mt-1 bg-background border border-border rounded-xl shadow-2xl max-h-72 overflow-y-auto py-2"
+            className="absolute left-0 right-0 top-10 z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-border bg-background py-2 shadow-2xl"
+            role="listbox"
           >
             {isLoadingSuggestions ? (
               <div className="px-4 py-2 text-sm text-muted-foreground">
@@ -161,19 +182,21 @@ const SearchBarWithAutocomplete = React.memo(
                   key={suggestion._id}
                   onClick={() => handleSuggestionClick(suggestion)}
                   onMouseEnter={() => handleSuggestionHover(index)}
-                  className={`w-full text-left px-4 py-2 flex items-center gap-3 transition-colors ${
+                  className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors ${
                     index === selectedIndex
                       ? "bg-primary/10 text-primary"
-                      : "hover:bg-muted/50 text-foreground"
+                      : "text-foreground hover:bg-muted/50"
                   }`}
+                  role="option"
+                  aria-selected={index === selectedIndex}
                 >
                   {suggestion.main_image && (
-                    <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                    <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-md bg-muted">
                       <ImageRenderer image={suggestion.main_image} />
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
                       {suggestion.title}
                     </p>
                     {suggestion.list_price != null && (
@@ -195,6 +218,7 @@ const SearchBarWithAutocomplete = React.memo(
     );
   },
 );
+
 SearchBarWithAutocomplete.displayName = "SearchBarWithAutocomplete";
 
 // ---------- UserProfile ----------
@@ -208,29 +232,37 @@ const UserProfile = React.memo(() => {
       {user ? (
         <Link
           href="/profile"
-          className="text-foreground hover:text-primary transition-colors text-sm"
+          className="rounded-md text-sm text-foreground transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <span className="hidden sm:inline">{user?.name}</span>
         </Link>
       ) : (
         <SignIn />
       )}
-      <span className="text-muted-foreground">
+      <span className="text-muted-foreground" aria-hidden="true">
         <NavigateNext style={{ fontSize: 14 }} />
       </span>
       <div className="relative">
         {unreadCount > 0 && (
-          <p className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center leading-5">
+          <span
+            className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-destructive px-1.5 text-center text-[10px] font-bold leading-5 text-destructive-foreground"
+            aria-label={`${unreadCount} unread messages`}
+          >
             {unreadCount}
-          </p>
+          </span>
         )}
-        <Link href="/profile" className="hover:scale-110 transition-transform">
+        <Link
+          href="/profile"
+          className="rounded-full transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-label="Profile"
+        >
           <Person style={{ fontSize: 24 }} className="text-foreground" />
         </Link>
       </div>
     </div>
   );
 });
+
 UserProfile.displayName = "UserProfile";
 
 // ---------- CartIcon ----------
@@ -239,18 +271,26 @@ const CartIcon = React.memo(() => {
   const itemCount = items?.length ?? 0;
 
   return (
-    <div className="relative hover:scale-110 transition-transform">
+    <div className="relative transition-transform hover:scale-110">
       {itemCount > 0 && (
-        <p className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center leading-5">
+        <span
+          className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-destructive px-1.5 text-center text-[10px] font-bold leading-5 text-destructive-foreground"
+          aria-label={`${itemCount} items in cart`}
+        >
           {itemCount}
-        </p>
+        </span>
       )}
-      <Link href="/cart">
+      <Link
+        href="/cart"
+        className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring"
+        aria-label="Shopping cart"
+      >
         <ShoppingCart style={{ fontSize: 24 }} className="text-foreground" />
       </Link>
     </div>
   );
 });
+
 CartIcon.displayName = "CartIcon";
 
 // ---------- Helper ----------
@@ -260,6 +300,7 @@ function getItemHref(item: { _id: string; name: string; contentType: string }) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   const prefix = item.contentType.toLowerCase() + "s";
+
   return `/${prefix}/${slug}/${item._id}`;
 }
 
@@ -273,28 +314,25 @@ const Header = () => {
     Array<{ _id: string; name: string; contentType: string }>
   >([]);
   const [sidebarMenus, setSidebarMenus] = useState<any[]>([]);
-
-  // Scroll hiding state
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      // If scrolling down and past threshold, hide; else show
+
       if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
         setIsHeaderVisible(false);
       } else {
         setIsHeaderVisible(true);
       }
+
       lastScrollY.current = currentScrollY;
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const sidebarRef = useClickOutside(() => setIsSidebarOpen(false));
 
   useEffect(() => {
     async function fetchData() {
@@ -305,6 +343,7 @@ const Header = () => {
         const navBarMenusRes = await getMenusByLocation("NavBar");
         if (navBarMenusRes.success && navBarMenusRes.data.length > 0) {
           const firstMenu = navBarMenusRes.data[0];
+
           if (firstMenu.items && firstMenu.items.length > 0) {
             setNavItems(
               firstMenu.items.map((item: any) => ({
@@ -344,11 +383,12 @@ const Header = () => {
         item.contentType === "Category"
           ? (item as any).href
           : getItemHref(item as any);
+
       return (
         <li key={item._id} className="inline-block">
           <Link
             href={href}
-            className="block px-3 py-1.5 text-sm font-medium text-foreground hover:text-primary hover:bg-muted rounded-lg transition-all duration-200"
+            className="block rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition-all duration-200 hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {item.name}
           </Link>
@@ -360,6 +400,7 @@ const Header = () => {
   const handleSearchSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+
       if (searchInput.trim()) {
         router.push(`/search?query=${encodeURIComponent(searchInput)}`);
       }
@@ -378,64 +419,71 @@ const Header = () => {
   return (
     <>
       <header
-        className={`sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border shadow-sm transition-transform duration-300 ${
+        className={`sticky top-0 z-30 border-b border-border bg-background/80 shadow-sm backdrop-blur-md transition-transform duration-300 ${
           isHeaderVisible ? "translate-y-0" : "-translate-y-full"
         }`}
+        role="banner"
       >
-        <div className="px-4 lg:px-8 py-1.5">
-          {/* Grid layout: on mobile, first row = logo + actions, second row = search, third row = nav */}
-          {/* On large screens, logo, search, actions in one row, nav below */}
-          <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr,auto] gap-y-2 lg:gap-x-4 items-center">
-            {/* Left section: Menu + Logo on all screens, Actions hidden on large */}
-            <div className="flex items-center justify-between lg:justify-start">
-              <div className="flex items-center gap-2">
-                <button
-                  title="Toggle sidebar"
-                  type="button"
-                  onClick={toggleSidebar}
-                  className="hover:bg-muted p-1.5 rounded-full transition-colors"
-                >
-                  <Menu style={{ fontSize: 24 }} className="text-foreground" />
-                </button>
-                <Link href="/" className="flex-shrink-0">
-                  <Image
-                    src="/logo.png"
-                    width={50}
-                    height={25}
-                    alt="logo"
-                    priority
-                    className="h-auto w-auto"
-                  />
-                </Link>
+        <div className="mx-auto max-w-7xl px-2 py-1 sm:px-4 lg:px-6">
+          <div className="flex flex-col gap-y-1">
+            <div className="flex flex-wrap items-center gap-y-1 lg:flex-nowrap lg:gap-x-4">
+              <div className="flex w-full items-center justify-between lg:w-auto lg:flex-none">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    className="rounded-full p-1.5 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                    aria-label="Toggle navigation menu"
+                  >
+                    <Menu
+                      style={{ fontSize: 24 }}
+                      className="text-foreground"
+                    />
+                  </button>
+                  <Link
+                    href="/"
+                    className="flex-shrink-0 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                    aria-label="Homepage"
+                  >
+                    <Image
+                      src="/logo.png"
+                      width={50}
+                      height={25}
+                      alt="logo"
+                      priority
+                      className="h-auto w-auto"
+                    />
+                  </Link>
+                </div>
+
+                <div className="flex items-center gap-2 lg:hidden">
+                  <UserProfile />
+                  <CartIcon />
+                </div>
               </div>
-              {/* Show actions on mobile only (they'll be hidden on large) */}
-              <div className="flex items-center gap-2 lg:hidden">
+
+              {/* Full width on mobile; fills all available desktop space. */}
+              <div className="order-2 w-full min-w-0 lg:order-none lg:flex-1">
+                <SearchBarWithAutocomplete
+                  searchInput={searchInput}
+                  setSearchInput={setSearchInput}
+                  onSearchSubmit={handleSearchSubmit}
+                />
+              </div>
+
+              <div className="hidden flex-none items-center gap-2 lg:flex">
                 <UserProfile />
                 <CartIcon />
               </div>
             </div>
 
-            {/* Center: Search bar - always visible, full width on mobile, flex-1 on large */}
-            <div className="w-full">
-              <SearchBarWithAutocomplete
-                searchInput={searchInput}
-                setSearchInput={setSearchInput}
-                onSearchSubmit={handleSearchSubmit}
-              />
+            <div className="w-full overflow-x-auto border-border pt-0.5 scrollbar-none">
+              <nav aria-label="Main navigation">
+                <ul className="flex items-center gap-0.5 whitespace-nowrap">
+                  {navigationItems}
+                </ul>
+              </nav>
             </div>
-
-            {/* Right section: Actions on large screens only */}
-            <div className="hidden lg:flex items-center gap-2 justify-end">
-              <UserProfile />
-              <CartIcon />
-            </div>
-          </div>
-
-          {/* Navigation bar - always below */}
-          <div className="border-border pt-0.5 overflow-x-auto scrollbar-none mt-1">
-            <ul className="flex items-center gap-0.5 whitespace-nowrap">
-              {navigationItems}
-            </ul>
           </div>
         </div>
       </header>
