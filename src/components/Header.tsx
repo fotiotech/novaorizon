@@ -424,13 +424,13 @@ const Header = () => {
       >
         <div className="mx-auto max-w-7xl px-3 py-2 sm:px-4 lg:px-6">
           <div className="flex flex-col gap-y-2">
-            <div className="flex flex-wrap items-center gap-y-2 lg:flex-nowrap lg:gap-x-5">
+            <div className="flex flex-wrap items-center lg:flex-nowrap lg:gap-x-5">
               <div className="flex w-full items-center justify-between lg:w-auto lg:flex-none">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={toggleSidebar}
-                  className="rounded-full p-2 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="rounded-full p-2 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
                     aria-label="Toggle navigation menu"
                   >
                     <Menu
@@ -478,7 +478,7 @@ const Header = () => {
             <div
               className={`w-full overflow-hidden transition-all duration-300 ${
                 isNavigationVisible
-                  ? "max-h-14 translate-y-0 opacity-100 pt-0.5"
+                  ? "max-h-14 translate-y-0 opacity-100"
                   : "max-h-0 -translate-y-1 opacity-0"
               }`}
             >

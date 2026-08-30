@@ -30,12 +30,12 @@ const CartPage = () => {
         </div>
 
         {/* Cart items */}
-        <div className="bg-background rounded-lg border border-border shadow-sm p-4 md:p-6">
+        <div className="bg-background rounded-lg py-4 md:p-6">
           <Cart />
         </div>
 
         {/* Checkout footer */}
-        <div className="mt-6 bg-background border border-border rounded-lg p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-6 bg-background rounded-lg py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-sm text-muted-foreground">
             {/* Optional: display subtotal if available, but we'll keep it simple */}
             <p>Ready to place your order?</p>

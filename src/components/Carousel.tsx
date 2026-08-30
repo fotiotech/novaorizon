@@ -78,7 +78,7 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
             key={item._id}
             className="carousel-slide flex-shrink-0 snap-start w-[40%] sm:w-[45%] md:w-[30%] lg:w-[22%] p-1"
           >
-            <div className="bg-white rounded shadow overflow-hidden">
+            <div className="bg-white rounded overflow-hidden">
               {showImages && item.image && (
                 <div className="relative w-full aspect-square bg-gray-100">
                   <img
@@ -89,7 +89,7 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
                   />
                 </div>
               )}
-              <div className="p-2">
+              <div className="py-2">
                 <Link
                   href={getItemHref(item)}
                   className="block hover:underline"
