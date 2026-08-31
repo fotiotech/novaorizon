@@ -447,8 +447,8 @@ const Header = () => {
                   >
                     <Image
                       src="/logo.png"
-                      width={60}
-                      height={60}
+                      width={100}
+                      height={100}
                       alt="logo"
                       priority
                       className="h-auto w-auto"
@@ -463,7 +463,7 @@ const Header = () => {
               </div>
 
               {/* Full width on mobile; fills all available desktop space. */}
-              <div className="order-2 w-full min-w-0 lg:order-none lg:flex-1">
+              <div className="order-2 w-full min-w-0 lg:order-none lg:flex-1 lg:mx-20">
                 <SearchBarWithAutocomplete
                   searchInput={searchInput}
                   setSearchInput={setSearchInput}
