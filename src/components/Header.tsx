@@ -318,25 +318,6 @@ const Header = () => {
   const lastScrollY = useRef(0);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const scrollDelta = currentScrollY - lastScrollY.current;
-
-      // Hide only after scrolling down more than 80px; show immediately when scrolling up
-      if (scrollDelta > 80 && currentScrollY > 100) {
-        setIsNavigationVisible(false);
-      } else if (scrollDelta < 0) {
-        setIsNavigationVisible(true);
-      }
-
-      lastScrollY.current = currentScrollY;
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
     async function fetchData() {
       try {
         const categoriesRes = await getCategory();
