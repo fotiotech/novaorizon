@@ -13,9 +13,13 @@ export interface CartItemInput {
   quantity: number;
 }
 
-// Helper to calculate totals
-// Helper to calculate totals
+function getProductQuantity(product: any) {
+  return Number(
+    product?.quantity ?? product?.stock_quantity ?? product?.stockQuantity ?? 0,
+  );
+}
 
+// Helper to calculate totals
 async function recalculateCart(cart: any) {
   const itemTotals = cart.items.map((item: any) => ({
     ...item,
@@ -94,15 +98,20 @@ export async function addToCart(
   const { userId, sessionId } = identifier;
   if (!userId && !sessionId) throw new Error("No identifier provided");
 
-  // Validate product exists and get current price
+  if (input.quantity <= 0) {
+    throw new Error("Quantity must be greater than zero");
+  }
+
   const product: any = await Product.findById(input.productId)
-    .select("list_price title")
+    .select(
+      "list_price title quantity stock_quantity stockQuantity lowStockThreshold low_stock_threshold",
+    )
     .lean();
   if (!product) throw new Error("Product not found");
 
+  const availableQty = getProductQuantity(product);
   const price = product.list_price;
 
-  // Find or create cart
   let cart: any = await Cart.findOne({
     ...(userId ? { userId } : { sessionId }),
   });
@@ -113,6 +122,21 @@ export async function addToCart(
       sessionId: sessionId || undefined,
       items: [],
     });
+  }
+
+  const currentQtyInCart = cart.items.reduce((sum: number, item: any) => {
+    if (item.productId.toString() !== input.productId) return sum;
+    if ((item.variant || null) !== (input.variant || null)) return sum;
+    return sum + Number(item.quantity || 0);
+  }, 0);
+
+  if (availableQty < currentQtyInCart + input.quantity) {
+    const remaining = Math.max(0, availableQty - currentQtyInCart);
+    throw new Error(
+      remaining > 0
+        ? `Only ${remaining} unit${remaining > 1 ? "s" : ""} available in stock.`
+        : "Insufficient stock available.",
+    );
   }
 
   // Check if item already exists (by productId and variant)
@@ -162,9 +186,23 @@ export async function updateCartItem(
 
   const item = cart.items.id(itemId);
   if (!item) throw new Error("Item not found");
+
   if (quantity <= 0) {
     cart.items.pull(itemId);
   } else {
+    const product: any = await Product.findById(item.productId)
+      .select(
+        "quantity stock_quantity stockQuantity lowStockThreshold low_stock_threshold",
+      )
+      .lean();
+    const availableQty = getProductQuantity(product || {});
+
+    if (quantity > availableQty) {
+      throw new Error(
+        `Only ${availableQty} unit${availableQty > 1 ? "s" : ""} available in stock.`,
+      );
+    }
+
     item.quantity = quantity;
   }
 

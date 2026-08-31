@@ -1,6 +1,9 @@
 "use server";
+import mongoose from "mongoose";
 import { connection } from "@/utils/connection";
 import Order, { OrderDocument } from "@/models/Order";
+import Product from "@/models/Product";
+import Invoice from "@/models/Invoice";
 import { revalidatePath } from "next/cache";
 import Shipping from "@/models/Shipping";
 import Transaction from "@/models/Transaction";
@@ -163,6 +166,50 @@ export async function updateOrderStatus(
     }
 
     // If paymentStatus becomes "refunded", create a refund transaction
+    // If paymentStatus becomes "paid", create an invoice
+    if (updates.paymentStatus === "paid") {
+      try {
+        const existingInvoice = await Invoice.findOne({
+          orderNumber: order.orderNumber,
+        }).lean();
+        if (!existingInvoice) {
+          const year = new Date().getFullYear();
+          const random = Math.random()
+            .toString(36)
+            .substring(2, 8)
+            .toUpperCase();
+          const invoiceNumber = `INV-${year}-${random}`;
+          await Invoice.create({
+            invoiceNumber,
+            orderNumber: order.orderNumber,
+            orderId: order._id,
+            userId: order.userId,
+            email: order.email,
+            firstName: order.firstName,
+            lastName: order.lastName,
+            products: order.products,
+            subtotal: order.subtotal,
+            tax: order.tax,
+            shippingCost: order.shippingCost,
+            discount: order.discount,
+            total: order.total,
+            billingAddress: order.billingAddress,
+            shippingAddress: order.shippingAddress,
+            paymentMethod: order.paymentMethod,
+            notes: order.notes,
+            status: "paid",
+            issuedAt: new Date(),
+            paidAt: new Date(),
+          });
+        }
+      } catch (invoiceError) {
+        console.error(
+          "[updateOrderStatus] Error creating invoice:",
+          invoiceError,
+        );
+      }
+    }
+
     if (updates.paymentStatus === "refunded") {
       try {
         const refundTransaction = new Transaction({
@@ -185,7 +232,7 @@ export async function updateOrderStatus(
     }
 
     // Revalidate relevant paths
-    revalidatePath("/sales/orders");
+    revalidatePath("/profile/myorders");
     // Optionally revalidate carrier detail pages (if we know the carrier, but it's not in scope)
     // The client will refresh via router.refresh()
 
@@ -193,6 +240,117 @@ export async function updateOrderStatus(
   } catch (error: any) {
     console.error("[updateOrderStatus] Error:", error.message);
     return { success: false, error: error.message };
+  }
+}
+
+function getProductQuantity(product: any) {
+  return Number(
+    product?.quantity ?? product?.stock_quantity ?? product?.stockQuantity ?? 0,
+  );
+}
+
+async function syncInventoryFromOrder(
+  order: any,
+  action: "deduct" | "restore" = "deduct",
+) {
+  if (!order?.products || !Array.isArray(order.products)) return;
+
+  for (const item of order.products) {
+    const productId = item.productId?.toString?.() || item.productId;
+    if (!productId) continue;
+
+    const product = await Product.findById(productId);
+    if (!product) continue;
+
+    const currentQty = getProductQuantity(product);
+    const requestedQty = Number(item.quantity || 0);
+
+    if (action === "deduct") {
+      if (requestedQty > currentQty) {
+        throw new Error(
+          `Insufficient stock for ${product.title || "one of the items"}. Only ${currentQty} available.`,
+        );
+      }
+
+      const nextQty = Math.max(0, currentQty - requestedQty);
+      product.quantity = nextQty;
+      product.stock_quantity = nextQty;
+      product.stockQuantity = nextQty;
+
+      if (nextQty <= 0) {
+        product.stockStatus = "out_of_stock";
+        product.stock_status = "out_of_stock";
+      } else if (
+        nextQty <=
+        Number(product.lowStockThreshold ?? product.low_stock_threshold ?? 10)
+      ) {
+        product.stockStatus = "low_stock";
+        product.stock_status = "low_stock";
+      } else {
+        product.stockStatus = "in_stock";
+        product.stock_status = "in_stock";
+      }
+
+      product.lastInventoryUpdate = new Date();
+      product.last_inventory_update = product.lastInventoryUpdate;
+      await product.save();
+    }
+  }
+}
+
+export async function requestReturn(
+  orderNumber: string,
+  reason: string,
+): Promise<{ success: boolean; error?: string; order?: any }> {
+  await connection();
+
+  if (!orderNumber) {
+    return { success: false, error: "Order number is required." };
+  }
+
+  try {
+    const order = await Order.findOne({ orderNumber });
+    if (!order) {
+      return { success: false, error: "Order not found." };
+    }
+
+    if (order.paymentStatus !== "paid") {
+      return {
+        success: false,
+        error: "Only paid orders can be returned or refunded.",
+      };
+    }
+
+    if (
+      ["returned", "return_requested", "cancelled"].includes(order.orderStatus)
+    ) {
+      return {
+        success: false,
+        error:
+          "This order already has a return request or has already been returned.",
+      };
+    }
+
+    const updated = await Order.findOneAndUpdate(
+      { orderNumber },
+      {
+        $set: {
+          orderStatus: "return_requested",
+          returnReason: reason || "Customer requested a return.",
+          returnRequestedAt: new Date(),
+        },
+      },
+      { new: true },
+    );
+
+    revalidatePath("/profile/myorders");
+    return { success: true, order: updated?.toObject() };
+  } catch (error: any) {
+    console.error("[requestReturn] Error:", error);
+    return {
+      success: false,
+      error: error.message || "Unable to request return.",
+    };
   }
 }
 
@@ -263,6 +421,10 @@ export async function createOrUpdateOrder(
   };
 
   try {
+    const existingOrder = await Order.findOne({
+      orderNumber: payment_ref,
+    }).lean();
+
     const savedOrder = await Order.findOneAndUpdate(
       { orderNumber: payment_ref },
       payload,
@@ -274,7 +436,47 @@ export async function createOrUpdateOrder(
       },
     );
 
-    // ✅ Convert Mongoose document to plain object to avoid circular JSON serialization
+    if (
+      payload.paymentStatus === "paid" &&
+      (!existingOrder || existingOrder.paymentStatus !== "paid")
+    ) {
+      await syncInventoryFromOrder(savedOrder.toObject(), "deduct");
+
+      // Create invoice for the newly paid order
+      try {
+        const year = new Date().getFullYear();
+        const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const invoiceNumber = `INV-${year}-${random}`;
+        await Invoice.create({
+          invoiceNumber,
+          orderNumber: savedOrder.orderNumber,
+          orderId: savedOrder._id,
+          userId: savedOrder.userId,
+          email: savedOrder.email,
+          firstName: savedOrder.firstName,
+          lastName: savedOrder.lastName,
+          products: savedOrder.products,
+          subtotal: savedOrder.subtotal,
+          tax: savedOrder.tax,
+          shippingCost: savedOrder.shippingCost,
+          discount: savedOrder.discount,
+          total: savedOrder.total,
+          billingAddress: savedOrder.billingAddress,
+          shippingAddress: savedOrder.shippingAddress,
+          paymentMethod: savedOrder.paymentMethod,
+          notes: savedOrder.notes,
+          status: "paid",
+          issuedAt: new Date(),
+          paidAt: new Date(),
+        });
+      } catch (invoiceError) {
+        console.error(
+          "[createOrUpdateOrder] Error creating invoice:",
+          invoiceError,
+        );
+      }
+    }
+
     const plainOrder = savedOrder.toObject();
     return { success: true, order: plainOrder };
   } catch (err: any) {

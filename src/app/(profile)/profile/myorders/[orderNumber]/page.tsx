@@ -2,12 +2,19 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { getOrderByNumber } from "@/app/actions/order";
+import { getOrderByNumber, requestReturn } from "@/app/actions/order";
+import InvoiceDisplay from "@/components/InvoiceDisplay";
 import Spinner from "@/components/Spinner";
 
 // Order status steps in linear progression
-const ORDER_STEPS = ["pending", "processing", "shipped", "in transit", "completed"] as const;
-type OrderStep = typeof ORDER_STEPS[number];
+const ORDER_STEPS = [
+  "pending",
+  "processing",
+  "shipped",
+  "in transit",
+  "completed",
+] as const;
+type OrderStep = (typeof ORDER_STEPS)[number];
 
 // Maps orderStatus to its step index (only for linear steps)
 const stepIndex = (status: string): number => {
@@ -16,13 +23,16 @@ const stepIndex = (status: string): number => {
 };
 
 // Check if status is a terminal non‑linear state
-const isTerminal = (status: string) => status === "cancelled" || status === "returned";
+const isTerminal = (status: string) =>
+  status === "cancelled" || status === "returned";
 
 const OrderTracking = () => {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [submittingReturn, setSubmittingReturn] = useState(false);
 
   useEffect(() => {
     if (!orderNumber) return;
@@ -68,6 +78,25 @@ const OrderTracking = () => {
   const currentStatus = order.orderStatus;
   const currentStepIdx = stepIndex(currentStatus);
   const isTerminalState = isTerminal(currentStatus);
+
+  const handleRequestReturn = async () => {
+    if (!order?.orderNumber) return;
+    setSubmittingReturn(true);
+    const result = await requestReturn(order.orderNumber, returnReason);
+    setSubmittingReturn(false);
+
+    if (result.success) {
+      setOrder((prev: any) => ({
+        ...prev,
+        orderStatus: "return_requested",
+        returnReason: returnReason || prev.returnReason,
+      }));
+      setReturnReason("");
+      alert("Return request submitted successfully.");
+    } else {
+      alert(result.error || "Unable to submit return request.");
+    }
+  };
 
   // Status badge colors
   const statusColor = (status: string) => {
@@ -118,14 +147,14 @@ const OrderTracking = () => {
           <div className="flex flex-wrap gap-3 mb-6">
             <span
               className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor(
-                currentStatus
+                currentStatus,
               )}`}
             >
               Order: {currentStatus}
             </span>
             <span
               className={`px-3 py-1 rounded-full text-sm font-medium ${paymentStatusColor(
-                order.paymentStatus
+                order.paymentStatus,
               )}`}
             >
               Payment: {order.paymentStatus}
@@ -135,8 +164,8 @@ const OrderTracking = () => {
                 order.shippingStatus === "delivered"
                   ? "bg-green-100 text-green-800"
                   : order.shippingStatus === "shipped"
-                  ? "bg-blue-100 text-blue-800"
-                  : "bg-yellow-100 text-yellow-800"
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-yellow-100 text-yellow-800"
               }`}
             >
               Shipping: {order.shippingStatus}
@@ -146,12 +175,16 @@ const OrderTracking = () => {
           {/* Tracking Bar - only show for linear steps, not for cancelled/returned */}
           {!isTerminalState && currentStepIdx >= 0 ? (
             <div className="mb-8">
-              <h3 className="text-sm font-medium text-gray-500 mb-4">Order Progress</h3>
+              <h3 className="text-sm font-medium text-gray-500 mb-4">
+                Order Progress
+              </h3>
               <div className="relative">
                 {/* Progress bar background */}
                 <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
                   <div
-                    style={{ width: `${(currentStepIdx / (ORDER_STEPS.length - 1)) * 100}%` }}
+                    style={{
+                      width: `${(currentStepIdx / (ORDER_STEPS.length - 1)) * 100}%`,
+                    }}
                     className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500"
                   />
                 </div>
@@ -200,7 +233,9 @@ const OrderTracking = () => {
           {/* Order summary */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Order Details</h3>
+              <h3 className="text-sm font-medium text-gray-500">
+                Order Details
+              </h3>
               <div className="mt-2 space-y-1 text-sm">
                 <p>
                   <span className="font-medium">Date:</span>{" "}
@@ -210,7 +245,8 @@ const OrderTracking = () => {
                   <span className="font-medium">Total:</span> {order.total} CFA
                 </p>
                 <p>
-                  <span className="font-medium">Subtotal:</span> {order.subtotal} CFA
+                  <span className="font-medium">Subtotal:</span>{" "}
+                  {order.subtotal} CFA
                 </p>
                 <p>
                   <span className="font-medium">Tax:</span> {order.tax} CFA
@@ -221,20 +257,23 @@ const OrderTracking = () => {
                 </p>
                 {order.discount > 0 && (
                   <p>
-                    <span className="font-medium">Discount:</span> -{order.discount}{" "}
-                    CFA
+                    <span className="font-medium">Discount:</span> -
+                    {order.discount} CFA
                   </p>
                 )}
                 {order.couponCode && (
                   <p>
-                    <span className="font-medium">Coupon:</span> {order.couponCode}
+                    <span className="font-medium">Coupon:</span>{" "}
+                    {order.couponCode}
                   </p>
                 )}
               </div>
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Shipping Address</h3>
+              <h3 className="text-sm font-medium text-gray-500">
+                Shipping Address
+              </h3>
               <div className="mt-2 text-sm">
                 <p>{order.shippingAddress.street}</p>
                 <p>{order.shippingAddress.city}</p>
@@ -298,6 +337,36 @@ const OrderTracking = () => {
               </table>
             </div>
           </div>
+
+          {order.paymentStatus === "paid" && (
+            <InvoiceDisplay orderNumber={order.orderNumber} />
+          )}
+
+          {order.paymentStatus === "paid" &&
+            order.orderStatus !== "returned" &&
+            order.orderStatus !== "cancelled" &&
+            order.orderStatus !== "return_requested" && (
+              <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <h3 className="text-sm font-medium text-amber-700">
+                  Request a return
+                </h3>
+                <textarea
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  placeholder="Tell us why you want to return this order..."
+                  className="mt-3 w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-amber-500"
+                  rows={4}
+                />
+                <button
+                  type="button"
+                  onClick={handleRequestReturn}
+                  disabled={submittingReturn}
+                  className="mt-3 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+                >
+                  {submittingReturn ? "Submitting..." : "Submit return request"}
+                </button>
+              </div>
+            )}
 
           {order.notes && (
             <div className="mt-6">
