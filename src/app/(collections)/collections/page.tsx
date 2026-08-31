@@ -2,6 +2,8 @@ import { connection } from "@/utils/connection";
 import { Collection } from "@/models/Collection";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 // Simple slugify for collection names
 function slugify(text: string): string {
   return text

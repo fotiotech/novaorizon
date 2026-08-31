@@ -71,10 +71,75 @@ interface Params {
 }
 
 // ---------- Helpers ----------
+function normalizeImageEntries(value: any): string[] {
+  if (!value) return [];
+
+  const items: any[] = Array.isArray(value) ? value : [value];
+  const normalized = items.flatMap((item) => {
+    if (typeof item === "string") return item.trim() ? [item.trim()] : [];
+    if (typeof item === "object") {
+      const candidates = [
+        item?.url,
+        item?.src,
+        item?.path,
+        item?.image,
+        item?.imageUrl,
+        item?.image_url,
+      ];
+      return normalizeImageEntries(candidates);
+    }
+    return [];
+  });
+
+  return Array.from(new Set(normalized.filter(Boolean)));
+}
+
+function resolveProductImages(productLike: any): {
+  main_image: string;
+  gallery: string[];
+} {
+  if (!productLike) {
+    return { main_image: "", gallery: [] };
+  }
+
+  const galleryCandidates = [
+    productLike.gallery,
+    productLike.images,
+    productLike.image,
+    productLike.imageUrl,
+    productLike.image_url,
+    productLike.main_image,
+    productLike.featured_image,
+    productLike.thumbnail,
+    productLike.media,
+  ];
+
+  const gallery = normalizeImageEntries(galleryCandidates);
+  const mainImage =
+    normalizeImageEntries([
+      productLike.main_image,
+      productLike.image,
+      productLike.imageUrl,
+      productLike.image_url,
+      productLike.featured_image,
+      productLike.thumbnail,
+      gallery[0],
+    ])[0] || "";
+
+  return {
+    main_image: mainImage,
+    gallery,
+  };
+}
+
 function getFirstImage(val: any): string | null {
   if (!val) return null;
   if (Array.isArray(val) && val.length > 0) return val[0];
   if (typeof val === "string") return val;
+  if (typeof val === "object") {
+    const { main_image, gallery } = resolveProductImages(val);
+    return main_image || gallery[0] || null;
+  }
   return null;
 }
 
@@ -92,31 +157,16 @@ function applyVariant(product: any, variant: any) {
     merged[key] = variant[key];
   }
 
-  // Normalize main_image and gallery
-  const vMain = variant.main_image;
-  const vGallery = variant.gallery;
+  const { main_image, gallery } = resolveProductImages(variant);
+  merged.main_image = main_image || merged.main_image || "";
+  merged.gallery = gallery.length > 0 ? gallery : merged.gallery || [];
 
-  if (typeof vMain === "string" && vMain) {
-    merged.main_image = vMain;
-    if (!Array.isArray(merged.gallery)) {
-      merged.gallery = [vMain];
-    } else if (!merged.gallery.includes(vMain)) {
-      merged.gallery = [vMain, ...merged.gallery];
-    }
-  } else if (Array.isArray(vMain) && vMain.length > 0) {
-    merged.main_image = vMain[0];
-    merged.gallery = vMain;
+  if (!merged.gallery.length && merged.main_image) {
+    merged.gallery = [merged.main_image];
   }
 
-  if (Array.isArray(vGallery) && vGallery.length > 0) {
-    merged.gallery = vGallery;
-    if (!merged.main_image) {
-      merged.main_image = vGallery[0];
-    }
-  }
-
-  if (!merged.gallery || !Array.isArray(merged.gallery)) {
-    merged.gallery = merged.main_image ? [merged.main_image] : [];
+  if (!merged.main_image && merged.gallery.length > 0) {
+    merged.main_image = merged.gallery[0];
   }
 
   return merged;
@@ -311,8 +361,9 @@ const VariantCard: React.FC<{
   onSelect: (variant: any) => void;
   isActive: boolean;
 }> = ({ variant, onSelect, isActive }) => {
-  const image =
-    getFirstImage(variant.main_image) || getFirstImage(variant.gallery);
+  const { main_image: variantMainImage, gallery: variantGallery } =
+    resolveProductImages(variant);
+  const image = variantMainImage || variantGallery[0] || null;
   const price = variant.sale_price ?? variant.list_price ?? variant.price ?? 0;
 
   const themeKeys = Object.keys(variant).filter(
@@ -695,14 +746,13 @@ export default function Details(props: { params: Promise<Params> }) {
       model = "",
       list_price = 0,
       sale_price,
-      gallery = [],
       stock_status = [],
-      main_image = "",
       condition = [],
       short_desc = "",
       variants = [],
     } = product || {};
 
+    const { main_image, gallery } = resolveProductImages(product || {});
     const displayPrice = sale_price ?? list_price ?? 0;
 
     return (

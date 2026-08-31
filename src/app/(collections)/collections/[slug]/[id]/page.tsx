@@ -7,6 +7,8 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
