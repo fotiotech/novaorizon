@@ -10,7 +10,8 @@ interface Product {
 export interface OrderDocument extends Document {
   _id: mongoose.Types.ObjectId;
   orderNumber: string;
-  userId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId | null;
+  guestId?: string | null;
   email: string;
   firstName: string;
   lastName: string;
@@ -76,7 +77,13 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
+      default: null,
+    },
+    guestId: {
+      type: String,
+      index: true,
+      default: null,
     },
     email: { type: String, required: true },
     firstName: { type: String, required: true },

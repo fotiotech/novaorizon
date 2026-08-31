@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Types } from "mongoose";
 import { auth } from "@/app/auth";
+import { cookies } from "next/headers";
 
 // Import your models and connection utility
 import { connection } from "@/utils/connection"; // Adjust path to your DB connection
@@ -66,9 +67,17 @@ const paymentMethodSchema = z.discriminatedUnion("methodType", [
  */
 export async function createPaymentMethod(
   data: z.infer<typeof paymentMethodSchema>,
+  guestId?: string,
 ) {
-  const userId = await getAuthenticatedUser();
+  const session = await auth();
+  const userId = session?.user?.id;
+  const cookieStore = await cookies();
+  const resolvedGuestId = guestId || cookieStore.get("guestId")?.value;
   await connection();
+
+  if (!userId && !resolvedGuestId) {
+    throw new Error("Unauthorized or guest reference missing");
+  }
 
   const validated = paymentMethodSchema.parse(data);
 
@@ -76,11 +85,16 @@ export async function createPaymentMethod(
   if (validated.methodType === "CreditCard") {
     const { billingAddressId } = validated.details;
 
-    // Verify the address exists and belongs to this user
-    const address = await Address.findOne({
-      _id: billingAddressId,
-      userId: new Types.ObjectId(userId),
-    });
+    // Verify the address exists and belongs to the active user or guest session
+    const address = userId
+      ? await Address.findOne({
+          _id: billingAddressId,
+          userId: new Types.ObjectId(userId),
+        })
+      : await Address.findOne({
+          _id: billingAddressId,
+          guestId: resolvedGuestId,
+        });
 
     if (!address) {
       throw new Error("Invalid billing address provided");
@@ -88,7 +102,9 @@ export async function createPaymentMethod(
 
     // Create the Credit Card using the specific discriminator model
     const card = new CreditCardPaymentMethod({
-      userId: new Types.ObjectId(userId),
+      ...(userId
+        ? { userId: new Types.ObjectId(userId) }
+        : { guestId: resolvedGuestId }),
       methodType: "CreditCard",
       details: {
         ...validated.details,
@@ -105,7 +121,9 @@ export async function createPaymentMethod(
   // --- Mobile Money (Cameroon) ---
   if (validated.methodType === "MobileMoney") {
     const mobile = new MobileMoneyPaymentMethod({
-      userId: new Types.ObjectId(userId),
+      ...(userId
+        ? { userId: new Types.ObjectId(userId) }
+        : { guestId: resolvedGuestId }),
       methodType: "MobileMoney",
       details: validated.details, // phone, provider, optional reference
     });
@@ -122,7 +140,9 @@ export async function createPaymentMethod(
     // Since we don't have a PayPal discriminator model variable exported yet,
     // we can use the base model with the discriminator key.
     const paypal = new PaymentMethod({
-      userId: new Types.ObjectId(userId),
+      ...(userId
+        ? { userId: new Types.ObjectId(userId) }
+        : { guestId: resolvedGuestId }),
       methodType: "PayPal",
       details: validated.details, // { email }
     });
@@ -140,6 +160,60 @@ export async function createPaymentMethod(
  * Get all payment methods for the authenticated user.
  * For Credit Cards, it populates the billingAddressId field.
  */
+export async function mergeGuestPaymentMethods({
+  guestId,
+  userId,
+}: {
+  guestId?: string;
+  userId: string;
+}) {
+  await connection();
+
+  const guestIds = guestId ? [guestId] : [];
+  if (!guestIds.length) {
+    return { success: true, merged: false };
+  }
+
+  const targetUserId = new Types.ObjectId(userId);
+  const guestMethods = await PaymentMethod.find({
+    guestId: { $in: guestIds },
+  }).lean();
+
+  for (const guestMethod of guestMethods) {
+    const guestMethodAny = guestMethod as any;
+    const duplicate = await PaymentMethod.findOne({
+      userId: targetUserId,
+      methodType: guestMethodAny.methodType,
+      $or: [
+        {
+          "details.email": guestMethodAny.details?.email,
+        },
+        {
+          "details.phoneNumber": guestMethodAny.details?.phoneNumber,
+        },
+        {
+          "details.cardNumber": guestMethodAny.details?.cardNumber,
+        },
+      ],
+    });
+
+    if (!duplicate) {
+      await PaymentMethod.updateOne(
+        { _id: guestMethod._id },
+        {
+          $set: { userId: targetUserId, guestId: null },
+          $unset: { guestId: 1 },
+        },
+      );
+    } else {
+      await PaymentMethod.deleteOne({ _id: guestMethod._id });
+    }
+  }
+
+  revalidatePath("/profile/payment");
+  return { success: true, merged: true };
+}
+
 export async function getUserPaymentMethods() {
   const userId = await getAuthenticatedUser();
   await connection();

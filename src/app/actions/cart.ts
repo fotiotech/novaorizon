@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import { revalidatePath } from "next/cache";
 import Product from "@/models/Product";
 import Cart from "@/models/Cart";
+import Order from "@/models/Order";
 
 // Types
 export interface CartItemInput {
@@ -87,6 +88,101 @@ export async function getCart(identifier: {
       productId: item.productId?._id?.toString() || item.productId?.toString(),
     })),
   };
+}
+
+export async function mergeGuestSessionData({
+  guestId,
+  sessionId,
+  userId,
+}: {
+  guestId?: string;
+  sessionId?: string;
+  userId: string;
+}) {
+  await connection();
+
+  const identifiers = Array.from(
+    new Set([guestId, sessionId].filter(Boolean) as string[]),
+  );
+
+  if (!identifiers.length) {
+    return { success: true, merged: false };
+  }
+
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  let targetCart = await Cart.findOne({ userId: userObjectId });
+  const guestCarts = await Cart.find({
+    sessionId: { $in: identifiers },
+  }).exec();
+
+  if (!targetCart && guestCarts.length > 0) {
+    targetCart = guestCarts[0];
+    targetCart.userId = userObjectId;
+    targetCart.sessionId = undefined;
+  }
+
+  if (!targetCart) {
+    targetCart = new Cart({
+      userId: userObjectId,
+      items: [],
+      subtotal: 0,
+      tax: 0,
+      discount: 0,
+      shippingCost: 0,
+      total: 0,
+    });
+  }
+
+  for (const guestCart of guestCarts) {
+    if (guestCart._id.toString() === targetCart._id?.toString()) continue;
+
+    for (const item of guestCart.items) {
+      const existingItem = targetCart.items.find(
+        (cartItem: any) =>
+          cartItem.productId.toString() === item.productId.toString() &&
+          (cartItem.variant || null) === (item.variant || null),
+      );
+
+      if (existingItem) {
+        existingItem.quantity += item.quantity;
+        existingItem.price = item.price;
+      } else {
+        targetCart.items.push({
+          productId: item.productId,
+          variant: item.variant,
+          quantity: item.quantity,
+          price: item.price,
+          taxRate: item.taxRate || 0,
+          discount: item.discount || 0,
+        });
+      }
+    }
+
+    await Cart.deleteOne({ _id: guestCart._id });
+  }
+
+  targetCart.userId = userObjectId;
+  targetCart.sessionId = undefined;
+  await recalculateCart(targetCart);
+  await targetCart.save();
+
+  await Order.updateMany(
+    {
+      $or: [
+        { guestId: { $in: identifiers } },
+        { userId: null, guestId: { $ne: null } },
+      ],
+    },
+    {
+      $set: {
+        userId: userObjectId,
+        guestId: null,
+      },
+    },
+  );
+
+  revalidatePath("/cart");
+  return { success: true, merged: true };
 }
 
 // Add item to cart (upsert)

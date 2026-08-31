@@ -97,7 +97,7 @@ export async function findOrders(options?: {
       orders: orders.map((order) => ({
         ...order,
         _id: order._id.toString(),
-        userId: order.userId.toString(),
+        userId: order.userId ? order.userId.toString() : null,
       })),
       total,
       totalPages: Math.ceil(total / limit),
@@ -119,7 +119,7 @@ export async function getOrderByNumber(orderNumber: string) {
     return {
       ...order,
       _id: order._id.toString(),
-      userId: order.userId.toString(),
+      userId: order.userId ? order.userId.toString() : null,
     };
   } catch (error: any) {
     console.error(`Error fetching order by number: ${error.message}`);
@@ -372,6 +372,7 @@ export async function createOrUpdateOrder(
     shippingStatus = "pending",
     orderStatus = "processing",
     discount = 0,
+    guestId = null,
     shippingAddress = {
       street: "",
       city: "",
@@ -395,6 +396,7 @@ export async function createOrUpdateOrder(
   const payload: any = {
     ...rest,
     orderNumber: payment_ref,
+    guestId,
     tax,
     shippingCost,
     paymentStatus,

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Types } from "mongoose";
 import { auth } from "@/app/auth";
+import { cookies } from "next/headers";
 
 // Import your models and connection utility
 import { connection } from "@/utils/connection"; // Adjust path to your DB connection
@@ -37,9 +38,16 @@ const addressSchema = z.object({
 /**
  * Create a new billing address for the authenticated user.
  */
-export async function createAddress(formData: FormData) {
-  const userId = await getAuthenticatedUser();
+export async function createAddress(formData: FormData, guestId?: string) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  const cookieStore = await cookies();
+  const resolvedGuestId = guestId || cookieStore.get("guestId")?.value;
   await connection();
+
+  if (!userId && !resolvedGuestId) {
+    throw new Error("Unauthorized or guest reference missing");
+  }
 
   // Parse form data into an object
   const rawData = {
@@ -58,7 +66,9 @@ export async function createAddress(formData: FormData) {
 
   const address = new Address({
     ...validated,
-    userId: new Types.ObjectId(userId),
+    ...(userId
+      ? { userId: new Types.ObjectId(userId) }
+      : { guestId: resolvedGuestId }),
   });
 
   await address.save();
@@ -72,6 +82,54 @@ export async function createAddress(formData: FormData) {
 /**
  * Get all addresses for the authenticated user.
  */
+export async function mergeGuestAddresses({
+  guestId,
+  userId,
+}: {
+  guestId?: string;
+  userId: string;
+}) {
+  await connection();
+
+  const guestIds = guestId ? [guestId] : [];
+  if (!guestIds.length) {
+    return { success: true, merged: false };
+  }
+
+  const targetUserId = new Types.ObjectId(userId);
+  const guestAddresses = await Address.find({
+    guestId: { $in: guestIds },
+  }).lean();
+  const existingUserAddresses = await Address.find({
+    userId: targetUserId,
+  }).lean();
+
+  for (const guestAddress of guestAddresses) {
+    const duplicate = existingUserAddresses.some((existing) => {
+      const sameLabel = existing.label === guestAddress.label;
+      const sameStreet = existing.street === guestAddress.street;
+      const sameCity = existing.city === guestAddress.city;
+      const samePostal = existing.postalCode === guestAddress.postalCode;
+      return sameLabel && sameStreet && sameCity && samePostal;
+    });
+
+    if (!duplicate) {
+      await Address.updateOne(
+        { _id: guestAddress._id },
+        {
+          $set: { userId: targetUserId, guestId: null },
+          $unset: { guestId: 1 },
+        },
+      );
+    } else {
+      await Address.deleteOne({ _id: guestAddress._id });
+    }
+  }
+
+  revalidatePath("/profile/address");
+  return { success: true, merged: true };
+}
+
 export async function getUserAddresses() {
   const userId = await getAuthenticatedUser();
   await connection();

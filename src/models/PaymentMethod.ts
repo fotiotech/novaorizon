@@ -2,7 +2,8 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 // ------------------ Base Interface ------------------
 interface IPaymentMethodBase extends Document {
-  userId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId | null;
+  guestId?: string | null;
   methodType: "CreditCard" | "MobileMoney" | "PayPal";
   createdAt: Date;
   updatedAt: Date;
@@ -54,8 +55,14 @@ const BasePaymentMethodSchema = new Schema<IPaymentMethodBase>(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
+      default: null,
       index: true,
+    },
+    guestId: {
+      type: String,
+      index: true,
+      default: null,
     },
     methodType: {
       type: String,

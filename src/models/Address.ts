@@ -3,7 +3,8 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 // ------------------ Interface ------------------
 export interface IAddress {
   _id?: string;
-  userId: mongoose.Types.ObjectId; // Owner of the address
+  userId?: mongoose.Types.ObjectId | null; // Owner of the address when the user is authenticated
+  guestId?: string | null; // temp identifier for guest-created address before sign-up
   label: string; // e.g., "Home", "Office", "Parents' House"
   street: string;
   city: string;
@@ -21,8 +22,14 @@ const AddressSchema = new Schema<IAddress>(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
+      default: null,
       index: true, // Important for fast user lookups
+    },
+    guestId: {
+      type: String,
+      index: true,
+      default: null,
     },
     label: {
       type: String,
@@ -45,7 +52,10 @@ const AddressSchema = new Schema<IAddress>(
 AddressSchema.pre("save", async function (next) {
   if (this.isDefault) {
     await Address.updateMany(
-      { userId: this.userId, _id: { $ne: this._id } },
+      {
+        $or: [{ userId: this.userId }, { guestId: this.guestId }],
+        _id: { $ne: this._id },
+      },
       { isDefault: false },
     );
   }
