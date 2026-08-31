@@ -320,10 +320,12 @@ const Header = () => {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+      const scrollDelta = currentScrollY - lastScrollY.current;
 
-      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+      // Hide only after scrolling down more than 80px; show immediately when scrolling up
+      if (scrollDelta > 80 && currentScrollY > 100) {
         setIsNavigationVisible(false);
-      } else {
+      } else if (scrollDelta < 0) {
         setIsNavigationVisible(true);
       }
 
