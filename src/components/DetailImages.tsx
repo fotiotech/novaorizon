@@ -21,7 +21,10 @@ const DetailImages: React.FC<DetailImagesProps> = ({
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const totalImages = file.length;
+  const validImages = Array.isArray(file)
+    ? file.filter((url) => typeof url === "string" && url.trim())
+    : [];
+  const totalImages = validImages.length;
 
   const slideToIndex = useCallback(
     (direction: "left" | "right" | number) => {
@@ -93,7 +96,7 @@ const DetailImages: React.FC<DetailImagesProps> = ({
     };
   }, [handleKeyDown]);
 
-  if (!file || file.length === 0) {
+  if (!validImages.length) {
     return (
       <div className="flex items-center justify-center w-full h-64 bg-gray-100 rounded-lg">
         <p className="text-gray-500">No images to display</p>
@@ -195,22 +198,26 @@ const DetailImages: React.FC<DetailImagesProps> = ({
 
       {/* Image Slider */}
       <div
-        className="whitespace-nowrap bg-gray-100 transition-transform duration-500 ease-in-out overflow-hidden rounded-lg"
+        className="overflow-hidden rounded-lg bg-gray-100"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {file.map((image, index) => (
-          <div
-            key={index}
-            className="inline-block w-full h-full relative flex-shrink-0 aspect-square"
-            style={{
-              transform: `translateX(-${currentImageIndex * 100}%)`,
-            }}
-          >
-            <ImageRenderer image={image} />
-          </div>
-        ))}
+        <div
+          className="flex transition-transform duration-500 ease-in-out"
+          style={{
+            transform: `translateX(-${currentImageIndex * 100}%)`,
+          }}
+        >
+          {validImages.map((image, index) => (
+            <div
+              key={`${image}-${index}`}
+              className="w-full h-full relative flex-shrink-0 aspect-square"
+            >
+              <ImageRenderer image={image} />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Thumbnail Navigation */}
@@ -226,9 +233,9 @@ const DetailImages: React.FC<DetailImagesProps> = ({
             }
           `}</style>
           <div className="thumbnail-scrollbar-hide flex justify-start items-center gap-2 mt-4 overflow-x-auto px-1">
-            {file.map((image, index) => (
+            {validImages.map((image, index) => (
               <button
-                key={index}
+                key={`${image}-${index}`}
                 onClick={() => slideToIndex(index)}
                 aria-label={`View image ${index + 1}`}
                 className={`flex-shrink-0 w-16 h-16 overflow-hidden rounded-md border-2 
@@ -256,9 +263,9 @@ const DetailImages: React.FC<DetailImagesProps> = ({
       {/* Dots Navigation */}
       {!showThumbnails && totalImages > 1 && (
         <div className="flex justify-center items-center gap-2 lg:gap-3 w-full py-3">
-          {file.map((_, index) => (
+          {validImages.map((_, index) => (
             <button
-              key={index}
+              key={`dot-${index}`}
               onClick={() => slideToIndex(index)}
               aria-label={`View image ${index + 1}`}
               className={`${

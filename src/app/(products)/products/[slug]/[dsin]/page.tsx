@@ -77,21 +77,32 @@ function normalizeImageEntries(value: any): string[] {
   const items: any[] = Array.isArray(value) ? value : [value];
   const normalized = items.flatMap((item) => {
     if (typeof item === "string") return item.trim() ? [item.trim()] : [];
-    if (typeof item === "object") {
-      const candidates = [
-        item?.url,
-        item?.src,
-        item?.path,
-        item?.image,
-        item?.imageUrl,
-        item?.image_url,
-      ];
-      return normalizeImageEntries(candidates);
-    }
     return [];
   });
 
   return Array.from(new Set(normalized.filter(Boolean)));
+}
+
+function canonicalizeImageFields(value: any): Record<string, any> {
+  if (!value || typeof value !== "object") return {};
+
+  const normalized: Record<string, any> = { ...value };
+  const gallery = normalizeImageEntries(normalized.gallery ?? []);
+  const mainImage =
+    normalizeImageEntries([normalized.main_image, gallery[0]])[0] || "";
+
+  normalized.gallery = gallery;
+  normalized.main_image = mainImage;
+
+  delete normalized.images;
+  delete normalized.image;
+  delete normalized.imageUrl;
+  delete normalized.image_url;
+  delete normalized.featured_image;
+  delete normalized.thumbnail;
+  delete normalized.media;
+
+  return normalized;
 }
 
 function resolveProductImages(productLike: any): {
@@ -102,29 +113,10 @@ function resolveProductImages(productLike: any): {
     return { main_image: "", gallery: [] };
   }
 
-  const galleryCandidates = [
-    productLike.gallery,
-    productLike.images,
-    productLike.image,
-    productLike.imageUrl,
-    productLike.image_url,
-    productLike.main_image,
-    productLike.featured_image,
-    productLike.thumbnail,
-    productLike.media,
-  ];
-
-  const gallery = normalizeImageEntries(galleryCandidates);
+  const normalized = canonicalizeImageFields(productLike);
+  const gallery = normalizeImageEntries(normalized.gallery ?? []);
   const mainImage =
-    normalizeImageEntries([
-      productLike.main_image,
-      productLike.image,
-      productLike.imageUrl,
-      productLike.image_url,
-      productLike.featured_image,
-      productLike.thumbnail,
-      gallery[0],
-    ])[0] || "";
+    normalizeImageEntries([normalized.main_image, gallery[0]])[0] || "";
 
   return {
     main_image: mainImage,
@@ -153,11 +145,13 @@ function slugify(text: string): string {
 function applyVariant(product: any, variant: any) {
   if (!product || !variant) return product;
   const merged = JSON.parse(JSON.stringify(product));
-  for (const key of Object.keys(variant)) {
-    merged[key] = variant[key];
+  const canonicalVariant = canonicalizeImageFields({ ...variant });
+
+  for (const key of Object.keys(canonicalVariant)) {
+    merged[key] = canonicalVariant[key];
   }
 
-  const { main_image, gallery } = resolveProductImages(variant);
+  const { main_image, gallery } = resolveProductImages(canonicalVariant ?? {});
   merged.main_image = main_image || merged.main_image || "";
   merged.gallery = gallery.length > 0 ? gallery : merged.gallery || [];
 
@@ -168,6 +162,14 @@ function applyVariant(product: any, variant: any) {
   if (!merged.main_image && merged.gallery.length > 0) {
     merged.main_image = merged.gallery[0];
   }
+
+  delete merged.images;
+  delete merged.image;
+  delete merged.imageUrl;
+  delete merged.image_url;
+  delete merged.featured_image;
+  delete merged.thumbnail;
+  delete merged.media;
 
   return merged;
 }

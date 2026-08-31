@@ -478,11 +478,7 @@ const Header = () => {
             </div>
 
             <div
-              className={`w-full overflow-hidden transition-all duration-300 ${
-                isNavigationVisible
-                  ? "max-h-14 translate-y-0 opacity-100"
-                  : "max-h-0 -translate-y-1 opacity-0"
-              }`}
+              className={`w-full overflow-hidden transition-all duration-300 `}
             >
               <div className="overflow-x-auto scrollbar-none">
                 <nav aria-label="Main navigation">
