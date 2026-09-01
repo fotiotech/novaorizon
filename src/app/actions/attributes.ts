@@ -17,7 +17,7 @@ export async function findCategoryAttributesAndValues(categoryId: string) {
       $lookup: {
         from: "attributes",
         localField: "_id",
-        foreignField: "category_id",
+        foreignField: "categoryId",
         as: "directAttributes",
       },
     },

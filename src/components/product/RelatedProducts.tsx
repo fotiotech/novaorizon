@@ -24,7 +24,7 @@ export default function RelatedProducts({
         const mapped = res.data.map((item: any) => ({
           _id: item._id,
           name: item.title,
-          image: item.main_image,
+          image: item.mainImage,
           price: item.sale_price,
           contentType: "Product",
         }));

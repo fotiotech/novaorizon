@@ -45,7 +45,7 @@ export function cartReducer(state: CartState, action: CartAction): CartState {
         productId:
           item.productId?._id?.toString() || item.productId?.toString() || "",
         name: item.productId?.title || item.name || "",
-        imageUrl: item.productId?.main_image || item.imageUrl || "",
+        imageUrl: item.productId?.mainImage || item.imageUrl || "",
         price: item.price,
         quantity: item.quantity,
         variant: item.variant,

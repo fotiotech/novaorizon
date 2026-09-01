@@ -37,7 +37,7 @@ export async function getCustomerReviews(
 
     const total = await Review.countDocuments({ userId });
     const reviews = await Review.find({ userId })
-      .populate("productId", "name main_image")
+      .populate("productId", "name mainImage")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })

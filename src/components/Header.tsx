@@ -190,18 +190,18 @@ const SearchBarWithAutocomplete = React.memo(
                   role="option"
                   aria-selected={index === selectedIndex}
                 >
-                  {suggestion.main_image && (
+                  {suggestion.mainImage && (
                     <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-md bg-muted">
-                      <ImageRenderer image={suggestion.main_image} />
+                      <ImageRenderer image={suggestion.mainImage} />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
-                      {suggestion.title}
+                      {suggestion.name}
                     </p>
-                    {suggestion.list_price != null && (
+                    {suggestion.listPrice != null && (
                       <p className="text-xs text-muted-foreground">
-                        ${suggestion.list_price}
+                        ${suggestion.listPrice}
                       </p>
                     )}
                   </div>

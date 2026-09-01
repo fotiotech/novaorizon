@@ -98,23 +98,24 @@ export async function searchProducts(
           {
             $project: {
               _id: 1,
-              title: 1,
+              name: 1,
               description: 1,
-              list_price: 1,
-              currency: 1,
-              main_image: 1,
-              category: "$category_id",
+              listPrice: 1,
+              price: 1,
+              mainImage: 1,
+              categoryId: "$categoryId",
               brand: "$brand",
-              inStock: 1,
+              quantity: 1,
+              status: 1,
               score: { $meta: "searchScore" },
             },
           },
         ],
         categories: [
           {
-            $unwind: { path: "$category_id", preserveNullAndEmptyArrays: true },
+            $unwind: { path: "$categoryId", preserveNullAndEmptyArrays: true },
           },
-          { $group: { _id: "$category_id", count: { $sum: 1 } } },
+          { $group: { _id: "$categoryId", count: { $sum: 1 } } },
           {
             $lookup: {
               from: "categories",
@@ -163,8 +164,8 @@ export async function searchProducts(
           {
             $group: {
               _id: null,
-              min: { $min: "$list_price" },
-              max: { $max: "$list_price" },
+              min: { $min: "$listPrice" },
+              max: { $max: "$listPrice" },
             },
           },
         ],

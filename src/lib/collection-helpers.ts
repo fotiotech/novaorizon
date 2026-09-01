@@ -70,7 +70,7 @@ export function buildQueryFromRules(rules: any[], targetType: string) {
     if (!rule.attribute || !rule.operator) continue;
     const value = parseRuleValue(rule.value, rule.operator);
 
-    if (targetType === "Product" && rule.attribute === "category_id") {
+    if (targetType === "Product" && rule.attribute === "categoryId") {
       if (Array.isArray(value)) {
         const objectIds = value
           .filter((v) => mongoose.Types.ObjectId.isValid(v))

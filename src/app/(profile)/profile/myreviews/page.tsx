@@ -13,7 +13,7 @@ import { Trash2, Star, ArrowLeft } from "lucide-react";
 
 interface Review {
   _id: string;
-  productId: { _id: string; name: string; main_image?: string };
+  productId: { _id: string; name: string; mainImage?: string };
   rating: number;
   reviewText: string;
   helpfulCount: number;

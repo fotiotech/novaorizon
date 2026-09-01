@@ -53,7 +53,7 @@ const productCollectionSchema = new Schema(
       createdAt: "created_at",
       updatedAt: "updated_at",
     },
-  }
+  },
 );
 
 // Ensure rules are ordered by position
@@ -66,7 +66,7 @@ productCollectionSchema.pre("save", function (next) {
 
 // Indexes for better query performance
 productCollectionSchema.index({ name: 1 });
-productCollectionSchema.index({ category_id: 1 });
+productCollectionSchema.index({ categoryId: 1 });
 productCollectionSchema.index({ status: 1 });
 productCollectionSchema.index({ "rules.attribute": 1 });
 productCollectionSchema.index({ "rules.position": 1 });

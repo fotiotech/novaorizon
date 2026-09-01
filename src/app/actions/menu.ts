@@ -80,7 +80,7 @@ function buildQueryFromRules(rules: any[], targetType: string) {
     if (!rule.attribute || !rule.operator) continue;
     const value = parseRuleValue(rule.value, rule.operator);
 
-    if (targetType === "Product" && rule.attribute === "category_id") {
+    if (targetType === "Product" && rule.attribute === "categoryId") {
       if (Array.isArray(value)) {
         const objectIds = value
           .filter((v) => mongoose.Types.ObjectId.isValid(v))
@@ -134,8 +134,8 @@ async function resolveCollectionItems(
 
     // Normalise – explicitly extract main_image
     return rawItems.map((item: any) => {
-      // Explicitly check for main_image first
-      const image = item.main_image || item.image || item.imageUrl || null;
+      // Explicitly extract mainImage
+      const image = item.mainImage || item.image || item.imageUrl || null;
 
       return {
         _id: item._id.toString(),
@@ -159,7 +159,7 @@ async function resolveCollectionItems(
     return rawItems.map((item: any) => ({
       _id: item._id.toString(),
       name: item.title || item.name || "Unnamed",
-      image: item.main_image || item.image || item.imageUrl || null,
+      image: item.mainImage || item.image || item.imageUrl || null,
       price: item.sale_price || item.price || null,
       contentType: "Product",
     }));

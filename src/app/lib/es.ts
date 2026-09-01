@@ -27,7 +27,7 @@ export async function ensureProductIndex(): Promise<void> {
     const indexExists =
       typeof existsRes === "boolean"
         ? existsRes
-        : (existsRes as any).body ?? false;
+        : ((existsRes as any).body ?? false);
 
     if (indexExists) {
       console.log(`Elasticsearch index "${INDEX}" already exists.`);
@@ -74,7 +74,7 @@ export async function ensureProductIndex(): Promise<void> {
           },
           description: { type: "text" },
           price: { type: "double" },
-          category_id: { type: "keyword" },
+          categoryId: { type: "keyword" },
           brand: { type: "keyword" },
           createdAt: { type: "date" },
         },

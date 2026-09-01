@@ -87,12 +87,12 @@ function canonicalizeImageFields(value: any): Record<string, any> {
   if (!value || typeof value !== "object") return {};
 
   const normalized: Record<string, any> = { ...value };
-  const gallery = normalizeImageEntries(normalized.gallery ?? []);
+  const gallery = normalizeImageEntries(normalized.images ?? []);
   const mainImage =
-    normalizeImageEntries([normalized.main_image, gallery[0]])[0] || "";
+    normalizeImageEntries([normalized.mainImage, gallery[0]])[0] || "";
 
-  normalized.gallery = gallery;
-  normalized.main_image = mainImage;
+  normalized.images = gallery;
+  normalized.mainImage = mainImage;
 
   delete normalized.images;
   delete normalized.image;
@@ -363,7 +363,7 @@ const VariantCard: React.FC<{
   onSelect: (variant: any) => void;
   isActive: boolean;
 }> = ({ variant, onSelect, isActive }) => {
-  const { main_image: variantMainImage, gallery: variantGallery } =
+  const { mainImage: variantMainImage, images: variantImages } =
     resolveProductImages(variant);
   const image = variantMainImage || variantGallery[0] || null;
   const price = variant.sale_price ?? variant.list_price ?? variant.price ?? 0;
@@ -574,7 +574,7 @@ export default function Details(props: { params: Promise<Params> }) {
   >(null);
   const initialLoadComplete = useRef(false);
 
-  const categoryId = product?.category_id?._id ?? product?.category_id;
+  const categoryId = product?.categoryId?._id ?? product?.categoryId;
   const { data: session } = useSession();
   const user = session?.user as any;
   const { addresses: userAddresses } = useUserData();

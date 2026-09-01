@@ -14,7 +14,7 @@ export default async function ProductsPage() {
   await connection();
 
   const products = await Product.find({})
-    .select("_id title main_image price")
+    .select(\"_id name mainImage price\")
     .lean()
     .exec();
 
@@ -34,8 +34,8 @@ export default async function ProductsPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {products.map((product: any) => {
-          const slug = slugify(product.title);
-          const imageUrl = product.main_image || "/placeholder.png";
+          const slug = slugify(product.name);
+          const imageUrl = product.mainImage || "/placeholder.png";
 
           return (
             <Link

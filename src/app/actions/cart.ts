@@ -42,7 +42,7 @@ async function recalculateCart(cart: any) {
 
 // Helper to populate product details and convert to plain object
 async function populateAndLean(cart: any) {
-  await cart.populate("items.productId", "title main_image slug list_price");
+  await cart.populate("items.productId", "name mainImage slug listPrice");
   return cart.toObject();
 }
 
@@ -60,7 +60,7 @@ export async function getCart(identifier: {
   else query.sessionId = sessionId;
 
   let cart: any = await Cart.findOne(query)
-    .populate("items.productId", "title main_image slug list_price")
+    .populate("items.productId", "name mainImage slug listPrice")
     .lean();
 
   if (!cart) {
@@ -199,14 +199,12 @@ export async function addToCart(
   }
 
   const product: any = await Product.findById(input.productId)
-    .select(
-      "list_price title quantity stock_quantity stockQuantity lowStockThreshold low_stock_threshold",
-    )
+    .select("listPrice name quantity lowStockThreshold")
     .lean();
   if (!product) throw new Error("Product not found");
 
-  const availableQty = getProductQuantity(product);
-  const price = product.list_price;
+  const availableQty = product.quantity || 0;
+  const price = product.listPrice;
 
   let cart: any = await Cart.findOne({
     ...(userId ? { userId } : { sessionId }),

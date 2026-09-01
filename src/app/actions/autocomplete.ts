@@ -28,9 +28,9 @@ export async function autocompleteProducts(query: string, limit = 8) {
     {
       $project: {
         _id: 1,
-        title: 1,
-        list_price: 1,
-        main_image: 1,
+        name: 1,
+        listPrice: 1,
+        mainImage: 1,
         score: { $meta: "searchScore" },
       },
     },

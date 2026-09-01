@@ -46,7 +46,7 @@ export async function findProductsByBrand(brandId: string) {
     return products.map((product) => ({
       ...product.toObject(),
       _id: product._id?.toString() || "",
-      category_id: product.category_id?.toString() || "",
+      categoryId: product.categoryId?.toString() || "",
     }));
   } catch (error) {
     console.error("[findProductsByBrand] Error:", error);
@@ -87,7 +87,7 @@ export async function updateBrand(
     name: string;
     logoUrl: string;
     status: "active" | "inactive";
-  }>
+  }>,
 ) {
   await connection();
   await Brand.findByIdAndUpdate(id, data, { new: true });

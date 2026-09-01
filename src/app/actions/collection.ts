@@ -79,7 +79,7 @@ function buildQueryFromRules(rules: any[], targetType: string) {
     if (!rule.attribute || !rule.operator) continue;
     const value = parseRuleValue(rule.value, rule.operator);
 
-    if (targetType === "Product" && rule.attribute === "category_id") {
+    if (targetType === "Product" && rule.attribute === "categoryId") {
       if (Array.isArray(value)) {
         const objectIds = value
           .filter((v) => mongoose.Types.ObjectId.isValid(v))
@@ -162,7 +162,7 @@ export async function getCollectionsWithProducts() {
         matchingItems = matchingItems.map((item: any) => ({
           _id: item._id,
           title: item.title || item.name || "Unnamed",
-          image: item.main_image || item.image || item.imageUrl || null,
+          image: item.mainImage || item.image || item.imageUrl || null,
           contentType: "Product",
           // keep other product fields as needed
         }));
@@ -259,7 +259,10 @@ export async function createCollection(formData: FormData) {
         return { success: false, error: "Invalid recommendation type" };
       }
     }
-    if (["recommendation", "related"].includes(type) && recommendationLimit < 1) {
+    if (
+      ["recommendation", "related"].includes(type) &&
+      recommendationLimit < 1
+    ) {
       return {
         success: false,
         error: "Collection item limit must be at least 1",
@@ -406,7 +409,10 @@ export async function updateCollection(id: string, formData: FormData) {
         return { success: false, error: "Invalid recommendation type" };
       }
     }
-    if (["recommendation", "related"].includes(type) && recommendationLimit < 1) {
+    if (
+      ["recommendation", "related"].includes(type) &&
+      recommendationLimit < 1
+    ) {
       return {
         success: false,
         error: "Collection item limit must be at least 1",

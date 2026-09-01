@@ -58,7 +58,7 @@ const ShopCategoryPage = () => {
         // If there's a category ID in the URL, select it
         if (categoryId) {
           const category = categoriesData.find(
-            (cat: any) => cat.id === categoryId
+            (cat: any) => cat.id === categoryId,
           );
           if (category) {
             setSelectedCategory(category);
@@ -108,8 +108,8 @@ const ShopCategoryPage = () => {
     // Filter by price range
     result = result.filter(
       (product) =>
-        product.list_price >= priceRange[0] &&
-        product.list_price <= priceRange[1]
+        product.listPrice >= priceRange[0] &&
+        product.listPrice <= priceRange[1],
     );
 
     // Filter by stock status
@@ -121,8 +121,8 @@ const ShopCategoryPage = () => {
     if (selectedRatings.length > 0) {
       result = result.filter((product) =>
         selectedRatings.some(
-          (rating) => Math.floor(product.rating || 0) === rating
-        )
+          (rating) => Math.floor(product.rating || 0) === rating,
+        ),
       );
     }
 
@@ -130,14 +130,12 @@ const ShopCategoryPage = () => {
     switch (sortBy) {
       case "price-low":
         result.sort(
-          (a, b) =>
-            (a.sale_price || a.list_price) - (b.sale_price || b.list_price)
+          (a, b) => (a.salePrice || a.listPrice) - (b.salePrice || b.listPrice),
         );
         break;
       case "price-high":
         result.sort(
-          (a, b) =>
-            (b.sale_price || b.list_price) - (a.sale_price || a.list_price)
+          (a, b) => (b.salePrice || b.listPrice) - (a.salePrice || a.listPrice),
         );
         break;
       case "rating":
@@ -165,14 +163,14 @@ const ShopCategoryPage = () => {
 
     if (hasHalfStar) {
       stars.push(
-        <StarHalf key={fullStars} className="text-yellow-400 text-sm" />
+        <StarHalf key={fullStars} className="text-yellow-400 text-sm" />,
       );
     }
 
     const emptyStars = 5 - stars.length;
     for (let i = 0; i < emptyStars; i++) {
       stars.push(
-        <Star key={fullStars + i + 1} className="text-gray-300 text-sm" />
+        <Star key={fullStars + i + 1} className="text-gray-300 text-sm" />,
       );
     }
 
@@ -331,7 +329,7 @@ const ShopCategoryPage = () => {
                             setSelectedRatings([...selectedRatings, rating]);
                           } else {
                             setSelectedRatings(
-                              selectedRatings.filter((r) => r !== rating)
+                              selectedRatings.filter((r) => r !== rating),
                             );
                           }
                         }}
@@ -484,7 +482,7 @@ const ShopCategoryPage = () => {
                         }
                       >
                         <Image
-                          src={product.main_image || "/placeholder-product.jpg"}
+                          src={product.mainImage || "/placeholder-product.jpg"}
                           alt={product.title}
                           fill
                           className="object-cover"
@@ -522,20 +520,19 @@ const ShopCategoryPage = () => {
                                 ${product.sale_price}
                               </span>
                               <span className="text-gray-500 line-through ml-2">
-                                ${product.list_price}
+                                ${product.listPrice}
                               </span>
                               <span className="text-red-500 font-medium ml-2 text-sm">
                                 {Math.round(
-                                  (1 -
-                                    product.sale_price / product.list_price) *
-                                    100
+                                  (1 - product.salePrice / product.listPrice) *
+                                    100,
                                 )}
                                 % off
                               </span>
                             </>
                           ) : (
                             <span className="text-xl font-bold">
-                              ${product.list_price}
+                              ${product.listPrice}
                             </span>
                           )}
                         </div>

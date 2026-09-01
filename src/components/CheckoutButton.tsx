@@ -9,7 +9,7 @@ import { triggerNotification } from "@/app/actions/notifications";
 interface Product {
   _id: string;
   name?: string;
-  main_image?: string;
+  mainImage?: string;
   price?: number;
 }
 

@@ -50,7 +50,7 @@ function serialize(obj: any): any {
 export async function findProductByCategory(id: string) {
   await connection();
   try {
-    const products = await Product.find({ category_id: id }).lean();
+    const products = await Product.find({ categoryId: id }).lean();
     return serialize(products);
   } catch (error) {
     console.log(error);
@@ -65,7 +65,7 @@ export async function findProducts(id?: string) {
     if (id) {
       const product = await Product.findById(id)
         .populate("brand", "name")
-        .populate("category_id", "name")
+        .populate("categoryId", "name")
         .populate({
           path: "related_products.ids",
           select: "name price image slug",

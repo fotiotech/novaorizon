@@ -1,50 +1,32 @@
 import mongoose, { Schema, models } from "mongoose";
 
 const VariantSchema = new Schema({
-  product_id: {
+  productId: {
     type: Schema.Types.ObjectId,
     ref: "Product",
     required: [true, "Product ID is required"],
   },
-  // VProductCode: {
-  //   type: Object,
-  //   unique: false,
-  //   default: "ABC",
-  // },
-  url_slug: {
-    type: String,
-  },
-  dsin: {
+  slug: {
     type: String,
   },
   sku: {
     type: String,
     trim: true,
   },
-  productName: {
-    type: String,
-    trim: true,
-    required: [true, "Product name is required"],
-  },
-  variantName: {
+  name: {
     type: String,
     trim: true,
     required: [true, "Variant name is required"],
   },
-  category_id: {
+  categoryId: {
     type: Schema.Types.ObjectId,
     ref: "Category",
     required: [true, "Category ID is required"],
   },
-  brand_id: {
+  brand: {
     type: Schema.Types.ObjectId,
     ref: "Brand",
     required: [true, "Brand ID is required"],
-  },
-  department: {
-    type: String,
-    trim: true,
-    required: [true, "Department is required"],
   },
   description: {
     type: String,

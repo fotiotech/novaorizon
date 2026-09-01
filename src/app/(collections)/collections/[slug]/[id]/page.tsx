@@ -66,7 +66,7 @@ async function resolveCollectionItems(collection: any) {
     _id: item._id.toString(),
     name: item.name || item.title || "Unnamed",
     image:
-      item.main_image ||
+      item.mainImage ||
       item.image ||
       item.imageUrl ||
       item.backgroundImage ||
