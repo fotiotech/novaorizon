@@ -23,9 +23,9 @@ export default function RelatedProducts({
         // Transform to the shape your Carousel expects
         const mapped = res.data.map((item: any) => ({
           _id: item._id,
-          name: item.title,
-          image: item.mainImage,
-          price: item.sale_price,
+          name: item.title || item.name,
+          image: item.mainImage || item.main_image,
+          price: item.salePrice ?? item.sale_price,
           contentType: "Product",
         }));
         setItems(mapped);

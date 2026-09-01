@@ -134,14 +134,13 @@ async function resolveCollectionItems(
 
     // Normalise – explicitly extract main_image
     return rawItems.map((item: any) => {
-      // Explicitly extract mainImage
       const image = item.mainImage || item.image || item.imageUrl || null;
 
       return {
         _id: item._id.toString(),
         name: item.title || item.name || "Unnamed",
-        image: image,
-        price: item.sale_price || item.price || null,
+        image,
+        price: item.salePrice ?? item.sale_price ?? item.price ?? null,
         contentType: "Product",
       };
     });
@@ -160,7 +159,7 @@ async function resolveCollectionItems(
       _id: item._id.toString(),
       name: item.title || item.name || "Unnamed",
       image: item.mainImage || item.image || item.imageUrl || null,
-      price: item.sale_price || item.price || null,
+      price: item.salePrice ?? item.sale_price ?? item.price ?? null,
       contentType: "Product",
     }));
   }
@@ -192,8 +191,13 @@ async function resolveCollectionItems(
     let price: number | null = null;
 
     if (targetType === "Product") {
-      image = item.main_image || item.image || item.imageUrl || null;
-      price = item.sale_price || null;
+      image =
+        item.mainImage ||
+        item.main_image ||
+        item.image ||
+        item.imageUrl ||
+        null;
+      price = item.salePrice ?? item.sale_price ?? null;
     } else if (targetType === "Collection") {
       image = item.imageUrl || item.image || null;
     } else {

@@ -36,7 +36,7 @@ const productCollectionSchema = new Schema(
       enum: ["grid", "carousel", "category"],
       default: "grid",
     },
-    category_id: {
+    categoryId: {
       type: Schema.Types.ObjectId,
       ref: "Category",
       required: [true, "Category ID is required"],

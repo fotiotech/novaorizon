@@ -9,11 +9,34 @@ import "@/models/Category";
 import "@/models/Attribute";
 import mongoose from "mongoose";
 
-// ---------- Helper: Deep Serialize (same as in category.ts) ----------
+function normalizeProductDocument<T = any>(product: T): T {
+  if (!product || typeof product !== "object") return product;
+
+  const normalized = { ...((product as any) ?? {}) };
+
+  normalized.category_id ??= normalized.categoryId ?? null;
+  normalized.categoryId ??= normalized.category_id ?? null;
+  normalized.main_image ??= normalized.mainImage ?? "";
+  normalized.mainImage ??= normalized.main_image ?? "";
+  normalized.list_price ??= normalized.listPrice ?? 0;
+  normalized.listPrice ??= normalized.list_price ?? 0;
+  normalized.sale_price ??= normalized.salePrice ?? normalized.listPrice ?? 0;
+  normalized.salePrice ??= normalized.sale_price ?? normalized.listPrice ?? 0;
+  normalized.related_products ??= normalized.relatedProducts ?? [];
+  normalized.relatedProducts ??= normalized.related_products ?? [];
+  normalized.short_description ??= normalized.shortDescription ?? "";
+  normalized.shortDescription ??= normalized.short_description ?? "";
+  normalized.low_stock_threshold ??= normalized.lowStockThreshold ?? 0;
+  normalized.lowStockThreshold ??= normalized.low_stock_threshold ?? 0;
+  normalized.stock_status ??= normalized.stockStatus ?? [];
+  normalized.stockStatus ??= normalized.stock_status ?? [];
+
+  return normalized as T;
+}
+
 function serialize(obj: any): any {
   if (obj === null || obj === undefined) return obj;
 
-  // Handle Mongoose ObjectId
   if (
     obj instanceof mongoose.Types.ObjectId ||
     obj._bsontype === "ObjectId" ||
@@ -22,17 +45,14 @@ function serialize(obj: any): any {
     return obj.toString();
   }
 
-  // Handle Date
   if (obj instanceof Date) {
     return obj.toISOString();
   }
 
-  // Handle arrays
   if (Array.isArray(obj)) {
     return obj.map(serialize);
   }
 
-  // Handle plain objects
   if (typeof obj === "object") {
     const result: any = {};
     for (const key of Object.keys(obj)) {
@@ -41,17 +61,14 @@ function serialize(obj: any): any {
     return result;
   }
 
-  // Primitives
   return obj;
 }
-
-// ---------- Server Actions ----------
 
 export async function findProductByCategory(id: string) {
   await connection();
   try {
     const products = await Product.find({ categoryId: id }).lean();
-    return serialize(products);
+    return serialize(products.map(normalizeProductDocument));
   } catch (error) {
     console.log(error);
     return { error: "Failed to fetch products by category" };
@@ -67,8 +84,8 @@ export async function findProducts(id?: string) {
         .populate("brand", "name")
         .populate("categoryId", "name")
         .populate({
-          path: "related_products.ids",
-          select: "name price image slug",
+          path: "relatedProducts.ids",
+          select: "name price mainImage slug",
         })
         .lean()
         .exec();
@@ -77,13 +94,12 @@ export async function findProducts(id?: string) {
         return { success: false, error: "Product not found" };
       }
 
-      // Fully serialize the product (handles all nested ObjectIds)
-      return serialize(product);
+      return serialize(normalizeProductDocument(product));
     }
 
     const products = await Product.find()
       .populate("brand", "name")
-      .populate("category_id", "name")
+      .populate("categoryId", "name")
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -93,20 +109,19 @@ export async function findProducts(id?: string) {
       return [];
     }
 
-    return serialize(products);
+    return serialize(products.map(normalizeProductDocument));
   } catch (error) {
     console.error("Error finding products:", error);
     return { success: false, error: "Failed to fetch products" };
   }
 }
 
-// A "light" version just to pull URL slugs & updated dates, no populates.
 export async function findProductsForSitemap() {
   await connection();
-  const products = await Product.find({}, "url_slug dsin updatedAt").exec();
+  const products = await Product.find({}, "slug updatedAt").exec();
   return products.map((p) => ({
-    url_slug: p.url_slug,
-    dsin: p.dsin,
+    url_slug: p.slug,
+    dsin: p.sku,
     updated_at: p.updatedAt.toISOString(),
   }));
 }

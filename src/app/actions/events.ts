@@ -198,15 +198,20 @@ export async function getRelatedProducts(
     return [];
   }
 
-  // Fetch the product's related_products and fallback data
   const product: any = await Product.findById(productId)
     .select("relatedProducts categoryId brand")
     .lean();
   if (!product) return [];
 
-  let relatedIds = product.related_products || [];
+  const normalizedProduct = {
+    ...product,
+    relatedProducts: product.relatedProducts ?? product.related_products ?? [],
+    categoryId: product.categoryId ?? product.category_id ?? null,
+    brand: product.brand ?? product.brand_id ?? null,
+  };
 
-  // Handle both formats: array of IDs or array of { id, relationship_type }
+  let relatedIds = normalizedProduct.relatedProducts || [];
+
   if (Array.isArray(relatedIds) && relatedIds.length > 0) {
     if (typeof relatedIds[0] === "object" && relatedIds[0].id) {
       relatedIds = relatedIds.map((r: any) => r.id);

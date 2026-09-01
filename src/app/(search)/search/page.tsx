@@ -68,13 +68,13 @@ const Search = () => {
   // Build filters from URL params
   const buildFilters = useCallback(() => {
     const filters: any[] = [];
-    if (category) filters.push({ term: { category_id: category } });
+    if (category) filters.push({ term: { categoryId: category } });
     if (brand) filters.push({ term: { brand: brand } });
     if (priceMin || priceMax) {
       const range: any = {};
       if (priceMin) range.gte = Number(priceMin);
       if (priceMax) range.lte = Number(priceMax);
-      filters.push({ range: { list_price: range } });
+      filters.push({ range: { listPrice: range } });
     }
     return filters;
   }, [category, brand, priceMin, priceMax]);
@@ -133,9 +133,9 @@ const Search = () => {
   // Memoized product list
   const productList = useMemo(() => {
     return data.map((item: any) => {
-      const imageUrl = item.main_image || null;
-      const title = item.title;
-      const price = item.list_price;
+      const imageUrl = item.mainImage || item.main_image || null;
+      const title = item.name || item.title;
+      const price = item.listPrice ?? item.list_price;
       const currency = item.currency || "CFA";
 
       return (

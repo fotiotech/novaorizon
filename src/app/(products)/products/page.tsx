@@ -14,7 +14,7 @@ export default async function ProductsPage() {
   await connection();
 
   const products = await Product.find({})
-    .select(\"_id name mainImage price\")
+    .select("_id name mainImage price")
     .lean()
     .exec();
 

@@ -124,16 +124,16 @@ export default function MyReviewsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {reviews.map((review) => (
+          {reviews.map((review: any) => (
             <div
               key={review._id}
               className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:shadow-md transition-shadow"
             >
               <div className="flex gap-4 mb-4">
-                {review.productId?.main_image && (
+                {review.productId?.mainImage && (
                   <div className="relative w-16 h-16 flex-shrink-0">
                     <Image
-                      src={review.productId.main_image}
+                      src={review.productId.mainImage}
                       alt={review.productId.name}
                       fill
                       className="rounded object-cover"

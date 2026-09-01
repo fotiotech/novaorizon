@@ -259,7 +259,7 @@ async function syncInventoryFromOrder(
     const productId = item.productId?.toString?.() || item.productId;
     if (!productId) continue;
 
-    const product = await Product.findById(productId);
+    const product: any = await Product.findById(productId);
     if (!product) continue;
 
     const currentQty = getProductQuantity(product);

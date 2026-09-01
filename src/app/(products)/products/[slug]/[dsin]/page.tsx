@@ -363,9 +363,9 @@ const VariantCard: React.FC<{
   onSelect: (variant: any) => void;
   isActive: boolean;
 }> = ({ variant, onSelect, isActive }) => {
-  const { mainImage: variantMainImage, images: variantImages } =
+  const { mainImage: variantMainImage, images: variantImages }: any =
     resolveProductImages(variant);
-  const image = variantMainImage || variantGallery[0] || null;
+  const image = variantMainImage || null;
   const price = variant.sale_price ?? variant.list_price ?? variant.price ?? 0;
 
   const themeKeys = Object.keys(variant).filter(
@@ -820,7 +820,7 @@ export default function Details(props: { params: Promise<Params> }) {
                 product={{
                   _id,
                   name: title,
-                  main_image,
+                  // main_image,
                   price: displayPrice,
                 }}
                 width="w-full"

@@ -38,7 +38,7 @@ export async function findCategoryAttributesAndValues(categoryId: string) {
       $lookup: {
         from: "attributes",
         localField: "ancestry._id",
-        foreignField: "category_id",
+        foreignField: "categoryId",
         as: "inheritedAttributes",
       },
     },
