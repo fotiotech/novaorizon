@@ -1,8 +1,7 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import Link from "next/link";
-import React, { useCallback, useEffect, useState, use, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef, use } from "react";
 import AddToCart from "@/components/AddToCart";
 import CheckoutButton from "@/components/CheckoutButton";
 import DetailImages from "@/components/DetailImages";
@@ -11,49 +10,14 @@ import Spinner from "@/components/Spinner";
 import ProductViewAnalytics from "./_compnents/ProductViewAnalytics";
 import ReviewForm from "@/components/product/reviews/ProductReviews";
 import ExistingReviews from "@/components/product/reviews/ExistingReviews";
-import { useProductData } from "./_compnents/hooks";
-import { getCategoryAttributeSets } from "@/app/actions/category";
 import { getCarriers } from "@/app/actions/carrier";
 import { useUserData } from "@/app/context/UserDataContext";
 import Image from "next/image";
 import { getMenusByLocation } from "@/app/actions/menu";
 import Carousel from "@/components/Carousel";
+import { findProducts } from "@/app/actions/products";
 
 // ---------- Types ----------
-interface AttributeUnitFamily {
-  id: string;
-  name: string;
-  baseUnit: string;
-}
-
-interface MappedAttribute {
-  id: string;
-  code: string;
-  name: string;
-  type: string;
-  options: string[];
-  isRequired: boolean;
-  unitFamily: AttributeUnitFamily | null;
-  sortOrder: number;
-}
-
-interface GroupNode {
-  id: string;
-  code: string;
-  name: string;
-  parentId: string | null;
-  sortOrder: number;
-  attributes: MappedAttribute[];
-  children: GroupNode[];
-}
-
-interface AttributeSetResult {
-  id: string;
-  title: string;
-  code: string;
-  groups: GroupNode[];
-}
-
 interface Carrier {
   _id: string;
   name: string;
@@ -67,72 +31,48 @@ interface Carrier {
 
 interface Params {
   slug: string;
-  dsin: string;
+  _id: string;
 }
 
-// ---------- Helpers ----------
+// ---------- Image Helpers ----------
 function normalizeImageEntries(value: any): string[] {
   if (!value) return [];
-
   const items: any[] = Array.isArray(value) ? value : [value];
   const normalized = items.flatMap((item) => {
     if (typeof item === "string") return item.trim() ? [item.trim()] : [];
     return [];
   });
-
   return Array.from(new Set(normalized.filter(Boolean)));
 }
 
-function canonicalizeImageFields(value: any): Record<string, any> {
-  if (!value || typeof value !== "object") return {};
-
-  const normalized: Record<string, any> = { ...value };
-  const gallery = normalizeImageEntries(normalized.images ?? []);
-  const mainImage =
-    normalizeImageEntries([normalized.mainImage, gallery[0]])[0] || "";
-
-  normalized.images = gallery;
-  normalized.mainImage = mainImage;
-
-  delete normalized.images;
-  delete normalized.image;
-  delete normalized.imageUrl;
-  delete normalized.image_url;
-  delete normalized.featured_image;
-  delete normalized.thumbnail;
-  delete normalized.media;
-
-  return normalized;
-}
-
 function resolveProductImages(productLike: any): {
-  main_image: string;
+  mainImage: string;
   gallery: string[];
 } {
   if (!productLike) {
-    return { main_image: "", gallery: [] };
+    return { mainImage: "", gallery: [] };
+  }
+  // Normalize images: prioritize 'images' array, fallback to 'gallery', then 'mainImage'
+  let gallery: string[] = [];
+  let mainImage = "";
+
+  if (Array.isArray(productLike.images) && productLike.images.length > 0) {
+    gallery = normalizeImageEntries(productLike.images);
+  } else if (
+    Array.isArray(productLike.gallery) &&
+    productLike.gallery.length > 0
+  ) {
+    gallery = normalizeImageEntries(productLike.gallery);
   }
 
-  const normalized = canonicalizeImageFields(productLike);
-  const gallery = normalizeImageEntries(normalized.gallery ?? []);
-  const mainImage =
-    normalizeImageEntries([normalized.main_image, gallery[0]])[0] || "";
-
-  return {
-    main_image: mainImage,
-    gallery,
-  };
-}
-
-function getFirstImage(val: any): string | null {
-  if (!val) return null;
-  if (Array.isArray(val) && val.length > 0) return val[0];
-  if (typeof val === "string") return val;
-  if (typeof val === "object") {
-    const { main_image, gallery } = resolveProductImages(val);
-    return main_image || gallery[0] || null;
+  if (gallery.length === 0 && productLike.mainImage) {
+    mainImage = productLike.mainImage;
+    gallery = [mainImage];
+  } else if (gallery.length > 0) {
+    mainImage = gallery[0];
   }
-  return null;
+
+  return { mainImage, gallery };
 }
 
 function slugify(text: string): string {
@@ -145,32 +85,29 @@ function slugify(text: string): string {
 function applyVariant(product: any, variant: any) {
   if (!product || !variant) return product;
   const merged = JSON.parse(JSON.stringify(product));
-  const canonicalVariant = canonicalizeImageFields({ ...variant });
-
-  for (const key of Object.keys(canonicalVariant)) {
-    merged[key] = canonicalVariant[key];
+  const variantImages = resolveProductImages(variant);
+  // Merge variant fields (excluding image fields to avoid duplication)
+  const excludeKeys = [
+    "_id",
+    "sku",
+    "quantity",
+    "mainImage",
+    "images",
+    "gallery",
+    "createdAt",
+    "updatedAt",
+    "__v",
+  ];
+  for (const key of Object.keys(variant)) {
+    if (!excludeKeys.includes(key)) {
+      merged[key] = variant[key];
+    }
   }
-
-  const { main_image, gallery } = resolveProductImages(canonicalVariant ?? {});
-  merged.main_image = main_image || merged.main_image || "";
-  merged.gallery = gallery.length > 0 ? gallery : merged.gallery || [];
-
-  if (!merged.gallery.length && merged.main_image) {
-    merged.gallery = [merged.main_image];
-  }
-
-  if (!merged.main_image && merged.gallery.length > 0) {
-    merged.main_image = merged.gallery[0];
-  }
-
-  delete merged.images;
-  delete merged.image;
-  delete merged.imageUrl;
-  delete merged.image_url;
-  delete merged.featured_image;
-  delete merged.thumbnail;
-  delete merged.media;
-
+  // Override image fields from variant if present
+  if (variantImages.mainImage) merged.mainImage = variantImages.mainImage;
+  if (variantImages.gallery.length > 0) merged.images = variantImages.gallery;
+  // Ensure legacy fields for compatibility
+  merged.gallery = merged.images || [];
   return merged;
 }
 
@@ -199,7 +136,6 @@ function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
   ]
     .filter(Boolean)
     .map((s) => s.toLowerCase().trim());
-
   return carrier.regionsServed.some((regionObj) => {
     const region = regionObj.region.toLowerCase().trim();
     return addressStrings.some(
@@ -208,53 +144,63 @@ function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
   });
 }
 
-// ---------- Component: Specifications Table ----------
-const SpecificationTable: React.FC<{
-  set: AttributeSetResult;
-  product: any;
-}> = ({ set, product }) => {
-  const renderGroup = (group: GroupNode, level: number = 0) => {
-    const hasAttributes = group.attributes && group.attributes.length > 0;
-    const hasChildren = group.children && group.children.length > 0;
-
-    if (!hasAttributes && !hasChildren) return null;
-
-    return (
-      <div key={group.id} className={``}>
-        <h3 className={`font-semibold text-neutral-600 mb-1`}>{group.name}</h3>
-        {hasAttributes && (
-          <table className="min-w-full border-collapse border border-border">
-            <tbody>
-              {group.attributes.map((attr) => {
-                const value = product?.[attr.code];
-                if (value === undefined || value === null) return null;
-                return (
-                  <tr key={attr.id} className="border-b border-border">
-                    <th className="py-1 px-3 text-left font-medium capitalize w-1/3 bg-muted/50">
-                      {attr.name}
-                    </th>
-                    <td className="py-1 px-3 text-foreground">
-                      {renderAttributeValue(value)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-        {hasChildren && (
-          <div className="mt-2">
-            {group.children.map((child) => renderGroup(child, level + 1))}
-          </div>
-        )}
-      </div>
-    );
-  };
+// ---------- Component: Specifications ----------
+const SpecificationsDisplay: React.FC<{ specifications: any[] }> = ({
+  specifications,
+}) => {
+  if (!specifications || specifications.length === 0) return null;
 
   return (
     <div className="mt-4">
-      <h2 className="text-xl font-semibold mb-2">{set.title}</h2>
-      {set.groups.map((group) => renderGroup(group, 0))}
+      <h2 className="text-xl font-semibold mb-2">Specifications</h2>
+      {specifications.map((group, idx) => (
+        <div key={idx} className="mb-4">
+          <h3 className="font-semibold text-neutral-600 mb-1">{group.name}</h3>
+          {Array.isArray(group.attributes) && group.attributes.length > 0 && (
+            <table className="min-w-full border-collapse border border-border">
+              <tbody>
+                {group.attributes.map((attr: any, i: any) => (
+                  <tr key={i} className="border-b border-border">
+                    <th className="py-1 px-3 text-left font-medium capitalize w-1/3 bg-muted/50">
+                      {attr.k}
+                    </th>
+                    <td className="py-1 px-3 text-foreground">
+                      {renderAttributeValue(attr.v)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {Array.isArray(group.groups) && group.groups.length > 0 && (
+            <div className="ml-4">
+              {group.groups.map((subGroup: any, subIdx: any) => (
+                <SpecificationsDisplay
+                  key={subIdx}
+                  specifications={[subGroup]}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ---------- Component: Key Features ----------
+const KeyFeatures: React.FC<{ keyFeatures: any[] }> = ({ keyFeatures }) => {
+  if (!keyFeatures || keyFeatures.length === 0) return null;
+  return (
+    <div className="mt-4">
+      <h2 className="text-xl font-semibold mb-2">Key Features</h2>
+      <ul className="list-disc pl-6 space-y-1">
+        {keyFeatures.map((item: any, idx: any) => (
+          <li key={idx}>
+            <strong>{item.k}:</strong> {renderAttributeValue(item.v)}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
@@ -363,7 +309,7 @@ const VariantCard: React.FC<{
   onSelect: (variant: any) => void;
   isActive: boolean;
 }> = ({ variant, onSelect, isActive }) => {
-  const { mainImage: variantMainImage, images: variantImages }: any =
+  const { mainImage: variantMainImage, gallery: variantGallery } =
     resolveProductImages(variant);
   const image = variantMainImage || null;
   const price = variant.sale_price ?? variant.list_price ?? variant.price ?? 0;
@@ -377,10 +323,9 @@ const VariantCard: React.FC<{
         "sale_price",
         "list_price",
         "quantity",
-        "main_image",
+        "mainImage",
+        "images",
         "gallery",
-        "stock",
-        "stock_status",
         "createdAt",
         "updatedAt",
         "__v",
@@ -412,7 +357,7 @@ const VariantCard: React.FC<{
             alt=""
             fill
             className="object-contain"
-            sizes="(max-width: 768px) 100vw, 33vw"
+            sizes="100px"
           />
         </div>
       ) : (
@@ -429,7 +374,7 @@ const VariantCard: React.FC<{
   );
 };
 
-// ---------- Component: Menu-based Related Products Renderer ----------
+// ---------- Related Menus Renderer ----------
 const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
   if (!menus || menus.length === 0) return null;
 
@@ -494,7 +439,6 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                   ))}
                 </ul>
               );
-
             case "Grid":
               return (
                 <div className={`grid gap-3 ${getGridCols()}`}>
@@ -525,7 +469,6 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                   ))}
                 </div>
               );
-
             case "Carousel":
               return (
                 <Carousel
@@ -539,7 +482,6 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                   showImages={showImages}
                 />
               );
-
             default:
               return (
                 <div className="text-yellow-600">
@@ -562,28 +504,50 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
   );
 };
 
-// ---------- Main Page Component ----------
+// ---------- Main Page ----------
 export default function Details(props: { params: Promise<Params> }) {
   const params = use(props.params);
-  const { product, loading, error, setProduct } = useProductData(params?.dsin);
-  const [attributeSets, setAttributeSets] = useState<AttributeSetResult[]>([]);
-  const [setsLoading, setSetsLoading] = useState<boolean>(true);
-  const [setsError, setSetsError] = useState<string | null>(null);
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<
     number | null
   >(null);
   const initialLoadComplete = useRef(false);
 
-  const categoryId = product?.categoryId?._id ?? product?.categoryId;
-  const { data: session } = useSession();
-  const user = session?.user as any;
   const { addresses: userAddresses } = useUserData();
 
-  // State for related product menus
+  // Fetch product
+  useEffect(() => {
+    if (!params._id) {
+      setError("No product ID provided");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    findProducts(params._id)
+      .then((result) => {
+        if (result && (result as any).success === false) {
+          setError((result as any).error || "Product not found");
+          setProduct(null);
+        } else if (result) {
+          setProduct(result);
+          setError(null);
+        } else {
+          setError("Product not found");
+          setProduct(null);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch product:", err);
+        setError(err.message || "Failed to load product");
+      })
+      .finally(() => setLoading(false));
+  }, [params._id]);
+
+  // Fetch related menus
   const [menus, setMenus] = useState<any[]>([]);
   const [menusLoading, setMenusLoading] = useState(false);
-
-  // Fetch menus for "product_related" location with product context
   useEffect(() => {
     if (!product?._id) return;
     setMenusLoading(true);
@@ -599,26 +563,7 @@ export default function Details(props: { params: Promise<Params> }) {
       .finally(() => setMenusLoading(false));
   }, [product?._id]);
 
-  // Fetch attribute sets
-  useEffect(() => {
-    if (!categoryId) {
-      setSetsLoading(false);
-      return;
-    }
-    setSetsLoading(true);
-    getCategoryAttributeSets(categoryId as string)
-      .then((sets) => {
-        setAttributeSets(sets);
-        setSetsError(null);
-      })
-      .catch((err) => {
-        console.error("Failed to load attribute sets:", err);
-        setSetsError("Could not load product specifications.");
-      })
-      .finally(() => setSetsLoading(false));
-  }, [categoryId]);
-
-  // Active variant detection & initial sync
+  // Variant sync
   useEffect(() => {
     if (
       !product ||
@@ -639,10 +584,9 @@ export default function Details(props: { params: Promise<Params> }) {
           "sale_price",
           "list_price",
           "quantity",
-          "main_image",
+          "mainImage",
+          "images",
           "gallery",
-          "stock",
-          "stock_status",
           "createdAt",
           "updatedAt",
           "__v",
@@ -678,10 +622,9 @@ export default function Details(props: { params: Promise<Params> }) {
             "_id",
             "sku",
             "quantity",
-            "main_image",
+            "mainImage",
+            "images",
             "gallery",
-            "stock",
-            "stock_status",
             "createdAt",
             "updatedAt",
             "__v",
@@ -700,7 +643,7 @@ export default function Details(props: { params: Promise<Params> }) {
 
     setSelectedVariantIndex(foundIndex);
     initialLoadComplete.current = true;
-  }, [product, setProduct]);
+  }, [product]);
 
   const handleVariantSelect = useCallback(
     (variant: any, index: number) => {
@@ -710,11 +653,11 @@ export default function Details(props: { params: Promise<Params> }) {
         setSelectedVariantIndex(index);
       }
     },
-    [product, setProduct],
+    [product],
   );
 
   if (loading) return <Spinner size={32} />;
-  if (error)
+  if (error) {
     return (
       <div className="w-full p-8 text-center">
         <div className="text-destructive mb-4">{error}</div>
@@ -726,7 +669,8 @@ export default function Details(props: { params: Promise<Params> }) {
         </button>
       </div>
     );
-  if (!product)
+  }
+  if (!product) {
     return (
       <div className="w-full p-8 text-center">
         <div className="text-xl mb-4">Product not found</div>
@@ -738,172 +682,149 @@ export default function Details(props: { params: Promise<Params> }) {
         </Link>
       </div>
     );
+  }
 
-  // ProductBasicInfo component (unchanged)
-  const ProductBasicInfo = () => {
-    const {
-      _id = "",
-      brand,
-      title = "Untitled Product",
-      model = "",
-      list_price = 0,
-      sale_price,
-      stock_status = [],
-      condition = [],
-      short_desc = "",
-      variants = [],
-    } = product || {};
+  const {
+    _id = "",
+    brand,
+    name = "Untitled Product",
+    sku = "",
+    listPrice = 0,
+    price = 0,
+    quantity = 0,
+    shortDescription = "",
+    description = "",
+    variants = [],
+  } = product;
 
-    const { main_image, gallery } = resolveProductImages(product || {});
-    const displayPrice = sale_price ?? list_price ?? 0;
+  const { mainImage, gallery } = resolveProductImages(product);
+  const displayPrice = price || listPrice || 0;
+  const inStock = quantity > 0;
+  const stockStatus = inStock ? "In Stock" : "Out of Stock";
 
-    return (
-      <>
-        <div className="flex flex-col md:flex-row gap-4">
-          {Array.isArray(gallery) && gallery.length > 0 ? (
-            <div className="md:w-1/2">
-              {brand?.name && (
-                <Link href={`/brandStore?brandId=${_id}`} className="">
-                  visit <span className="text-primary">{brand?.name}</span>
-                </Link>
-              )}
-              <DetailImages file={gallery} />
-            </div>
-          ) : (
-            <div className="w-full md:w-1/2 flex items-center justify-center bg-muted text-muted-foreground rounded p-6">
-              No images available
-            </div>
-          )}
+  console.log("Product details:", product);
 
-          <div className="md:w-1/2 text-foreground">
-            <h1 className="text-sm font-bold text-muted-foreground lg:text-lg mb-2">
-              {title} {model}
-            </h1>
-
-            {typeof displayPrice === "number" && (
-              <div className="text-2xl font-semibold mb-2">
-                {displayPrice} CFA
+  return (
+    <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-4 md:px-8">
+      <ProductViewAnalytics productId={params._id} />
+      <div className="max-w-6xl mx-auto">
+        {/* Product Basic Info */}
+        <>
+          <div className="flex flex-col md:flex-row gap-4">
+            {Array.isArray(gallery) && gallery.length > 0 ? (
+              <div className="md:w-1/2">
+                {brand?.name && (
+                  <Link href={`/brandStore?brandId=${_id}`} className="">
+                    visit <span className="text-primary">{brand?.name}</span>
+                  </Link>
+                )}
+                <DetailImages file={gallery} />
+              </div>
+            ) : (
+              <div className="w-full md:w-1/2 flex items-center justify-center bg-muted text-muted-foreground rounded p-6">
+                No images available
               </div>
             )}
 
-            {Array.isArray(stock_status) && stock_status.length > 0 && (
+            <div className="md:w-1/2 text-foreground">
+              <h1 className="text-sm font-bold text-muted-foreground lg:text-lg mb-2">
+                {name}
+              </h1>
+
+              {typeof displayPrice === "number" && (
+                <div className="text-2xl font-semibold mb-2">
+                  {displayPrice} CFA
+                </div>
+              )}
+
               <div
                 className={`${
-                  stock_status.join(", ") === "In Stock"
+                  inStock
                     ? "text-green-600 dark:text-green-400"
                     : "text-destructive"
                 } mb-2`}
               >
-                {stock_status.join(", ")}
+                {stockStatus}
               </div>
-            )}
 
-            {/* Variant Cards */}
-            {Array.isArray(variants) && variants.length > 0 && (
-              <div className="mb-2">
-                <h3 className="text-sm font-medium mb-1">Available Variants</h3>
-                <div className="flex overflow-x-auto gap-2 pb-1 md:grid md:grid-cols-2 lg:grid-cols-3 scrollbar-hide">
-                  {variants.map((v: any, idx: number) => (
-                    <VariantCard
-                      key={idx}
-                      variant={v}
-                      onSelect={(variant) => handleVariantSelect(variant, idx)}
-                      isActive={selectedVariantIndex === idx}
-                    />
-                  ))}
+              {/* Variant Cards */}
+              {Array.isArray(variants) && variants.length > 0 && (
+                <div className="mb-2">
+                  <h3 className="text-sm font-medium mb-1">
+                    Available Variants
+                  </h3>
+                  <div className="flex overflow-x-auto gap-2 pb-1 md:grid md:grid-cols-2 lg:grid-cols-3 scrollbar-hide">
+                    {variants.map((v: any, idx: number) => (
+                      <VariantCard
+                        key={idx}
+                        variant={v}
+                        onSelect={(variant) =>
+                          handleVariantSelect(variant, idx)
+                        }
+                        isActive={selectedVariantIndex === idx}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 w-full">
-              <CheckoutButton
-                product={{
-                  _id,
-                  name: title,
-                  // main_image,
-                  price: displayPrice,
-                }}
-                width="w-full"
-              >
-                Checkout
-              </CheckoutButton>
-              <AddToCart
-                product={{
-                  _id,
-                  name: title,
-                  image: main_image,
-                  price: displayPrice,
-                }}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 w-full">
+                <CheckoutButton
+                  product={{
+                    _id,
+                    name,
+                    price: displayPrice,
+                  }}
+                  width="w-full"
+                >
+                  Checkout
+                </CheckoutButton>
+                <AddToCart
+                  product={{
+                    _id,
+                    name,
+                    image: mainImage,
+                    price: displayPrice,
+                  }}
+                />
+              </div>
+
+              <CarrierShippingOptions
+                product={product}
+                userAddresses={userAddresses}
               />
             </div>
-
-            <CarrierShippingOptions
-              product={product}
-              userAddresses={userAddresses}
-            />
           </div>
-        </div>
 
-        <div className="my-3 rounded grid grid-cols-1 md:grid-cols-2 gap-3">
-          {Array.isArray(condition) && condition.length > 0 && (
-            <div>
-              <span className="font-semibold">Condition:</span>{" "}
-              {condition.join(", ")}
+          {shortDescription && (
+            <div className="my-3 rounded">
+              <p className="text-muted-foreground text-sm">
+                {shortDescription}
+              </p>
             </div>
           )}
-        </div>
+        </>
 
-        {short_desc && (
-          <div className="my-3 rounded">
-            <p className="text-muted-foreground text-sm">{short_desc}</p>
-          </div>
-        )}
-      </>
-    );
-  };
+        {/* Key Features */}
+        <KeyFeatures keyFeatures={product.keyFeatures} />
 
-  return (
-    <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-4 md:px-8">
-      <ProductViewAnalytics productId={params.dsin} />
-      <div className="max-w-6xl mx-auto">
-        <ProductBasicInfo />
+        {/* Specifications */}
+        <SpecificationsDisplay specifications={product.specifications} />
 
-        {setsLoading ? (
-          <div className="mt-4 flex justify-center">
-            <Spinner size={24} />
-          </div>
-        ) : setsError ? (
-          <div className="mt-4 text-destructive">{setsError}</div>
-        ) : attributeSets.length > 0 ? (
-          <div className="mt-4 space-y-4">
-            {attributeSets.map((set) => {
-              if (set.code === "specifications") {
-                return (
-                  <SpecificationTable
-                    key={set.id}
-                    set={set}
-                    product={product}
-                  />
-                );
-              }
-              return null;
-            })}
-          </div>
-        ) : null}
-
+        {/* Description */}
         <div className="mt-4 bg-background rounded">
           <h2 className="text-lg font-semibold mb-1">Description</h2>
-          {product.long_desc ? (
+          {description ? (
             <div
               className="prose max-w-none text-foreground"
-              dangerouslySetInnerHTML={{ __html: product.long_desc }}
+              dangerouslySetInnerHTML={{ __html: description }}
             />
           ) : (
             <p className="text-muted-foreground">No description available.</p>
           )}
         </div>
 
-        {/* Render related product menus */}
+        {/* Related Menus */}
         {menusLoading ? (
           <div className="mt-4 flex justify-center">
             <Spinner size={24} />
@@ -912,8 +833,9 @@ export default function Details(props: { params: Promise<Params> }) {
           <RelatedMenusRenderer menus={menus} />
         )}
 
+        {/* Reviews */}
         <div className="mt-4 bg-background rounded">
-          <ReviewForm productId={product._id} userId={user?._id} />
+          <ReviewForm productId={product._id} userId={""} />
           <ExistingReviews reviews={product?.reviews} />
         </div>
       </div>

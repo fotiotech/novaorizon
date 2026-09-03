@@ -1,6 +1,6 @@
 "use server";
 
-import mongoose, { Types } from "mongoose";
+import { Types } from "mongoose";
 import { connection } from "@/utils/connection";
 import Category from "@/models/Category";
 import CategoryProperty, { ICategoryProperty } from "@/models/CategoryProperty";
@@ -9,52 +9,16 @@ import Attribute from "@/models/Attribute";
 import "@/models/AttributeGroup";
 import "@/models/UnitFamily";
 
-// ---------- Helper: Deep Serialize ----------
-function serialize(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-
-  // Handle Mongoose ObjectId
-  if (
-    obj instanceof mongoose.Types.ObjectId ||
-    obj._bsontype === "ObjectId" ||
-    typeof obj.toHexString === "function"
-  ) {
-    return obj.toString();
-  }
-
-  // Handle Date
-  if (obj instanceof Date) {
-    return obj.toISOString();
-  }
-
-  // Handle arrays
-  if (Array.isArray(obj)) {
-    return obj.map(serialize);
-  }
-
-  // Handle plain objects
-  if (typeof obj === "object") {
-    const result: any = {};
-    for (const key of Object.keys(obj)) {
-      result[key] = serialize(obj[key]);
-    }
-    return result;
-  }
-
-  // Primitives
-  return obj;
-}
-
 // ---------- Category Property CRUD ----------
-export async function getCategoryProperty(id?: string) {
+export async function getCategoryProperty(id?: string): Promise<any> {
   await connection();
   if (id) {
     const property = await CategoryProperty.findById(id).lean();
     if (!property) return null;
-    return serialize(property);
+    return property;
   } else {
     const properties = await CategoryProperty.find().lean();
-    return serialize(properties);
+    return properties;
   }
 }
 
@@ -63,27 +27,27 @@ export async function getCategory(
   id?: string | null,
   parentId?: string | null,
   name?: string | null,
-) {
+): Promise<any> {
   await connection();
   if (name) {
     const category = await Category.findOne({ name });
     if (category) {
-      const subCategories = await Category.find({ parent_id: category._id });
-      return serialize(subCategories);
+      const subCategories = await Category.find({ parentId: category._id });
+      return subCategories;
     }
     return [];
   } else if (id) {
     const category = await Category.findById(id).populate("property").lean();
     if (!category) return null;
-    return serialize(category);
+    return category;
   } else if (parentId) {
-    const subCategories = await Category.find({ parent_id: parentId })
+    const subCategories = await Category.find({ parentId })
       .populate("property")
       .lean();
-    return serialize(subCategories);
+    return subCategories;
   } else {
     const categories = await Category.find().populate("property").lean();
-    return serialize(categories);
+    return categories;
   }
 }
 

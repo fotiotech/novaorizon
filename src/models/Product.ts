@@ -1,22 +1,26 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-// ==================== 1. INTERFACES ====================
+// ==================== INTERFACES ====================
 
-// ProductCode sub‑document
 interface IProductCode {
   type: "EAN" | "UPC" | "ISBN" | "QR" | "MODEL";
   value: string;
 }
 
-// Key‑Value pair for dynamic attributes (keyFeatures, specifications, variant attributes)
 interface IKeyValue {
   k: string;
-  v: any; // Can be string, number, boolean, etc.
+  v: any;
+  unit?: string;
 }
 
-// Variant sub‑document
+interface ISpecificationGroup {
+  name: string;
+  attributes?: IKeyValue[];
+  groups?: ISpecificationGroup[];
+}
+
 interface IVariant {
-  attributes: IKeyValue[]; // e.g., [{ k: 'Size', v: 'L' }, { k: 'Color', v: 'Red' }]
+  attributes: IKeyValue[];
   sku: string;
   price: number;
   quantity: number;
@@ -24,31 +28,30 @@ interface IVariant {
   images?: string[];
 }
 
-// Review sub‑document
 interface IReview {
   user: mongoose.Types.ObjectId;
-  rating: number; // 1–5
-  comment?: string; // max 200 chars
+  rating: number;
+  comment?: string;
 }
 
-// Related products structure
-interface IRelatedProducts {
-  ids: mongoose.Types.ObjectId[];
+// Related product now an array of objects
+interface IRelatedProduct {
+  product: mongoose.Types.ObjectId;
   relationshipType?: string;
 }
 
-// Main Product document
 export interface IProduct extends Document {
-  productCode: IProductCode[];
+  productCode: IProductCode | null;
   name: string;
   sku: string;
   slug: string;
   categoryId: mongoose.Types.ObjectId;
   brand: mongoose.Types.ObjectId;
   hasVariants: boolean;
-  variantThemes: string[]; // NEW: e.g., ['Color', 'Size', 'Material']
-  keyFeatures: IKeyValue[]; // highlight features
-  specifications: IKeyValue[]; // technical specs
+  variantThemes: string[];
+  variantValues: IKeyValue[];
+  keyFeatures: IKeyValue[];
+  specifications: ISpecificationGroup[];
   quantity: number;
   lowStockThreshold: number;
   listPrice: number;
@@ -59,7 +62,7 @@ export interface IProduct extends Document {
   shortDescription: string;
   variants: IVariant[];
   carrier?: mongoose.Types.ObjectId;
-  relatedProducts: IRelatedProducts;
+  relatedProducts: IRelatedProduct[]; // changed
   reviewsRatings: IReview[];
   tags: string[];
   status: "draft" | "active" | "inactive";
@@ -67,7 +70,7 @@ export interface IProduct extends Document {
   updatedAt: Date;
 }
 
-// ==================== 2. SUB‑SCHEMAS ====================
+// ==================== SUB‑SCHEMAS ====================
 
 const ProductCodeSchema = new Schema<IProductCode>({
   type: {
@@ -81,6 +84,13 @@ const ProductCodeSchema = new Schema<IProductCode>({
 const KeyValueSchema = new Schema<IKeyValue>({
   k: { type: String, required: true, trim: true },
   v: { type: Schema.Types.Mixed, required: true },
+  unit: { type: String, trim: true },
+});
+
+const SpecificationGroupSchema = new Schema<ISpecificationGroup>({
+  name: { type: String, required: true, trim: true },
+  attributes: { type: [KeyValueSchema], default: [] },
+  groups: { type: [Schema.Types.Mixed], default: [] },
 });
 
 const VariantSchema = new Schema<IVariant>({
@@ -98,13 +108,13 @@ const ReviewSchema = new Schema<IReview>({
   comment: { type: String, maxlength: 200 },
 });
 
-// ==================== 3. MAIN SCHEMA ====================
+// ==================== MAIN SCHEMA ====================
 
 const ProductSchema = new Schema<IProduct>(
   {
-    productCode: { type: [ProductCodeSchema], default: [] },
+    productCode: { type: ProductCodeSchema, default: null },
     name: { type: String, trim: true, default: "" },
-    sku: { type: String, trim: true, index: true, default: "" },
+    sku: { type: String, trim: true, default: "" },
     slug: {
       type: String,
       trim: true,
@@ -117,15 +127,12 @@ const ProductSchema = new Schema<IProduct>(
       ref: "Category",
       required: true,
     },
-    brand: {
-      type: Schema.Types.ObjectId,
-      ref: "Brand",
-      required: true,
-    },
+    brand: { type: Schema.Types.ObjectId, ref: "Brand", required: true },
     hasVariants: { type: Boolean, default: false },
-    variantThemes: { type: [String], default: [] }, // NEW
+    variantThemes: { type: [String], default: [] },
+    variantValues: { type: [KeyValueSchema], default: [] },
     keyFeatures: { type: [KeyValueSchema], default: [] },
-    specifications: { type: [KeyValueSchema], default: [] },
+    specifications: { type: [SpecificationGroupSchema], default: [] },
     quantity: { type: Number, default: 0, min: 0 },
     lowStockThreshold: { type: Number, default: 5, min: 0 },
     listPrice: { type: Number, default: 0, min: 0 },
@@ -137,11 +144,13 @@ const ProductSchema = new Schema<IProduct>(
     variants: { type: [VariantSchema], default: [] },
     carrier: { type: Schema.Types.ObjectId, ref: "Carrier" },
     relatedProducts: {
-      ids: {
-        type: [{ type: Schema.Types.ObjectId, ref: "Product" }],
-        default: [],
-      },
-      relationshipType: { type: String },
+      type: [
+        {
+          product: { type: Schema.Types.ObjectId, ref: "Product" },
+          relationshipType: { type: String },
+        },
+      ],
+      default: [],
     },
     reviewsRatings: { type: [ReviewSchema], default: [] },
     tags: { type: [String], default: [] },
@@ -152,12 +161,14 @@ const ProductSchema = new Schema<IProduct>(
       index: true,
     },
   },
-  { timestamps: true }, // strict is true by default
+  {
+    timestamps: true,
+    strict: false, // allow dynamic category attributes as top‑level fields
+  },
 );
 
-// ==================== 4. INDEXES ====================
+// ==================== INDEXES ====================
 
-// ---- 4a. Text search index (on static + dynamic fields) ----
 ProductSchema.index(
   {
     name: "text",
@@ -165,7 +176,7 @@ ProductSchema.index(
     shortDescription: "text",
     tags: "text",
     "keyFeatures.v": "text",
-    "specifications.v": "text",
+    "specifications.$**": "text",
   },
   {
     weights: {
@@ -174,30 +185,26 @@ ProductSchema.index(
       shortDescription: 3,
       tags: 2,
       "keyFeatures.v": 1,
-      "specifications.v": 1,
+      "specifications.$**": 1,
     },
     name: "ProductTextIndex",
   },
 );
 
-// ---- 4b. Exact key‑value lookups (multikey compound) ----
 ProductSchema.index({ "keyFeatures.k": 1, "keyFeatures.v": 1 });
-ProductSchema.index({ "specifications.k": 1, "specifications.v": 1 });
-
-// ---- 4c. Common query filters ----
+ProductSchema.index({
+  "specifications.attributes.k": 1,
+  "specifications.attributes.v": 1,
+});
 ProductSchema.index({ categoryId: 1, status: 1, price: 1 });
 ProductSchema.index({ brand: 1, status: 1 });
 ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ sku: 1 });
 ProductSchema.index({ status: 1, createdAt: -1 });
-
-// (Optional) Partial index for active products only
 ProductSchema.index(
   { "keyFeatures.k": 1, "keyFeatures.v": 1 },
   { partialFilterExpression: { status: "active" } },
 );
-
-// ==================== 5. MODEL ====================
 
 const Product =
   (mongoose.models.Product as mongoose.Model<IProduct>) ||

@@ -18,6 +18,8 @@ export default async function ProductsPage() {
     .lean()
     .exec();
 
+  console.log("Fetched products:", products);
+
   // If no products, show a friendly message
   if (products.length === 0) {
     return (
@@ -46,14 +48,14 @@ export default async function ProductsPage() {
               <div className="relative aspect-square bg-gray-100">
                 <img
                   src={imageUrl}
-                  alt={product.title}
+                  alt={product.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
                 />
               </div>
               <div className="p-3">
                 <h2 className="text-sm font-medium text-foreground line-clamp-2 group-hover:underline">
-                  {product.title}
+                  {product.name}
                 </h2>
                 {product.price && (
                   <p className="text-sm text-primary font-semibold mt-1">
