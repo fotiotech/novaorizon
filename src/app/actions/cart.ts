@@ -30,7 +30,7 @@ async function recalculateCart(cart: any) {
     (sum: number, item: any) => sum + item.totalPrice,
     0,
   );
-  const tax = subtotal * 0.08; // example tax rate, could be per-item
+  const tax = subtotal * 0; // example tax rate, could be per-item
   const discount = cart.discount || 0;
   const shippingCost = cart.shippingCost || 0;
   const total = subtotal + tax + shippingCost - discount;

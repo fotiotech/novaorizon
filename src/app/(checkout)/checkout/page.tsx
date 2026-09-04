@@ -800,7 +800,7 @@ const CheckoutPage = () => {
                 </button>
               ) : (
                 <>
-                  <button
+                  {/* <button
                     type="button"
                     onClick={(event) => {
                       event.preventDefault();
@@ -820,7 +820,7 @@ const CheckoutPage = () => {
                     {processingAction === "pay-now"
                       ? "Processing..."
                       : "Pay Now"}
-                  </button>
+                  </button> */}
 
                   <button
                     type="button"
