@@ -29,7 +29,14 @@ export async function searchProducts(
   if (query && query.trim() !== "") {
     textClause.text = {
       query: query,
-      path: ["title", "description"], // simple array – title gets higher relevance by default
+      path: [
+        "name",
+        "description",
+        "tags",
+        "keyFeatures.v",
+        "specifications.attributes.v",
+        "variants.attributes.v",
+      ],
       fuzzy: {
         maxEdits: 2,
         prefixLength: 1,
@@ -50,10 +57,12 @@ export async function searchProducts(
   };
 
   for (const f of filters) {
+    // Existing term filter
     if (f.term) {
       const [path, value] = Object.entries(f.term)[0];
       addTerm(path, value as string);
     }
+    // Existing range filter
     if (f.range) {
       const [path, range]: any = Object.entries(f.range)[0];
       const rangeClause: any = {};
@@ -61,6 +70,21 @@ export async function searchProducts(
       if (range.lte !== undefined) rangeClause.lte = range.lte;
       if (Object.keys(rangeClause).length) {
         filterClauses.push({ range: { path, ...rangeClause } });
+      }
+    }
+    // ----- NEW: attribute filter -----
+    if (f.attribute) {
+      const { key, value, scope } = f.attribute;
+      // Only allow known scopes
+      if (["keyFeatures", "specifications", "variants"].includes(scope)) {
+        filterClauses.push({
+          compound: {
+            must: [
+              { equals: { path: `${scope}.k`, value: key } },
+              { equals: { path: `${scope}.v`, value: value } },
+            ],
+          },
+        });
       }
     }
   }
@@ -76,6 +100,7 @@ export async function searchProducts(
       filter: filter,
     };
   } else {
+    // No query and no filters → return empty
     return {
       hits: [],
       total: { value: 0 },

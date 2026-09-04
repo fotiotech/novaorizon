@@ -10,18 +10,28 @@ export async function autocompleteProducts(query: string, limit = 8) {
     return [];
   }
 
-  // Use `text` operator instead of `autocomplete`
-  // because `title.autocomplete` is of type `string` (not `autocomplete`).
   const results = await Product.aggregate([
     {
       $search: {
-        index: "default", // your index name
-        text: {
-          query: query,
-          path: "title.autocomplete",
-          fuzzy: {
-            maxEdits: 1,
-          },
+        index: "default",
+        compound: {
+          should: [
+            {
+              autocomplete: {
+                query: query,
+                path: "name.autocomplete",
+                score: { boost: { value: 2 } },
+              },
+            },
+            {
+              text: {
+                query: query,
+                path: "name",
+                fuzzy: { maxEdits: 2 },
+                score: { boost: { value: 1 } },
+              },
+            },
+          ],
         },
       },
     },
@@ -31,6 +41,7 @@ export async function autocompleteProducts(query: string, limit = 8) {
         name: 1,
         listPrice: 1,
         mainImage: 1,
+        tags: 1,
         score: { $meta: "searchScore" },
       },
     },

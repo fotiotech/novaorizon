@@ -1,11 +1,18 @@
 import React, { useEffect, useRef } from "react";
 import useClickOutside, { useScreenSize } from "./Hooks";
-import { X } from "lucide-react"; // or your preferred icon set
+import { X } from "lucide-react";
 
 type Filter = {
   _id: string;
   name: string;
   count: number;
+};
+
+// New type for attribute filter options
+type AttributeFilterOption = {
+  key: string; // e.g., "color"
+  scope: string; // "keyFeatures" | "specifications" | "variants"
+  values: { value: string; count: number }[];
 };
 
 type FilterListProps = {
@@ -15,6 +22,8 @@ type FilterListProps = {
     categories: Filter[];
     brands: Filter[];
     priceRange: { min: number; max: number };
+    // ----- NEW: attribute filters -----
+    attributes?: AttributeFilterOption[]; // optional, can be empty
   };
   handleFilterClick: (key: string, value: string) => void;
 };
@@ -32,7 +41,6 @@ const ListFilter = ({
   // Handle body scroll lock
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     if (openClose && screenSize <= 1024) {
       document.body.style.overflow = "hidden";
       document.body.style.position = "fixed";
@@ -42,7 +50,6 @@ const ListFilter = ({
       document.body.style.position = "";
       document.body.style.width = "";
     }
-
     return () => {
       document.body.style.overflow = "";
       document.body.style.position = "";
@@ -55,15 +62,12 @@ const ListFilter = ({
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpenClose(false);
     };
-
     if (openClose && screenSize <= 1024) {
       document.addEventListener("keydown", handleEscape);
     }
-
     return () => document.removeEventListener("keydown", handleEscape);
   }, [openClose, screenSize, setOpenClose]);
 
-  // Prevent initial animation on mount
   useEffect(() => {
     const timer = setTimeout(() => {
       initialRender.current = false;
@@ -123,7 +127,11 @@ const ListFilter = ({
 
         {filters && (
           <div
-            className={`overflow-y-auto ${screenSize <= 1024 ? "h-[calc(100vh-120px)]" : "max-h-[calc(100vh-200px)]"} pr-2`}
+            className={`overflow-y-auto ${
+              screenSize <= 1024
+                ? "h-[calc(100vh-120px)]"
+                : "max-h-[calc(100vh-200px)]"
+            } pr-2`}
           >
             {/* Categories */}
             <div className="mb-6">
@@ -174,6 +182,44 @@ const ListFilter = ({
                 ))}
               </ul>
             </div>
+
+            {/* ----- NEW: Attribute Filters ----- */}
+            {filters.attributes && filters.attributes.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-bold text-base text-foreground mb-3">
+                  Attributes
+                </h4>
+                {filters.attributes.map((attr) => (
+                  <div key={attr.key} className="mb-4">
+                    <h5 className="font-medium text-sm text-muted-foreground uppercase mb-2">
+                      {attr.key}
+                    </h5>
+                    <ul className="space-y-1">
+                      {attr.values.map((val) => (
+                        <li key={val.value}>
+                          <button
+                            onClick={() =>
+                              handleFilterClick(
+                                `attr_${attr.scope}_${attr.key}`,
+                                val.value,
+                              )
+                            }
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors flex justify-between items-center group"
+                          >
+                            <span className="text-foreground group-hover:text-primary transition-colors">
+                              {val.value}
+                            </span>
+                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full min-w-8 text-center">
+                              {val.count}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Price Range */}
             <div className="mb-6">

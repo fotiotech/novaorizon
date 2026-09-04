@@ -11,9 +11,71 @@ import { Prices } from "@/components/cart/Prices";
 import ListFilter from "@/components/ListFilter";
 import { debounce } from "./_component/debounce";
 
+// Helper to flatten and extract attribute key-value pairs from a product
+const extractAttributes = (product: any) => {
+  const attributes: { key: string; value: string; scope: string }[] = [];
+
+  // From keyFeatures
+  if (product.keyFeatures && Array.isArray(product.keyFeatures)) {
+    product.keyFeatures.forEach((item: any) => {
+      if (item.k && item.v) {
+        attributes.push({
+          key: item.k,
+          value: String(item.v),
+          scope: "keyFeatures",
+        });
+      }
+    });
+  }
+
+  // From specifications (nested groups)
+  if (product.specifications && Array.isArray(product.specifications)) {
+    const traverseSpecs = (groups: any[]) => {
+      groups.forEach((group: any) => {
+        if (group.attributes && Array.isArray(group.attributes)) {
+          group.attributes.forEach((attr: any) => {
+            if (attr.k && attr.v) {
+              attributes.push({
+                key: attr.k,
+                value: String(attr.v),
+                scope: "specifications",
+              });
+            }
+          });
+        }
+        if (group.groups && Array.isArray(group.groups)) {
+          traverseSpecs(group.groups);
+        }
+      });
+    };
+    traverseSpecs(product.specifications);
+  }
+
+  // From variants (variant attributes)
+  if (product.variants && Array.isArray(product.variants)) {
+    product.variants.forEach((variant: any) => {
+      if (variant.attributes && Array.isArray(variant.attributes)) {
+        variant.attributes.forEach((attr: any) => {
+          if (attr.k && attr.v) {
+            attributes.push({
+              key: attr.k,
+              value: String(attr.v),
+              scope: "variants",
+            });
+          }
+        });
+      }
+    });
+  }
+
+  return attributes;
+};
+
 const Search = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // Basic filters from URL
   const query = searchParams.get("query") || "";
   const category = searchParams.get("category") || "";
   const brand = searchParams.get("brand") || "";
@@ -21,6 +83,7 @@ const Search = () => {
   const priceMax = searchParams.get("priceMax") || "";
   const page = parseInt(searchParams.get("page") || "1", 10);
 
+  // State
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [openClose, setOpenClose] = useState(false);
@@ -45,7 +108,6 @@ const Search = () => {
           ...hit._source,
         }));
 
-        // Use aggregations from server
         setFiltersData({
           categories: result.aggregations?.categories || [],
           brands: result.aggregations?.brands || [],
@@ -65,9 +127,11 @@ const Search = () => {
     [page],
   );
 
-  // Build filters from URL params
+  // Build filters from URL params (including attribute filters)
   const buildFilters = useCallback(() => {
     const filters: any[] = [];
+
+    // Standard filters
     if (category) filters.push({ term: { categoryId: category } });
     if (brand) filters.push({ term: { brand: brand } });
     if (priceMin || priceMax) {
@@ -76,8 +140,30 @@ const Search = () => {
       if (priceMax) range.lte = Number(priceMax);
       filters.push({ range: { listPrice: range } });
     }
+
+    // Attribute filters from URL
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of params.entries()) {
+      if (key.startsWith("attr_")) {
+        const parts = key.split("_");
+        if (parts.length === 3) {
+          const scope = parts[1];
+          const attrKey = parts[2];
+          if (["keyFeatures", "specifications", "variants"].includes(scope)) {
+            filters.push({
+              attribute: {
+                key: attrKey,
+                value: value,
+                scope: scope,
+              },
+            });
+          }
+        }
+      }
+    }
+
     return filters;
-  }, [category, brand, priceMin, priceMax]);
+  }, [category, brand, priceMin, priceMax, searchParams]);
 
   // Fetch results when search params change
   useEffect(() => {
@@ -104,7 +190,7 @@ const Search = () => {
     buildFilters,
   ]);
 
-  // Handle filter changes
+  // Handle filter changes – generic: sets key=value in URL
   const handleFilterClick = useCallback(
     (key: string, value: string): void => {
       const params = new URLSearchParams(searchParams.toString());
@@ -116,7 +202,7 @@ const Search = () => {
     [searchParams, router],
   );
 
-  // Clear all filters
+  // Clear all filters (including attribute filters)
   const clearFilters = useCallback(() => {
     const params = new URLSearchParams();
     if (query) params.set("query", query);
@@ -129,6 +215,51 @@ const Search = () => {
     params.set("page", String(newPage));
     router.push(`/search?${params.toString()}`);
   };
+
+  // Determine if any filter is active (including attribute filters)
+  const hasActiveFilters = useMemo(() => {
+    if (category || brand || priceMin || priceMax) return true;
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key] of params.entries()) {
+      if (key.startsWith("attr_")) return true;
+    }
+    return false;
+  }, [category, brand, priceMin, priceMax, searchParams]);
+
+  // ----- NEW: Build attribute filter options from search results -----
+  const attributeFilters = useMemo(() => {
+    if (!data || data.length === 0) return [];
+
+    // Collect all attribute occurrences
+    const attrMap: Record<
+      string,
+      { key: string; scope: string; values: Record<string, number> }
+    > = {};
+
+    data.forEach((product) => {
+      const attrs = extractAttributes(product);
+      attrs.forEach(({ key, value, scope }) => {
+        const id = `${scope}_${key}`;
+        if (!attrMap[id]) {
+          attrMap[id] = { key, scope, values: {} };
+        }
+        if (!attrMap[id].values[value]) {
+          attrMap[id].values[value] = 0;
+        }
+        attrMap[id].values[value] += 1;
+      });
+    });
+
+    // Convert to array
+    return Object.values(attrMap).map((attr) => ({
+      key: attr.key,
+      scope: attr.scope,
+      values: Object.entries(attr.values).map(([value, count]) => ({
+        value,
+        count,
+      })),
+    }));
+  }, [data]);
 
   // Memoized product list
   const productList = useMemo(() => {
@@ -168,14 +299,17 @@ const Search = () => {
     });
   }, [data]);
 
-  const hasActiveFilters = category || brand || priceMin || priceMax;
-
   return (
     <div className="flex flex-col lg:flex-row w-full min-h-screen bg-background">
       <ListFilter
         openClose={openClose}
         setOpenClose={setOpenClose}
-        filters={filtersData}
+        filters={{
+          categories: filtersData.categories,
+          brands: filtersData.brands,
+          priceRange: filtersData.priceRange,
+          attributes: attributeFilters, // <-- pass computed attribute filters
+        }}
         handleFilterClick={handleFilterClick}
       />
 
