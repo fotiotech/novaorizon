@@ -34,47 +34,7 @@ interface Params {
   _id: string;
 }
 
-// ---------- Image Helpers ----------
-function normalizeImageEntries(value: any): string[] {
-  if (!value) return [];
-  const items: any[] = Array.isArray(value) ? value : [value];
-  const normalized = items.flatMap((item) => {
-    if (typeof item === "string") return item.trim() ? [item.trim()] : [];
-    return [];
-  });
-  return Array.from(new Set(normalized.filter(Boolean)));
-}
-
-function resolveProductImages(productLike: any): {
-  mainImage: string;
-  gallery: string[];
-} {
-  if (!productLike) {
-    return { mainImage: "", gallery: [] };
-  }
-  // Normalize images: prioritize 'images' array, fallback to 'gallery', then 'mainImage'
-  let gallery: string[] = [];
-  let mainImage = "";
-
-  if (Array.isArray(productLike.images) && productLike.images.length > 0) {
-    gallery = normalizeImageEntries(productLike.images);
-  } else if (
-    Array.isArray(productLike.gallery) &&
-    productLike.gallery.length > 0
-  ) {
-    gallery = normalizeImageEntries(productLike.gallery);
-  }
-
-  if (gallery.length === 0 && productLike.mainImage) {
-    mainImage = productLike.mainImage;
-    gallery = [mainImage];
-  } else if (gallery.length > 0) {
-    mainImage = gallery[0];
-  }
-
-  return { mainImage, gallery };
-}
-
+// ---------- Helpers ----------
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -85,15 +45,12 @@ function slugify(text: string): string {
 function applyVariant(product: any, variant: any) {
   if (!product || !variant) return product;
   const merged = JSON.parse(JSON.stringify(product));
-  const variantImages = resolveProductImages(variant);
   // Merge variant fields (excluding image fields to avoid duplication)
   const excludeKeys = [
     "_id",
     "sku",
     "quantity",
-    "mainImage",
     "images",
-    "gallery",
     "createdAt",
     "updatedAt",
     "__v",
@@ -103,11 +60,10 @@ function applyVariant(product: any, variant: any) {
       merged[key] = variant[key];
     }
   }
-  // Override image fields from variant if present
-  if (variantImages.mainImage) merged.mainImage = variantImages.mainImage;
-  if (variantImages.gallery.length > 0) merged.images = variantImages.gallery;
-  // Ensure legacy fields for compatibility
-  merged.gallery = merged.images || [];
+  // Override images from variant if present
+  if (variant.images && variant.images.length > 0) {
+    merged.images = variant.images;
+  }
   return merged;
 }
 
@@ -309,10 +265,8 @@ const VariantCard: React.FC<{
   onSelect: (variant: any) => void;
   isActive: boolean;
 }> = ({ variant, onSelect, isActive }) => {
-  const { mainImage: variantMainImage, gallery: variantGallery } =
-    resolveProductImages(variant);
-  const image = variantMainImage || null;
-  const price = variant.sale_price ?? variant.list_price ?? variant.price ?? 0;
+  const variantImage = variant.images?.[0] || null;
+  const price = variant.price || 0;
 
   const themeKeys = Object.keys(variant).filter(
     (key) =>
@@ -320,12 +274,8 @@ const VariantCard: React.FC<{
         "_id",
         "sku",
         "price",
-        "sale_price",
-        "list_price",
         "quantity",
-        "mainImage",
         "images",
-        "gallery",
         "createdAt",
         "updatedAt",
         "__v",
@@ -341,7 +291,7 @@ const VariantCard: React.FC<{
           : " hover:border-primary/50"
       }`}
     >
-      {themeKeys.length > 0 && (
+      {/* {themeKeys.length > 0 && (
         <div className="text-[10px] text-muted-foreground truncate mb-0.5">
           {themeKeys.map((key) => (
             <span key={key} className="mr-1">
@@ -349,11 +299,11 @@ const VariantCard: React.FC<{
             </span>
           ))}
         </div>
-      )}
-      {image ? (
+      )} */}
+      {variantImage ? (
         <div className="relative aspect-square w-full h-16">
           <Image
-            src={image}
+            src={variantImage}
             alt=""
             fill
             className="object-contain"
@@ -581,12 +531,8 @@ export default function Details(props: { params: Promise<Params> }) {
           "_id",
           "sku",
           "price",
-          "sale_price",
-          "list_price",
           "quantity",
-          "mainImage",
           "images",
-          "gallery",
           "createdAt",
           "updatedAt",
           "__v",
@@ -622,9 +568,7 @@ export default function Details(props: { params: Promise<Params> }) {
             "_id",
             "sku",
             "quantity",
-            "mainImage",
             "images",
-            "gallery",
             "createdAt",
             "updatedAt",
             "__v",
@@ -695,9 +639,9 @@ export default function Details(props: { params: Promise<Params> }) {
     shortDescription = "",
     description = "",
     variants = [],
+    images = [],
   } = product;
 
-  const { mainImage, gallery } = resolveProductImages(product);
   const displayPrice = price || listPrice || 0;
   const inStock = quantity > 0;
   const stockStatus = inStock ? "In Stock" : "Out of Stock";
@@ -711,14 +655,14 @@ export default function Details(props: { params: Promise<Params> }) {
         {/* Product Basic Info */}
         <>
           <div className="flex flex-col md:flex-row gap-4">
-            {Array.isArray(gallery) && gallery.length > 0 ? (
+            {Array.isArray(images) && images.length > 0 ? (
               <div className="md:w-1/2">
                 {brand?.name && (
                   <Link href={`/brandStore?brandId=${_id}`} className="">
                     visit <span className="text-primary">{brand?.name}</span>
                   </Link>
                 )}
-                <DetailImages file={gallery} />
+                <DetailImages file={images} />
               </div>
             ) : (
               <div className="w-full md:w-1/2 flex items-center justify-center bg-muted text-muted-foreground rounded p-6">
@@ -783,7 +727,7 @@ export default function Details(props: { params: Promise<Params> }) {
                   product={{
                     _id,
                     name,
-                    image: mainImage,
+                    image: images[0] || "",
                     price: displayPrice,
                   }}
                 />

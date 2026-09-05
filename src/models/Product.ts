@@ -24,7 +24,6 @@ interface IVariant {
   sku: string;
   price: number;
   quantity: number;
-  mainImage?: string;
   images?: string[];
 }
 
@@ -56,7 +55,6 @@ export interface IProduct extends Document {
   lowStockThreshold: number;
   listPrice: number;
   price: number;
-  mainImage: string;
   images: string[];
   description: string;
   shortDescription: string;
@@ -98,7 +96,6 @@ const VariantSchema = new Schema<IVariant>({
   sku: { type: String, required: true, trim: true },
   price: { type: Number, required: true, min: 0 },
   quantity: { type: Number, required: true, min: 0, default: 0 },
-  mainImage: { type: String, default: "" },
   images: { type: [String], default: [] },
 });
 
@@ -137,7 +134,6 @@ const ProductSchema = new Schema<IProduct>(
     lowStockThreshold: { type: Number, default: 5, min: 0 },
     listPrice: { type: Number, default: 0, min: 0 },
     price: { type: Number, default: 0, min: 0 },
-    mainImage: { type: String, default: "" },
     images: { type: [String], default: [] },
     description: { type: String, default: "" },
     shortDescription: { type: String, default: "" },

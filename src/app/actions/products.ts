@@ -139,7 +139,7 @@ export async function findProducts(id?: string): Promise<any> {
                         _id: doc._id.toString(),
                         name: doc.name,
                         price: doc.price,
-                        mainImage: doc.mainImage,
+                        image: doc.images?.[0] || "",
                         slug: doc.slug,
                       }
                     : null,
