@@ -2,11 +2,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { getOrderByNumber, requestReturn } from "@/app/actions/order";
+import { getOrderByNumber } from "@/app/actions/order";
 import InvoiceDisplay from "@/components/InvoiceDisplay";
 import Spinner from "@/components/Spinner";
 
-// Order status steps in linear progression
 const ORDER_STEPS = [
   "pending",
   "processing",
@@ -16,13 +15,11 @@ const ORDER_STEPS = [
 ] as const;
 type OrderStep = (typeof ORDER_STEPS)[number];
 
-// Maps orderStatus to its step index (only for linear steps)
 const stepIndex = (status: string): number => {
   const idx = ORDER_STEPS.indexOf(status as OrderStep);
   return idx === -1 ? -1 : idx;
 };
 
-// Check if status is a terminal non‑linear state
 const isTerminal = (status: string) =>
   status === "cancelled" || status === "returned";
 
@@ -31,8 +28,6 @@ const OrderTracking = () => {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [returnReason, setReturnReason] = useState("");
-  const [submittingReturn, setSubmittingReturn] = useState(false);
 
   useEffect(() => {
     if (!orderNumber) return;
@@ -79,26 +74,6 @@ const OrderTracking = () => {
   const currentStepIdx = stepIndex(currentStatus);
   const isTerminalState = isTerminal(currentStatus);
 
-  const handleRequestReturn = async () => {
-    if (!order?.orderNumber) return;
-    setSubmittingReturn(true);
-    const result = await requestReturn(order.orderNumber, returnReason);
-    setSubmittingReturn(false);
-
-    if (result.success) {
-      setOrder((prev: any) => ({
-        ...prev,
-        orderStatus: "return_requested",
-        returnReason: returnReason || prev.returnReason,
-      }));
-      setReturnReason("");
-      alert("Return request submitted successfully.");
-    } else {
-      alert(result.error || "Unable to submit return request.");
-    }
-  };
-
-  // Status badge colors
   const statusColor = (status: string) => {
     const map: Record<string, string> = {
       pending: "bg-yellow-100 text-yellow-800",
@@ -108,6 +83,7 @@ const OrderTracking = () => {
       completed: "bg-green-100 text-green-800",
       cancelled: "bg-red-100 text-red-800",
       returned: "bg-gray-100 text-gray-800",
+      return_requested: "bg-amber-100 text-amber-800",
     };
     return map[status] || "bg-gray-100 text-gray-800";
   };
@@ -126,7 +102,6 @@ const OrderTracking = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
-      {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="font-semibold text-xl text-gray-800">
@@ -143,7 +118,6 @@ const OrderTracking = () => {
 
       <div className="container mx-auto px-4 mt-6">
         <div className="bg-white rounded-xl shadow-sm overflow-hidden p-6">
-          {/* Status badges */}
           <div className="flex flex-wrap gap-3 mb-6">
             <span
               className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor(
@@ -172,14 +146,12 @@ const OrderTracking = () => {
             </span>
           </div>
 
-          {/* Tracking Bar - only show for linear steps, not for cancelled/returned */}
           {!isTerminalState && currentStepIdx >= 0 ? (
             <div className="mb-8">
               <h3 className="text-sm font-medium text-gray-500 mb-4">
                 Order Progress
               </h3>
               <div className="relative">
-                {/* Progress bar background */}
                 <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
                   <div
                     style={{
@@ -188,7 +160,6 @@ const OrderTracking = () => {
                     className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500"
                   />
                 </div>
-                {/* Step markers */}
                 <div className="flex justify-between relative">
                   {ORDER_STEPS.map((step, idx) => {
                     const isActive = idx <= currentStepIdx;
@@ -230,7 +201,6 @@ const OrderTracking = () => {
             </div>
           ) : null}
 
-          {/* Order summary */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
               <h3 className="text-sm font-medium text-gray-500">
@@ -301,7 +271,6 @@ const OrderTracking = () => {
             </div>
           </div>
 
-          {/* Products */}
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-3">Products</h3>
             <div className="border rounded-lg overflow-hidden">
@@ -342,31 +311,38 @@ const OrderTracking = () => {
             <InvoiceDisplay orderNumber={order.orderNumber} />
           )}
 
+          {/* Link to the new Returns & Refunds page */}
           {order.paymentStatus === "paid" &&
-            order.orderStatus !== "returned" &&
-            order.orderStatus !== "cancelled" &&
-            order.orderStatus !== "return_requested" && (
+            !["returned", "return_requested", "cancelled"].includes(
+              order.orderStatus,
+            ) && (
               <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
                 <h3 className="text-sm font-medium text-amber-700">
-                  Request a return
+                  Need to return this order?
                 </h3>
-                <textarea
-                  value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)}
-                  placeholder="Tell us why you want to return this order..."
-                  className="mt-3 w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-amber-500"
-                  rows={4}
-                />
-                <button
-                  type="button"
-                  onClick={handleRequestReturn}
-                  disabled={submittingReturn}
-                  className="mt-3 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+                <p className="mt-1 text-sm text-amber-700">
+                  Visit our Returns &amp; Refunds page to submit a return
+                  request for this order.
+                </p>
+                <Link
+                  href={`/returns?order=${order.orderNumber}`}
+                  className="mt-3 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
                 >
-                  {submittingReturn ? "Submitting..." : "Submit return request"}
-                </button>
+                  Go to Returns &amp; Refunds →
+                </Link>
               </div>
             )}
+
+          {order.returnReason && (
+            <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <h3 className="text-sm font-medium text-amber-700">
+                Return Reason
+              </h3>
+              <p className="mt-1 text-sm text-amber-800">
+                {order.returnReason}
+              </p>
+            </div>
+          )}
 
           {order.notes && (
             <div className="mt-6">
