@@ -1,13 +1,13 @@
-// app/newsletter/unsubscribe/page.tsx
+// app/(legal)/unsubscribe/page.tsx
 import Link from "next/link";
 import { unsubscribeFromNewsletter } from "@/app/actions/newsletter";
 
 export default async function UnsubscribePage({
   searchParams,
 }: {
-  searchParams: { token?: string };
+  searchParams: Promise<{ token?: string }>;
 }) {
-  const token = searchParams?.token || "";
+  const { token = "" } = await searchParams;
 
   let ok = false;
   let message = "Missing unsubscribe token.";
