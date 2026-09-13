@@ -16,6 +16,7 @@ import Image from "next/image";
 import { getMenusByLocation } from "@/app/actions/menu";
 import Carousel from "@/components/Carousel";
 import { findProducts } from "@/app/actions/products";
+import ProductAttributes from "./_compnents/ProductAttributes";
 
 // ---------- Types ----------
 interface Carrier {
@@ -42,28 +43,70 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/**
+ * Keys on a variant that are NOT theme codes — these get their own handling
+ * in `applyVariant` and must never be treated as theme dimensions.
+ *
+ *   `attributes` is the model's own key-value sub-array; without excluding
+ *   it the variant-sync effect would treat it as a theme key and cause
+ *   spurious merges on every render.
+ */
+const RESERVED_VARIANT_KEYS = new Set<string>([
+  "_id",
+  "sku",
+  "price",
+  "quantity",
+  "images",
+  "mainImage",
+  "attributes",
+  "createdAt",
+  "updatedAt",
+  "__v",
+]);
+
+/** camelCase a snake_case attribute code. */
+const toCamel = (code: string): string =>
+  code.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+
+/**
+ * Return the list of theme keys for a product/variant.
+ *  1. Prefer the explicit `variantThemes` array on the product.
+ *  2. Otherwise scan the variant's own keys, skipping reserved keys.
+ */
+function getThemeKeys(product: any, variant: any): string[] {
+  const declared = Array.isArray(product?.variantThemes)
+    ? product.variantThemes
+    : [];
+  if (declared.length > 0) {
+    return declared.map((c: string) => toCamel(String(c))).filter(Boolean);
+  }
+  if (!variant || typeof variant !== "object") return [];
+  return Object.keys(variant).filter((k) => !RESERVED_VARIANT_KEYS.has(k));
+}
+
+/**
+ * Merge a selected variant into the product shown on the page.
+ * Theme keys are copied to the root (so `product.color === "Green"` reflects
+ * the current selection); price & images are overridden explicitly; other
+ * reserved keys are left untouched.
+ */
 function applyVariant(product: any, variant: any) {
   if (!product || !variant) return product;
   const merged = JSON.parse(JSON.stringify(product));
-  // Merge variant fields (excluding image fields to avoid duplication)
-  const excludeKeys = [
-    "_id",
-    "sku",
-    "quantity",
-    "images",
-    "createdAt",
-    "updatedAt",
-    "__v",
-  ];
+
   for (const key of Object.keys(variant)) {
-    if (!excludeKeys.includes(key)) {
+    if (!RESERVED_VARIANT_KEYS.has(key)) {
       merged[key] = variant[key];
     }
   }
-  // Override images from variant if present
-  if (variant.images && variant.images.length > 0) {
+
+  if (typeof variant.price === "number") {
+    merged.price = variant.price;
+  }
+  if (Array.isArray(variant.images) && variant.images.length > 0) {
     merged.images = variant.images;
   }
+
   return merged;
 }
 
@@ -99,67 +142,6 @@ function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
     );
   });
 }
-
-// ---------- Component: Specifications ----------
-const SpecificationsDisplay: React.FC<{ specifications: any[] }> = ({
-  specifications,
-}) => {
-  if (!specifications || specifications.length === 0) return null;
-
-  return (
-    <div className="mt-4">
-      <h2 className="text-xl font-semibold mb-2">Specifications</h2>
-      {specifications.map((group, idx) => (
-        <div key={idx} className="mb-4">
-          <h3 className="font-semibold text-neutral-600 mb-1">{group.name}</h3>
-          {Array.isArray(group.attributes) && group.attributes.length > 0 && (
-            <table className="min-w-full border-collapse border border-border">
-              <tbody>
-                {group.attributes.map((attr: any, i: any) => (
-                  <tr key={i} className="border-b border-border">
-                    <th className="py-1 text-left font-medium capitalize w-1/3 bg-muted/50">
-                      {attr.k}
-                    </th>
-                    <td className="py-1 px-3 text-foreground">
-                      {renderAttributeValue(attr.v)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {Array.isArray(group.groups) && group.groups.length > 0 && (
-            <div className="ml-4">
-              {group.groups.map((subGroup: any, subIdx: any) => (
-                <SpecificationsDisplay
-                  key={subIdx}
-                  specifications={[subGroup]}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// ---------- Component: Key Features ----------
-const KeyFeatures: React.FC<{ keyFeatures: any[] }> = ({ keyFeatures }) => {
-  if (!keyFeatures || keyFeatures.length === 0) return null;
-  return (
-    <div className="mt-4">
-      <h2 className="text-xl font-semibold mb-2">Key Features</h2>
-      <ul className="list-disc space-y-1">
-        {keyFeatures.map((item: any, idx: any) => (
-          <li key={idx}>
-            <strong>{item.k}:</strong> {renderAttributeValue(item.v)}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
 
 // ---------- Component: Carrier Shipping Options ----------
 const CarrierShippingOptions: React.FC<{
@@ -262,25 +244,12 @@ const CarrierShippingOptions: React.FC<{
 // ---------- Variant Card Component ----------
 const VariantCard: React.FC<{
   variant: any;
+  themeKeys: string[];
   onSelect: (variant: any) => void;
   isActive: boolean;
-}> = ({ variant, onSelect, isActive }) => {
+}> = ({ variant, themeKeys, onSelect, isActive }) => {
   const variantImage = variant.images?.[0] || null;
   const price = variant.price || 0;
-
-  const themeKeys = Object.keys(variant).filter(
-    (key) =>
-      ![
-        "_id",
-        "sku",
-        "price",
-        "quantity",
-        "images",
-        "createdAt",
-        "updatedAt",
-        "__v",
-      ].includes(key),
-  );
 
   return (
     <div
@@ -291,7 +260,9 @@ const VariantCard: React.FC<{
           : " hover:border-primary/50"
       }`}
     >
-      {/* {themeKeys.length > 0 && (
+      {/* Optional theme-value caption — enable if you want text labels on the
+          cards in addition to the image swatch.
+      {themeKeys.length > 0 && (
         <div className="text-[10px] text-muted-foreground truncate mb-0.5">
           {themeKeys.map((key) => (
             <span key={key} className="mr-1">
@@ -299,7 +270,9 @@ const VariantCard: React.FC<{
             </span>
           ))}
         </div>
-      )} */}
+      )}
+      */}
+
       {variantImage ? (
         <div className="relative aspect-square w-full h-20">
           <Image
@@ -500,6 +473,12 @@ export default function Details(props: { params: Promise<Params> }) {
       .finally(() => setLoading(false));
   }, [params._id]);
 
+  // Reset the "initial load done" flag when the product id changes.
+  useEffect(() => {
+    initialLoadComplete.current = false;
+    setSelectedVariantIndex(null);
+  }, [params._id]);
+
   // Fetch related menus
   const [menus, setMenus] = useState<any[]>([]);
   const [menusLoading, setMenusLoading] = useState(false);
@@ -518,11 +497,20 @@ export default function Details(props: { params: Promise<Params> }) {
       .finally(() => setMenusLoading(false));
   }, [product?._id]);
 
-  // Variant sync
+  // -----------------------------------------------------------------
+  // Variant sync on initial load
+  // -----------------------------------------------------------------
+  // We look for a variant whose theme keys match any theme keys that may
+  // already be set at the product root (e.g. because the URL or a prior
+  // selection pinned them). If none match, we fall back to the first
+  // variant. Theme keys are derived via `getThemeKeys` — using the
+  // product's declared `variantThemes` when available, and skipping
+  // reserved keys (`attributes`, `mainImage`, …) otherwise.
+  // -----------------------------------------------------------------
   useEffect(() => {
     if (
       !product ||
-      !product.variants ||
+      !Array.isArray(product.variants) ||
       product.variants.length === 0 ||
       initialLoadComplete.current
     ) {
@@ -530,68 +518,66 @@ export default function Details(props: { params: Promise<Params> }) {
     }
 
     const firstVariant = product.variants[0];
-    const themeKeys = Object.keys(firstVariant).filter(
-      (key) =>
-        ![
-          "_id",
-          "sku",
-          "price",
-          "quantity",
-          "images",
-          "createdAt",
-          "updatedAt",
-          "__v",
-        ].includes(key),
-    );
+    const themeKeys = getThemeKeys(product, firstVariant);
 
     let foundIndex = -1;
-    for (let i = 0; i < product.variants.length; i++) {
-      const variant = product.variants[i];
-      let matches = true;
-      for (const key of themeKeys) {
-        if (product[key] !== undefined && product[key] !== variant[key]) {
-          matches = false;
+    if (themeKeys.length > 0) {
+      for (let i = 0; i < product.variants.length; i++) {
+        const variant = product.variants[i];
+        let matches = true;
+        for (const key of themeKeys) {
+          const productValue = product[key];
+          const variantValue = variant[key];
+          if (productValue !== undefined && productValue !== variantValue) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) {
+          foundIndex = i;
           break;
         }
-      }
-      if (matches) {
-        foundIndex = i;
-        break;
       }
     }
 
     if (foundIndex === -1) {
       foundIndex = 0;
-      const merged = applyVariant(product, product.variants[0]);
-      setProduct(merged);
-    } else {
-      const currentVariant = product.variants[foundIndex];
-      let needsUpdate = false;
-      for (const key of Object.keys(currentVariant)) {
-        if (
-          ![
-            "_id",
-            "sku",
-            "quantity",
-            "images",
-            "createdAt",
-            "updatedAt",
-            "__v",
-          ].includes(key) &&
-          product[key] !== currentVariant[key]
-        ) {
-          needsUpdate = true;
-          break;
-        }
+    }
+
+    const currentVariant = product.variants[foundIndex];
+
+    // Detect whether the product root needs a merge with the selected
+    // variant (theme keys or price/images differ).
+    let needsUpdate = false;
+    for (const key of themeKeys) {
+      if (product[key] !== currentVariant[key]) {
+        needsUpdate = true;
+        break;
       }
-      if (needsUpdate) {
-        const merged = applyVariant(product, currentVariant);
-        setProduct(merged);
-      }
+    }
+    if (
+      !needsUpdate &&
+      typeof currentVariant.price === "number" &&
+      product.price !== currentVariant.price
+    ) {
+      needsUpdate = true;
+    }
+    if (
+      !needsUpdate &&
+      Array.isArray(currentVariant.images) &&
+      currentVariant.images.length > 0 &&
+      JSON.stringify(product.images) !== JSON.stringify(currentVariant.images)
+    ) {
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      setProduct(applyVariant(product, currentVariant));
     }
 
     setSelectedVariantIndex(foundIndex);
     initialLoadComplete.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
 
   const handleVariantSelect = useCallback(
@@ -633,6 +619,8 @@ export default function Details(props: { params: Promise<Params> }) {
     );
   }
 
+  console.log("Rendering product details for:", product);
+
   const {
     _id = "",
     brand,
@@ -650,8 +638,6 @@ export default function Details(props: { params: Promise<Params> }) {
   const displayPrice = price || listPrice || 0;
   const inStock = quantity > 0;
   const stockStatus = inStock ? "In Stock" : "Out of Stock";
-
-  console.log("Product details:", product);
 
   return (
     <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-2 md:px-8">
@@ -707,6 +693,7 @@ export default function Details(props: { params: Promise<Params> }) {
                       <VariantCard
                         key={idx}
                         variant={v}
+                        themeKeys={getThemeKeys(product, v)}
                         onSelect={(variant) =>
                           handleVariantSelect(variant, idx)
                         }
@@ -754,11 +741,8 @@ export default function Details(props: { params: Promise<Params> }) {
           )}
         </>
 
-        {/* Key Features */}
-        <KeyFeatures keyFeatures={product.keyFeatures} />
-
-        {/* Specifications */}
-        <SpecificationsDisplay specifications={product.specifications} />
+        {/* Key Features and Specifications */}
+        <ProductAttributes product={product} />
 
         {/* Description */}
         <div className="mt-4 bg-background rounded">

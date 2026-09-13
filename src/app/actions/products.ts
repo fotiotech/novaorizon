@@ -1,8 +1,7 @@
-// app/actions/products.ts
+// app/actions/products.ts (storefront)
 "use server";
 
 import { connection } from "@/utils/connection";
-import slugify from "slugify";
 import mongoose from "mongoose";
 import Product from "@/models/Product";
 import Brand from "@/models/Brand";
@@ -10,48 +9,32 @@ import Category from "@/models/Category";
 import "@/models/User";
 import "@/models/Attribute";
 
-// ---------- Helper: flatten keyFeatures and specifications ----------
-function flattenProductForDisplay(product: any): any {
-  if (!product) return product;
-  const flat = { ...product };
-
-  // Flatten keyFeatures: { k, v } -> flat[k] = v
-  if (Array.isArray(flat.keyFeatures)) {
-    for (const item of flat.keyFeatures) {
-      if (item.k && item.v !== undefined) {
-        flat[item.k] = item.v;
-      }
-    }
+function toPlain(value: any): any {
+  if (value === null || value === undefined) return value;
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  )
+    return value;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value.toHexString === "function") return value.toHexString();
+  if (value._bsontype === "ObjectId") return String(value);
+  if (Buffer.isBuffer?.(value)) return value.toString("hex");
+  if (Array.isArray(value)) return value.map(toPlain);
+  if (typeof value === "object") {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = toPlain(v);
+    return out;
   }
-
-  // Flatten specifications recursively
-  if (Array.isArray(flat.specifications)) {
-    const flattenSpecs = (specs: any[]) => {
-      for (const group of specs) {
-        if (Array.isArray(group.attributes)) {
-          for (const attr of group.attributes) {
-            if (attr.k && attr.v !== undefined) {
-              flat[attr.k] = attr.v;
-            }
-          }
-        }
-        if (Array.isArray(group.groups)) {
-          flattenSpecs(group.groups);
-        }
-      }
-    };
-    flattenSpecs(flat.specifications);
-  }
-
-  return flat;
+  return value;
 }
 
-// ---------- Server Actions ----------
 export async function findProductByCategory(id: string): Promise<any> {
   await connection();
   try {
     const products = await Product.find({ categoryId: id }).lean();
-    return products;
+    return toPlain(products);
   } catch (error) {
     console.error("findProductByCategory error:", error);
     return { error: "Failed to fetch products by category" };
@@ -61,53 +44,37 @@ export async function findProductByCategory(id: string): Promise<any> {
 export async function findProducts(id?: string): Promise<any> {
   try {
     await connection();
-    console.log("[findProducts] Called with id:", id);
 
     if (id) {
-      // Fetch the base product
       const product = await Product.findById(id).lean().exec();
-      if (!product) {
-        console.log("[findProducts] Product not found for id:", id);
-        return { success: false, error: "Product not found" };
-      }
+      if (!product) return { success: false, error: "Product not found" };
 
-      // Manually populate brand with error handling
       let brand: any = null;
       if (product.brand) {
         try {
-          brand = await Brand.findById(product.brand)
+          const b: any = await Brand.findById(product.brand)
             .select("name")
             .lean()
             .exec();
-          if (brand) {
-            brand = { _id: brand._id.toString(), name: brand.name };
-          }
-        } catch (e) {
-          console.warn(
-            `[findProducts] Invalid brand ID ${product.brand} for product ${product._id}`,
-          );
+          if (b) brand = { _id: b._id.toString(), name: b.name };
+        } catch {
+          /* ignore */
         }
       }
 
-      // Manually populate category with error handling
       let category: any = null;
       if (product.categoryId) {
         try {
-          category = await Category.findById(product.categoryId)
+          const c: any = await Category.findById(product.categoryId)
             .select("name")
             .lean()
             .exec();
-          if (category) {
-            category = { _id: category._id.toString(), name: category.name };
-          }
-        } catch (e) {
-          console.warn(
-            `[findProducts] Invalid category ID ${product.categoryId} for product ${product._id}`,
-          );
+          if (c) category = { _id: c._id.toString(), name: c.name };
+        } catch {
+          /* ignore */
         }
       }
 
-      // Manually populate related products
       let relatedProducts: any[] = [];
       if (
         Array.isArray(product.relatedProducts) &&
@@ -116,12 +83,13 @@ export async function findProducts(id?: string): Promise<any> {
         const ids = product.relatedProducts
           .map((rp: any) => rp.product)
           .filter(
-            (id: any) => id && mongoose.Types.ObjectId.isValid(id.toString()),
+            (rid: any) =>
+              rid && mongoose.Types.ObjectId.isValid(rid.toString()),
           );
         if (ids.length > 0) {
           try {
             const relatedDocs = await Product.find({ _id: { $in: ids } })
-              .select("name price mainImage slug")
+              .select("name price images slug")
               .lean()
               .exec();
             const docMap = new Map(
@@ -133,7 +101,6 @@ export async function findProducts(id?: string): Promise<any> {
                   ? docMap.get(rp.product.toString())
                   : null;
                 return {
-                  ...rp,
                   product: doc
                     ? {
                         _id: doc._id.toString(),
@@ -143,40 +110,29 @@ export async function findProducts(id?: string): Promise<any> {
                         slug: doc.slug,
                       }
                     : null,
+                  relationshipType: rp.relationshipType || "",
                 };
               })
               .filter((rp: any) => rp.product !== null);
           } catch (e) {
-            console.warn(
-              "[findProducts] Failed to populate related products:",
-              e,
-            );
+            console.warn("Failed to populate related products:", e);
           }
         }
       }
 
-      // Assemble the final product object
-      const result = {
+      return toPlain({
         ...product,
         _id: product._id.toString(),
         brand,
         categoryId: category,
         relatedProducts,
-      };
-
-      const flattened = flattenProductForDisplay(result);
-      console.log("[findProducts] Product found and flattened:", flattened._id);
-      return flattened;
+      });
     }
 
-    // List all products
+    // List
     const products = await Product.find().sort({ createdAt: -1 }).lean().exec();
-    if (!products || products.length === 0) {
-      console.log("[findProducts] No products found");
-      return [];
-    }
+    if (!products || products.length === 0) return [];
 
-    // Manually populate brand and category for each product, handling errors
     const results = await Promise.all(
       products.map(async (p) => {
         let brand: any = null;
@@ -189,8 +145,8 @@ export async function findProducts(id?: string): Promise<any> {
               .lean()
               .exec();
             if (b) brand = { _id: b._id.toString(), name: b.name };
-          } catch (e) {
-            // ignore invalid brand
+          } catch {
+            /* ignore */
           }
         }
         if (p.categoryId) {
@@ -200,26 +156,23 @@ export async function findProducts(id?: string): Promise<any> {
               .lean()
               .exec();
             if (c) category = { _id: c._id.toString(), name: c.name };
-          } catch (e) {
-            // ignore invalid category
+          } catch {
+            /* ignore */
           }
         }
 
-        return {
+        return toPlain({
           ...p,
           _id: p._id.toString(),
           brand,
           categoryId: category,
-        };
+        });
       }),
     );
 
-    const flattened = results.map(flattenProductForDisplay);
-    console.log(`[findProducts] Found ${flattened.length} products`);
-    return flattened;
+    return results;
   } catch (error: any) {
     console.error("[findProducts] Error:", error);
-    console.error(error.stack);
     return {
       success: false,
       error: error.message || "Failed to fetch products",

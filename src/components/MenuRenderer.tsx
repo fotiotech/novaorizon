@@ -182,7 +182,9 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
                   title={item.name}
                 >
                   <p className="line-clamp-2 text-sm">{item.name}</p>
-                  <p className="font-semibold text-sm">{item?.price} F</p>
+                  {item?.price !== null && (
+                    <p className="font-semibold text-sm">{item.price} F</p>
+                  )}
                 </Link>
               </div>
             ))}
