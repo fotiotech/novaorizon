@@ -384,6 +384,11 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                         title={item.name}
                       >
                         {item.name}
+                        {item.price && (
+                          <p className="font-semibold text-sm">
+                            {item.price} F
+                          </p>
+                        )}
                       </Link>
                     </li>
                   ))}

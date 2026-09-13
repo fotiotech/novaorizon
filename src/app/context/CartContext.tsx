@@ -20,12 +20,12 @@ import {
   removeFromCart,
   clearCart,
   applyDiscount,
+  mergeGuestSessionData,
 } from "@/app/actions/cart";
 import { useUserData } from "./UserDataContext";
 import { v4 as uuidv4 } from "uuid";
 
 interface CartContextType extends CartState {
-  dispatch: React.Dispatch<any>;
   addItem: (
     productId: string,
     variant?: string,
@@ -36,6 +36,7 @@ interface CartContextType extends CartState {
   clearCart: () => Promise<void>;
   applyDiscount: (discountValue: number, couponCode?: string) => Promise<void>;
   refreshCart: () => Promise<void>;
+  clearError: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -46,15 +47,18 @@ export const useCart = () => {
   return context;
 };
 
-const getSessionId = (): string => {
+const getOrCreateId = (key: string): string => {
   if (typeof window === "undefined") return "";
-  let sessionId = localStorage.getItem("sessionId");
-  if (!sessionId) {
-    sessionId = uuidv4();
-    localStorage.setItem("sessionId", sessionId);
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = uuidv4();
+    localStorage.setItem(key, id);
   }
-  return sessionId;
+  return id;
 };
+
+const getSessionId = (): string => getOrCreateId("sessionId");
+const getGuestId = (): string => getOrCreateId("guestId");
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -64,8 +68,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getIdentifier = useCallback(() => {
     const userId = user?.id;
-    const sessionId = !userId ? getSessionId() : undefined;
-    return { userId, sessionId };
+    if (userId) return { userId, sessionId: undefined };
+    // Ensure both guest identifiers exist in localStorage
+    const sessionId = getSessionId();
+    getGuestId();
+    return { userId: undefined, sessionId };
   }, [user]);
 
   const refreshCart = useCallback(async () => {
@@ -82,9 +89,36 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [getIdentifier]);
 
+  // Merge guest cart into user cart on login, then refresh
   useEffect(() => {
-    refreshCart();
-  }, [refreshCart, user]);
+    if (!user?.id) {
+      refreshCart();
+      return;
+    }
+
+    if (typeof window === "undefined") return;
+
+    const guestId = localStorage.getItem("guestId") || undefined;
+    const sessionId = localStorage.getItem("sessionId") || undefined;
+
+    (async () => {
+      try {
+        if (guestId || sessionId) {
+          await mergeGuestSessionData({
+            guestId,
+            sessionId,
+            userId: user.id,
+          });
+          localStorage.removeItem("guestId");
+          localStorage.removeItem("sessionId");
+        }
+      } catch {
+        // swallow — refreshCart still runs below
+      } finally {
+        refreshCart();
+      }
+    })();
+  }, [user?.id, refreshCart]);
 
   const addItem = useCallback(
     async (productId: string, variant?: string, quantity: number = 1) => {
@@ -206,15 +240,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     [getIdentifier],
   );
 
+  const clearError = useCallback(() => {
+    dispatch({ type: "CLEAR_ERROR" });
+  }, []);
+
   const value: CartContextType = {
     ...state,
-    dispatch,
     addItem,
     updateItem,
     removeItem,
     clearCart: clearCartAction,
     applyDiscount: applyDiscountAction,
     refreshCart,
+    clearError,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

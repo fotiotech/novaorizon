@@ -65,12 +65,8 @@ async function resolveCollectionItems(collection: any) {
   return items.map((item: any) => ({
     _id: item._id.toString(),
     name: item.name || item.title || "Unnamed",
-    image:
-      item.mainImage ||
-      item.image ||
-      item.imageUrl ||
-      item.backgroundImage ||
-      null,
+    price: item.price || null,
+    image: item.images || null,
     contentType: targetType,
   }));
 }
@@ -154,6 +150,9 @@ export default async function CollectionDetailPage({
                   <h2 className="text-sm font-medium text-foreground line-clamp-2 group-hover:underline">
                     {item.name}
                   </h2>
+
+                  <p className="font-semibold text-sm">{item?.price} F</p>
+
                   {/* Show content type badge for non‑Product items */}
                   {item.contentType !== "Product" && (
                     <p className="text-xs text-muted-foreground mt-1">

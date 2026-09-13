@@ -15,9 +15,7 @@ export interface CartItemInput {
 }
 
 function getProductQuantity(product: any) {
-  return Number(
-    product?.quantity ?? product?.stock_quantity ?? product?.stockQuantity ?? 0,
-  );
+  return Number(product?.quantity ?? 0);
 }
 
 // Helper to calculate totals
@@ -30,7 +28,7 @@ async function recalculateCart(cart: any) {
     (sum: number, item: any) => sum + item.totalPrice,
     0,
   );
-  const tax = subtotal * 0; // example tax rate, could be per-item
+  const tax = subtotal * 0;
   const discount = cart.discount || 0;
   const shippingCost = cart.shippingCost || 0;
   const total = subtotal + tax + shippingCost - discount;
@@ -42,7 +40,7 @@ async function recalculateCart(cart: any) {
 
 // Helper to populate product details and convert to plain object
 async function populateAndLean(cart: any) {
-  await cart.populate("items.productId", "name mainImage slug listPrice");
+  await cart.populate("items.productId", "name images slug price");
   return cart.toObject();
 }
 
@@ -60,7 +58,7 @@ export async function getCart(identifier: {
   else query.sessionId = sessionId;
 
   let cart: any = await Cart.findOne(query)
-    .populate("items.productId", "name mainImage slug listPrice")
+    .populate("items.productId", "name images slug price")
     .lean();
 
   if (!cart) {
@@ -84,7 +82,9 @@ export async function getCart(identifier: {
     items: cart?.items.map((item: any) => ({
       ...item,
       _id: item._id.toString(),
-      name: item.productId?.title || "",
+      name: item.productId?.name || item.name || "",
+      image: item.productId?.images?.[0] || item.image || null,
+      price: item.productId?.price || item.price || 0,
       productId: item.productId?._id?.toString() || item.productId?.toString(),
     })),
   };
@@ -151,6 +151,8 @@ export async function mergeGuestSessionData({
           productId: item.productId,
           variant: item.variant,
           quantity: item.quantity,
+          name: item.name,
+          image: item.image,
           price: item.price,
           taxRate: item.taxRate || 0,
           discount: item.discount || 0,
@@ -199,12 +201,12 @@ export async function addToCart(
   }
 
   const product: any = await Product.findById(input.productId)
-    .select("listPrice name quantity lowStockThreshold")
+    .select("price name images quantity lowStockThreshold")
     .lean();
   if (!product) throw new Error("Product not found");
 
   const availableQty = product.quantity || 0;
-  const price = product.listPrice;
+  const price = product.price;
 
   let cart: any = await Cart.findOne({
     ...(userId ? { userId } : { sessionId }),
@@ -233,7 +235,6 @@ export async function addToCart(
     );
   }
 
-  // Check if item already exists (by productId and variant)
   const existingItemIndex = cart.items.findIndex(
     (item: any) =>
       item.productId.toString() === input.productId &&
@@ -246,6 +247,8 @@ export async function addToCart(
     cart.items.push({
       productId: new mongoose.Types.ObjectId(input.productId),
       variant: input.variant || undefined,
+      image: product.images?.[0] || null,
+      name: product.name,
       quantity: input.quantity,
       price: price,
       taxRate: 0,
@@ -253,11 +256,9 @@ export async function addToCart(
     });
   }
 
-  // Recalculate totals
   await recalculateCart(cart);
   await cart.save();
 
-  // Populate product details and return
   const cartObject = await populateAndLean(cart);
   revalidatePath("/pos");
   return { success: true, cart: cartObject };
@@ -285,9 +286,7 @@ export async function updateCartItem(
     cart.items.pull(itemId);
   } else {
     const product: any = await Product.findById(item.productId)
-      .select(
-        "quantity stock_quantity stockQuantity lowStockThreshold low_stock_threshold",
-      )
+      .select("quantity lowStockThreshold")
       .lean();
     const availableQty = getProductQuantity(product || {});
 
@@ -303,7 +302,6 @@ export async function updateCartItem(
   await recalculateCart(cart);
   await cart.save();
 
-  // Populate product details and return
   const cartObject = await populateAndLean(cart);
   revalidatePath("/pos");
   return { success: true, cart: cartObject };
@@ -335,13 +333,12 @@ export async function clearCart(identifier: {
   await recalculateCart(cart);
   await cart.save();
 
-  // Populate (though empty) and return
   const cartObject = await populateAndLean(cart);
   revalidatePath("/pos");
   return { success: true, cart: cartObject };
 }
 
-// Apply discount/coupon (optional)
+// Apply discount/coupon
 export async function applyDiscount(
   identifier: { userId?: string; sessionId?: string },
   discountValue: number,
@@ -356,12 +353,20 @@ export async function applyDiscount(
   });
   if (!cart) throw new Error("Cart not found");
 
-  cart.discount = discountValue;
+  // Recompute subtotal first so we can clamp against it
+  await recalculateCart(cart);
+
+  // Clamp discount between 0 and current subtotal
+  const clamped = Math.max(
+    0,
+    Math.min(Number(discountValue) || 0, cart.subtotal),
+  );
+  cart.discount = clamped;
   if (couponCode) cart.appliedCoupon = couponCode;
+
   await recalculateCart(cart);
   await cart.save();
 
-  // Populate and return
   const cartObject = await populateAndLean(cart);
   revalidatePath("/pos");
   return { success: true, cart: cartObject };

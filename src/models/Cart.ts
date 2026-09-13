@@ -3,6 +3,8 @@ import mongoose, { Schema, Document, model, models } from "mongoose";
 export interface ICartItem {
   productId: mongoose.Types.ObjectId;
   variant?: string; // optional variant/sku
+  name?: string; // optional product name snapshot
+  image?: string; // optional product image snapshot
   quantity: number;
   price: number; // snapshot at add time
   taxRate?: number;
@@ -29,6 +31,8 @@ const CartItemSchema = new Schema<ICartItem>({
   productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
   variant: { type: String },
   quantity: { type: Number, required: true, min: 1 },
+  name: { type: String },
+  image: { type: String },
   price: { type: Number, required: true },
   taxRate: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },

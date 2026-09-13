@@ -1,9 +1,9 @@
 // reducer/cartReducer.ts
 export interface CartItem {
-  _id: string; // cart item ID
+  _id: string;
   productId: string;
   name: string;
-  imageUrl: string;
+  image: string;
   price: number;
   quantity: number;
   variant?: string;
@@ -32,20 +32,21 @@ export const initialCartState: CartState = {
 };
 
 export type CartAction =
-  | { type: "SET_CART"; payload: any } // server cart object
+  | { type: "SET_CART"; payload: any }
   | { type: "SET_LOADING"; payload: boolean }
-  | { type: "SET_ERROR"; payload: string | null };
+  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "CLEAR_ERROR" };
 
 export function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case "SET_CART": {
       const cart = action.payload;
-      const items = (cart.items || []).map((item: any) => ({
+      const items = (cart?.items || []).map((item: any) => ({
         _id: item._id.toString(),
         productId:
           item.productId?._id?.toString() || item.productId?.toString() || "",
-        name: item.productId?.title || item.name || "",
-        imageUrl: item.productId?.mainImage || item.imageUrl || "",
+        name: item.productId?.name || item.name || "",
+        image: item.productId?.images?.[0] || item.image || "",
         price: item.price,
         quantity: item.quantity,
         variant: item.variant,
@@ -53,11 +54,11 @@ export function cartReducer(state: CartState, action: CartAction): CartState {
       return {
         ...state,
         items,
-        subtotal: cart.subtotal || 0,
-        tax: cart.tax || 0,
-        discount: cart.discount || 0,
-        shippingCost: cart.shippingCost || 0,
-        total: cart.total || 0,
+        subtotal: cart?.subtotal || 0,
+        tax: cart?.tax || 0,
+        discount: cart?.discount || 0,
+        shippingCost: cart?.shippingCost || 0,
+        total: cart?.total || 0,
         loading: false,
         error: null,
       };
@@ -66,6 +67,8 @@ export function cartReducer(state: CartState, action: CartAction): CartState {
       return { ...state, loading: action.payload };
     case "SET_ERROR":
       return { ...state, error: action.payload };
+    case "CLEAR_ERROR":
+      return { ...state, error: null };
     default:
       return state;
   }

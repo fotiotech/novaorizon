@@ -6,33 +6,59 @@ import Image from "next/image";
 import { Prices } from "./Prices";
 import { useCallback, useState } from "react";
 
-const CartItem = ({ item, onUpdate, onRemove }: any) => {
+const CartItem = ({ item, onUpdate, onRemove, disabled }: any) => {
   const [isRemoving, setIsRemoving] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const handleRemove = useCallback(() => {
+  const handleRemove = useCallback(async () => {
+    if (busy) return;
     setIsRemoving(true);
-    setTimeout(() => onRemove(item._id), 300);
-  }, [item._id, onRemove]);
+    setBusy(true);
+    try {
+      await onRemove(item._id);
+    } catch {
+      // Revert visual state on failure; error surfaces via context banner
+      setIsRemoving(false);
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, item._id, onRemove]);
 
-  const handleDecrease = useCallback(() => {
-    if (item.quantity > 1) onUpdate(item._id, item.quantity - 1);
-  }, [item._id, item.quantity, onUpdate]);
+  const handleDecrease = useCallback(async () => {
+    if (busy || item.quantity <= 1) return;
+    setBusy(true);
+    try {
+      await onUpdate(item._id, item.quantity - 1);
+    } catch {
+      /* handled upstream */
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, item._id, item.quantity, onUpdate]);
 
-  const handleIncrease = useCallback(() => {
-    onUpdate(item._id, item.quantity + 1);
-  }, [item._id, item.quantity, onUpdate]);
+  const handleIncrease = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onUpdate(item._id, item.quantity + 1);
+    } catch {
+      /* handled upstream */
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, item._id, item.quantity, onUpdate]);
 
   return (
     <div
-      className={`flex justify-between p-3 bg-background rounded-lg border border-border shadow-sm transition-all duration-300 ${
+      className={`flex justify-between bg-background transition-all duration-300 ${
         isRemoving ? "opacity-0 scale-95" : "opacity-100 scale-100"
       }`}
     >
       <div className="flex gap-3 flex-1 min-w-0">
-        {item.imageUrl && (
+        {item.image && (
           <div className="relative flex-shrink-0">
             <Image
-              src={item.imageUrl}
+              src={item.image}
               width={80}
               height={80}
               alt={item.name || "Cart item"}
@@ -54,7 +80,7 @@ const CartItem = ({ item, onUpdate, onRemove }: any) => {
             <div className="flex items-center border border-input rounded-md">
               <button
                 onClick={handleDecrease}
-                disabled={item.quantity <= 1}
+                disabled={item.quantity <= 1 || busy || disabled}
                 className="px-2 py-1 text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 -
@@ -64,7 +90,8 @@ const CartItem = ({ item, onUpdate, onRemove }: any) => {
               </span>
               <button
                 onClick={handleIncrease}
-                className="px-2 py-1 text-foreground hover:bg-muted transition-colors"
+                disabled={busy || disabled}
+                className="px-2 py-1 text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 +
               </button>
@@ -75,7 +102,8 @@ const CartItem = ({ item, onUpdate, onRemove }: any) => {
       <div className="flex flex-col items-end justify-between pl-2">
         <button
           onClick={handleRemove}
-          className="text-destructive hover:text-destructive/80 p-1 rounded-full hover:bg-destructive/10 transition-colors"
+          disabled={busy}
+          className="text-destructive hover:text-destructive/80 p-1 rounded-full hover:bg-destructive/10 transition-colors disabled:opacity-40"
         >
           <Delete fontSize="small" />
         </button>
@@ -96,9 +124,11 @@ const Cart = () => {
     shippingCost,
     total,
     loading,
+    error,
     updateItem,
     removeItem,
     clearCart,
+    clearError,
   } = useCart();
 
   const handleUpdate = useCallback(
@@ -154,13 +184,30 @@ const Cart = () => {
 
   return (
     <div className="p-2">
+      {error && (
+        <div
+          role="alert"
+          className="mb-3 flex items-start justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          <span>{error}</span>
+          <button
+            onClick={clearError}
+            className="text-destructive/70 hover:text-destructive"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-4">
         <span className="text-muted-foreground">
           {items.length} {items.length === 1 ? "item" : "items"}
         </span>
         <button
           onClick={handleClear}
-          className="text-sm text-destructive hover:text-destructive/80 transition-colors"
+          disabled={loading}
+          className="text-sm text-destructive hover:text-destructive/80 transition-colors disabled:opacity-40"
         >
           Clear Cart
         </button>
@@ -173,6 +220,7 @@ const Cart = () => {
             item={item}
             onUpdate={handleUpdate}
             onRemove={handleRemove}
+            disabled={loading}
           />
         ))}
       </div>
