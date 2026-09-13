@@ -22,9 +22,9 @@ const Footer = () => {
           {/* Brand/Logo Section */}
           <div className="flex flex-col items-center md:items-start">
             <Link href="/" className="mb-4">
-              <div className="w-24 h-24 lg:w-32 lg:h-32 relative">
+              <div className="w-32 h-32 lg:w-40 lg:h-40 relative">
                 <Image
-                  src="/logo1.png"
+                  src="/logoc1.png"
                   alt="Dyfk Logo"
                   fill
                   className="object-contain"

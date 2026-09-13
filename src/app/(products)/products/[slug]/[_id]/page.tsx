@@ -285,7 +285,7 @@ const VariantCard: React.FC<{
   return (
     <div
       onClick={() => onSelect(variant)}
-      className={`min-w-[100px] max-w-[130px] flex-shrink-0 border rounded-lg p-1 bg-background hover:shadow-md transition-all cursor-pointer flex flex-col ${
+      className={`min-w-[80px] max-w-[100px] flex-shrink-0 border rounded-lg p-1 bg-background hover:shadow-md transition-all cursor-pointer flex flex-col ${
         isActive
           ? "border-primary ring-2 ring-primary/20"
           : " hover:border-primary/50"
@@ -301,7 +301,7 @@ const VariantCard: React.FC<{
         </div>
       )} */}
       {variantImage ? (
-        <div className="relative aspect-square w-full h-16">
+        <div className="relative aspect-square w-full h-20">
           <Image
             src={variantImage}
             alt=""
@@ -311,13 +311,13 @@ const VariantCard: React.FC<{
           />
         </div>
       ) : (
-        <div className="w-full h-16 bg-muted flex items-center justify-center text-muted-foreground text-xs">
+        <div className="w-full h-20 bg-muted flex items-center justify-center text-muted-foreground text-xs">
           No image
         </div>
       )}
       <div className="mt-0.5 w-full">
         <div className="font-semibold text-xs text-primary">
-          {typeof price === "number" ? `${price} CFA` : "Price unavailable"}
+          {typeof price === "number" ? `${price} F` : "Price unavailable"}
         </div>
       </div>
     </div>
@@ -411,7 +411,7 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                         <p className="line-clamp-2 text-sm">{item.name}</p>
                         {item.price && (
                           <p className="font-semibold text-sm">
-                            {item.price} CFA
+                            {item.price} F
                           </p>
                         )}
                       </Link>
@@ -677,7 +677,7 @@ export default function Details(props: { params: Promise<Params> }) {
 
               {typeof displayPrice === "number" && (
                 <div className="text-2xl font-semibold mb-2">
-                  {displayPrice} CFA
+                  {displayPrice} F
                 </div>
               )}
 
