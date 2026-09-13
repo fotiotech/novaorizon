@@ -317,7 +317,7 @@ const CheckoutPage = () => {
     const products = items.map((item) => ({
       productId: item.productId,
       name: item.name,
-      imageUrl: item.imageUrl,
+      imageUrl: item.image || "",
       quantity: item.quantity,
       price: item.price,
     }));

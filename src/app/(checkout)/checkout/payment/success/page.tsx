@@ -162,7 +162,7 @@ export default function PaymentSuccess() {
             name: item.name,
             quantity: item.quantity,
             price: item.price,
-            imageUrl: item.imageUrl,
+            imageUrl: item.image,
           })),
         subtotal: order.subtotal || calculateTotal(items),
         shippingCost: order.shippingCost || shippingPrice?.shippingPrice || 0,
