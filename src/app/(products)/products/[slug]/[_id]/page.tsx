@@ -117,7 +117,7 @@ const SpecificationsDisplay: React.FC<{ specifications: any[] }> = ({
               <tbody>
                 {group.attributes.map((attr: any, i: any) => (
                   <tr key={i} className="border-b border-border">
-                    <th className="py-1 px-3 text-left font-medium capitalize w-1/3 bg-muted/50">
+                    <th className="py-1 text-left font-medium capitalize w-1/3 bg-muted/50">
                       {attr.k}
                     </th>
                     <td className="py-1 px-3 text-foreground">
@@ -150,7 +150,7 @@ const KeyFeatures: React.FC<{ keyFeatures: any[] }> = ({ keyFeatures }) => {
   return (
     <div className="mt-4">
       <h2 className="text-xl font-semibold mb-2">Key Features</h2>
-      <ul className="list-disc pl-6 space-y-1">
+      <ul className="list-disc space-y-1">
         {keyFeatures.map((item: any, idx: any) => (
           <li key={idx}>
             <strong>{item.k}:</strong> {renderAttributeValue(item.v)}
@@ -208,7 +208,7 @@ const CarrierShippingOptions: React.FC<{
   if (error) return <div className="mt-2 text-destructive">{error}</div>;
 
   return (
-    <div className="mt-4 p-4 border border-border rounded-lg bg-muted/30">
+    <div className="mt-4 ">
       <h3 className="text-lg font-semibold mb-1">Shipping Options</h3>
       {!primaryAddress ? (
         <p className="text-sm text-muted-foreground">
@@ -442,7 +442,7 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
         };
 
         return (
-          <div key={_id} className="menu-node p-3 bg-white rounded shadow">
+          <div key={_id} className="menu-node py-3 bg-white">
             {sectionTitle && (
               <h2 className="text-xl font-semibold mb-2">{sectionTitle}</h2>
             )}
@@ -616,7 +616,7 @@ export default function Details(props: { params: Promise<Params> }) {
   }
   if (!product) {
     return (
-      <div className="w-full p-8 text-center">
+      <div className="w-full p-2 text-center">
         <div className="text-xl mb-4">Product not found</div>
         <Link
           href="/"
@@ -649,7 +649,7 @@ export default function Details(props: { params: Promise<Params> }) {
   console.log("Product details:", product);
 
   return (
-    <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-4 md:px-8">
+    <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-2 md:px-8">
       <ProductViewAnalytics productId={params._id} />
       <div className="max-w-6xl mx-auto">
         {/* Product Basic Info */}
@@ -779,7 +779,7 @@ export default function Details(props: { params: Promise<Params> }) {
 
         {/* Reviews */}
         <div className="mt-4 bg-background rounded">
-          <ReviewForm productId={product._id} userId={""} />
+          {/* <ReviewForm productId={product._id} userId={""} /> */}
           <ExistingReviews reviews={product?.reviews} />
         </div>
       </div>

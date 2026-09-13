@@ -38,7 +38,7 @@ export default function ReviewForm({ productId, userId }: ReviewFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 bg-background rounded-lg p-4 border border-border"
+      className="space-y-4 bg-background rounded-lg border border-border"
     >
       {error && <p className="text-destructive">{error}</p>}
 
@@ -50,7 +50,7 @@ export default function ReviewForm({ productId, userId }: ReviewFormProps) {
           id="rating"
           value={rating}
           onChange={(e) => setRating(Number(e.target.value))}
-          className="border border-input bg-background text-foreground p-2 rounded w-24 focus:ring-2 focus:ring-ring focus:border-transparent"
+          className="border border-input bg-background text-foreground  rounded w-24 focus:ring-2 focus:ring-ring focus:border-transparent"
         >
           <option value={5}>5 – Excellent</option>
           <option value={4}>4 – Good</option>
@@ -76,7 +76,7 @@ export default function ReviewForm({ productId, userId }: ReviewFormProps) {
 
       <button
         type="submit"
-        className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+        className="lg:px-6 px-2 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
       >
         Submit Review
       </button>
