@@ -98,13 +98,6 @@ function getThemeKeys(product: any, variant: any): string[] {
   return Object.keys(variant).filter((k) => !RESERVED_VARIANT_KEYS.has(k));
 }
 
-function formatPrice(value: any): string {
-  if (value === undefined || value === null || value === "") return "";
-  const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n)) return String(value);
-  return `${n} F`;
-}
-
 function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
   if (!address) return false;
   const addressStrings = [
@@ -417,7 +410,7 @@ const ThemeCard: React.FC<ThemeCardProps> = ({
               : "text-muted-foreground"
         }`}
       >
-        {price != null ? formatPrice(price) : "—"}
+        {price != null ? price : "—"}
       </span>
     </button>
   );
