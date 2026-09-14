@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type CarouselItem = {
@@ -9,6 +10,7 @@ type CarouselItem = {
   name: string;
   image: string | null;
   price: number | null;
+  listPrice?: number | null;
   contentType: string; // "Product", "Collection", "Category", etc.
 };
 
@@ -22,6 +24,26 @@ function slugify(text: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function formatPrice(value: any): string {
+  if (value === undefined || value === null || value === "") return "";
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return `${n.toLocaleString("en-US")} F`;
+}
+
+/**
+ * Return the first positive, finite numeric candidate.
+ * Makes `listPrice` reachable when `price` is 0/missing.
+ */
+function pickPrice(...candidates: any[]): number {
+  for (const c of candidates) {
+    if (c === undefined || c === null || c === "") continue;
+    const n = typeof c === "number" ? c : Number(c);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
 }
 
 // Build route based on contentType
@@ -73,35 +95,54 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         suppressHydrationWarning
       >
-        {items.map((item) => (
-          <div
-            key={item._id}
-            className="carousel-slide flex-shrink-0 snap-start w-[40%] sm:w-[45%] md:w-[30%] lg:w-[22%] p-1"
-          >
-            <div className="bg-white rounded overflow-hidden">
-              {showImages && item.image && (
-                <div className="relative w-full aspect-square bg-gray-100">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
+        {items.map((item) => {
+          const displayPrice = pickPrice(item.price, item.listPrice);
+          const numericListPrice = Number(item.listPrice) || 0;
+          const showListPrice =
+            numericListPrice > displayPrice && displayPrice > 0;
+
+          return (
+            <div
+              key={item._id}
+              className="carousel-slide flex-shrink-0 snap-start w-[40%] sm:w-[45%] md:w-[30%] lg:w-[22%] p-1"
+            >
+              <div className="bg-white rounded overflow-hidden">
+                {showImages && item.image && (
+                  <div className="relative w-full aspect-square bg-gray-100">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      sizes="(max-width: 640px) 40vw, (max-width: 768px) 45vw, (max-width: 1024px) 30vw, 22vw"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <div className="py-2">
+                  <Link
+                    href={getItemHref(item)}
+                    className="block hover:underline"
+                    title={item.name}
+                  >
+                    <p className="line-clamp-2 text-sm">{item.name}</p>
+                    {displayPrice > 0 && (
+                      <div className="flex items-baseline gap-2">
+                        <p className="font-semibold text-sm">
+                          {formatPrice(displayPrice)}
+                        </p>
+                        {showListPrice && (
+                          <p className="text-xs text-muted-foreground line-through">
+                            {formatPrice(numericListPrice)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </Link>
                 </div>
-              )}
-              <div className="py-2">
-                <Link
-                  href={getItemHref(item)}
-                  className="block hover:underline"
-                  title={item.name}
-                >
-                  <p className="line-clamp-2 text-sm">{item.name}</p>
-                  <p className="font-semibold text-sm">{item.price} F</p>
-                </Link>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {showLeft && (

@@ -9,6 +9,7 @@ type Item = {
   name: string;
   image: string | null;
   price: number | null;
+  listPrice?: number | null;
   contentType: string; // "Product", "Collection", "Category", etc.
 };
 
@@ -47,6 +48,26 @@ function slugify(text: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function formatPrice(value: any): string {
+  if (value === undefined || value === null || value === "") return "";
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return `${n.toLocaleString("en-US")} F`;
+}
+
+/**
+ * Return the first positive, finite numeric candidate.
+ * Makes `listPrice` reachable when `price` is 0/missing.
+ */
+function pickPrice(...candidates: any[]): number {
+  for (const c of candidates) {
+    if (c === undefined || c === null || c === "") continue;
+    const n = typeof c === "number" ? c : Number(c);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
 }
 
 export default async function MenuRenderer({
@@ -139,55 +160,90 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
       case "List":
         return (
           <ul className="menu-list space-y-2">
-            {items.map((item) => (
-              <li key={item._id} className="flex items-center gap-3">
-                {showImages && item.image && (
-                  <div className="relative w-10 h-10 flex-shrink-0">
-                    <ImageRenderer
-                      image={item.image}
-                      alt={item.name}
-                      className="rounded"
-                    />
-                  </div>
-                )}
-                <Link
-                  href={getItemHref(item)}
-                  className="hover:underline line-clamp-1"
-                  title={item.name}
-                >
-                  {item.name}
-                </Link>
-              </li>
-            ))}
+            {items.map((item) => {
+              const displayPrice = pickPrice(item.price, item.listPrice);
+              const numericListPrice = Number(item.listPrice) || 0;
+              const showListPrice =
+                numericListPrice > displayPrice && displayPrice > 0;
+
+              return (
+                <li key={item._id} className="flex items-center gap-3">
+                  {showImages && item.image && (
+                    <div className="relative w-10 h-10 flex-shrink-0">
+                      <ImageRenderer
+                        image={item.image}
+                        alt={item.name}
+                        className="rounded"
+                      />
+                    </div>
+                  )}
+                  <Link
+                    href={getItemHref(item)}
+                    className="hover:underline line-clamp-1"
+                    title={item.name}
+                  >
+                    <span>{item.name}</span>
+                    {displayPrice > 0 && (
+                      <span className="ml-2 inline-flex items-baseline gap-1">
+                        <span className="font-semibold text-sm">
+                          {formatPrice(displayPrice)}
+                        </span>
+                        {showListPrice && (
+                          <span className="text-xs text-muted-foreground line-through">
+                            {formatPrice(numericListPrice)}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         );
 
       case "Grid":
         return (
           <div className={`menu-grid grid gap-2 lg:gap-4 ${getGridCols()}`}>
-            {items.slice(0, 4).map((item) => (
-              <div key={item._id} className="menu-grid-item p-2 rounded">
-                {showImages && item.image && (
-                  <div className="relative w-full aspect-square mb-2 bg-gray-100">
-                    <ImageRenderer
-                      image={item.image}
-                      alt={item.name}
-                      className="rounded"
-                    />
-                  </div>
-                )}
-                <Link
-                  href={getItemHref(item)}
-                  className="block"
-                  title={item.name}
-                >
-                  <p className="line-clamp-2 text-sm">{item.name}</p>
-                  {item?.price !== null && (
-                    <p className="font-semibold text-sm">{item.price} F</p>
+            {items.slice(0, 4).map((item) => {
+              const displayPrice = pickPrice(item.price, item.listPrice);
+              const numericListPrice = Number(item.listPrice) || 0;
+              const showListPrice =
+                numericListPrice > displayPrice && displayPrice > 0;
+
+              return (
+                <div key={item._id} className="menu-grid-item p-2 rounded">
+                  {showImages && item.image && (
+                    <div className="relative w-full aspect-square mb-2 bg-gray-100">
+                      <ImageRenderer
+                        image={item.image}
+                        alt={item.name}
+                        className="rounded"
+                      />
+                    </div>
                   )}
-                </Link>
-              </div>
-            ))}
+                  <Link
+                    href={getItemHref(item)}
+                    className="block"
+                    title={item.name}
+                  >
+                    <p className="line-clamp-2 text-sm">{item.name}</p>
+                    {displayPrice > 0 && (
+                      <div className="flex items-baseline gap-2">
+                        <p className="font-semibold text-sm">
+                          {formatPrice(displayPrice)}
+                        </p>
+                        {showListPrice && (
+                          <p className="text-xs text-muted-foreground line-through">
+                            {formatPrice(numericListPrice)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         );
 
@@ -199,6 +255,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
               name: item.name,
               image: item.image,
               price: item.price,
+              listPrice: item.listPrice,
               contentType: item.contentType, // ✅ passes contentType
             }))}
             showImages={showImages}

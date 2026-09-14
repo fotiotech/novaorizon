@@ -48,6 +48,19 @@ const formatAttributeValue = (value: any): string => {
 const looksLikeUrl = (s: string): boolean =>
   /^https?:\/\//i.test(s) || s.startsWith("data:") || s.length > 200;
 
+/**
+ * Return the first positive, finite numeric candidate.
+ * Makes `listPrice` reachable when `price` is 0/missing.
+ */
+function pickPrice(...candidates: any[]): number {
+  for (const c of candidates) {
+    if (c === undefined || c === null || c === "") continue;
+    const n = typeof c === "number" ? c : Number(c);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
 const Search = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -205,7 +218,10 @@ const Search = () => {
       const range: any = {};
       if (priceMin) range.gte = Number(priceMin);
       if (priceMax) range.lte = Number(priceMax);
-      filters.push({ range: { listPrice: range } });
+      // Use `price` (the selling price), matching what's displayed in the
+      // grid. `listPrice` is the MSRP / compare-at price and would filter
+      // on a different value than what the user sees.
+      filters.push({ range: { price: range } });
     }
 
     // Attribute filters — URL key format: `attr_<attributeCode>`
@@ -314,8 +330,13 @@ const Search = () => {
     return data.map((item: any) => {
       const imageUrl = item.images?.[0] || null;
       const title = item.name || item.title;
-      const price = item.price;
       const currency = "F";
+
+      // Fall back to listPrice when price is 0/missing — matches the
+      // behaviour of the product detail page.
+      const displayPrice = pickPrice(item.price, item.listPrice);
+      const numericListPrice = Number(item.listPrice) || 0;
+      const showListPrice = numericListPrice > displayPrice && displayPrice > 0;
 
       return (
         <Link
@@ -336,9 +357,20 @@ const Search = () => {
             <p className="text-sm font-medium line-clamp-2 text-foreground group-hover:text-primary transition-colors">
               {title || "Untitled"}
             </p>
-            {price != null && (
-              <p className="mt-1 text-primary font-semibold text-sm">
-                <Prices amount={price} currency={currency} />
+            {displayPrice > 0 ? (
+              <div className="mt-1 flex items-baseline gap-2">
+                <p className="text-primary font-semibold text-sm">
+                  <Prices amount={displayPrice} currency={currency} />
+                </p>
+                {showListPrice && (
+                  <p className="text-xs text-muted-foreground line-through">
+                    <Prices amount={numericListPrice} currency={currency} />
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Price on request
               </p>
             )}
           </div>

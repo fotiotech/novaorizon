@@ -71,6 +71,26 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function formatPrice(value: any): string {
+  if (value === undefined || value === null || value === "") return "";
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return `${n.toLocaleString("en-US")} F`;
+}
+
+/**
+ * Return the first positive, finite numeric candidate.
+ * This makes `listPrice` reachable when `price` is 0.
+ */
+function pickPrice(...candidates: any[]): number {
+  for (const c of candidates) {
+    if (c === undefined || c === null || c === "") continue;
+    const n = typeof c === "number" ? c : Number(c);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
 const RESERVED_VARIANT_KEYS = new Set<string>([
   "_id",
   "sku",
@@ -203,7 +223,7 @@ const CarrierShippingOptions: React.FC<{
                 </div>
                 {regionDetail && (
                   <span className="text-sm font-semibold text-primary">
-                    {regionDetail.basePrice} CFA
+                    {formatPrice(regionDetail.basePrice)}
                   </span>
                 )}
               </li>
@@ -275,9 +295,9 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                         title={item.name}
                       >
                         <span className={TYPO.body}>{item.name}</span>
-                        {item.price && (
+                        {item.price > 0 && (
                           <p className="text-sm font-semibold text-foreground">
-                            {item.price} F
+                            {formatPrice(item.price)}
                           </p>
                         )}
                       </Link>
@@ -307,9 +327,9 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                         <p className={`line-clamp-2 ${TYPO.body}`}>
                           {item.name}
                         </p>
-                        {item.price && (
+                        {item.price > 0 && (
                           <p className="text-sm font-semibold text-foreground">
-                            {item.price} F
+                            {formatPrice(item.price)}
                           </p>
                         )}
                       </Link>
@@ -410,7 +430,7 @@ const ThemeCard: React.FC<ThemeCardProps> = ({
               : "text-muted-foreground"
         }`}
       >
-        {price != null ? price : "—"}
+        {price != null && price > 0 ? formatPrice(price) : "—"}
       </span>
     </button>
   );
@@ -728,7 +748,14 @@ export default function Details(props: { params: Promise<Params> }) {
     images: baseImages = [],
   } = product;
 
-  const displayPrice = matchedVariant?.price ?? basePrice ?? listPrice ?? 0;
+  // Variant price wins when positive, then base price, then listPrice.
+  // `pickPrice` ignores zeros so a `price: 0` doesn't shadow a real value.
+  const displayPrice = pickPrice(matchedVariant?.price, basePrice, listPrice);
+
+  // Only show the struck-through list price when it is a genuine discount.
+  const numericListPrice = Number(listPrice) || 0;
+  const showListPrice = numericListPrice > displayPrice && displayPrice > 0;
+
   const displayQuantity = matchedVariant?.quantity ?? baseQuantity;
   const displayImages =
     Array.isArray(matchedVariant?.images) && matchedVariant.images.length > 0
@@ -787,9 +814,18 @@ export default function Details(props: { params: Promise<Params> }) {
             <div className="md:w-1/2 text-foreground">
               <h1 className={`${TYPO.pageTitle} mb-2`}>{name}</h1>
 
-              {typeof displayPrice === "number" && (
-                <div className={`${TYPO.price} mb-2`}>{displayPrice} F</div>
-              )}
+              <div className="flex items-baseline gap-3 mb-2">
+                <p className={TYPO.price}>
+                  {displayPrice > 0
+                    ? formatPrice(displayPrice)
+                    : "Price on request"}
+                </p>
+                {showListPrice && (
+                  <p className="text-sm text-muted-foreground line-through">
+                    {formatPrice(numericListPrice)}
+                  </p>
+                )}
+              </div>
 
               <div
                 className={`text-sm font-medium mb-3 ${
