@@ -167,24 +167,25 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
                 numericListPrice > displayPrice && displayPrice > 0;
 
               return (
-                <li key={item._id} className="flex items-center gap-3">
-                  {showImages && item.image && (
-                    <div className="relative w-10 h-10 flex-shrink-0">
-                      <ImageRenderer
-                        image={item.image}
-                        alt={item.name}
-                        className="rounded"
-                      />
-                    </div>
-                  )}
+                <li key={item._id}>
+                  {/* Whole row is a link */}
                   <Link
                     href={getItemHref(item)}
-                    className="hover:underline line-clamp-1"
+                    className="flex items-center gap-3 rounded p-1 -m-1 hover:bg-muted/40 transition-colors"
                     title={item.name}
                   >
-                    <span>{item.name}</span>
+                    {showImages && item.image && (
+                      <div className="relative w-10 h-10 flex-shrink-0">
+                        <ImageRenderer
+                          image={item.image}
+                          alt={item.name}
+                          className="rounded"
+                        />
+                      </div>
+                    )}
+                    <span className="line-clamp-1">{item.name}</span>
                     {displayPrice > 0 && (
-                      <span className="ml-2 inline-flex items-baseline gap-1">
+                      <span className="ml-auto inline-flex items-baseline gap-1">
                         <span className="font-semibold text-sm">
                           {formatPrice(displayPrice)}
                         </span>
@@ -212,9 +213,15 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
                 numericListPrice > displayPrice && displayPrice > 0;
 
               return (
-                <div key={item._id} className="menu-grid-item p-2 rounded">
+                /* Whole card is a link */
+                <Link
+                  key={item._id}
+                  href={getItemHref(item)}
+                  className="menu-grid-item group/card block p-2 rounded hover:bg-muted/40 transition-colors"
+                  title={item.name}
+                >
                   {showImages && item.image && (
-                    <div className="relative w-full aspect-square mb-2 bg-gray-100">
+                    <div className="relative w-full aspect-square mb-2 bg-gray-100 overflow-hidden rounded">
                       <ImageRenderer
                         image={item.image}
                         alt={item.name}
@@ -222,26 +229,20 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
                       />
                     </div>
                   )}
-                  <Link
-                    href={getItemHref(item)}
-                    className="block"
-                    title={item.name}
-                  >
-                    <p className="line-clamp-2 text-sm">{item.name}</p>
-                    {displayPrice > 0 && (
-                      <div className="flex items-baseline gap-2">
-                        <p className="font-semibold text-sm">
-                          {formatPrice(displayPrice)}
+                  <p className="line-clamp-2 text-sm ">{item.name}</p>
+                  {displayPrice > 0 && (
+                    <div className="flex items-baseline gap-2">
+                      <p className="font-semibold text-sm">
+                        {formatPrice(displayPrice)}
+                      </p>
+                      {showListPrice && (
+                        <p className="text-xs text-muted-foreground line-through">
+                          {formatPrice(numericListPrice)}
                         </p>
-                        {showListPrice && (
-                          <p className="text-xs text-muted-foreground line-through">
-                            {formatPrice(numericListPrice)}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </Link>
-                </div>
+                      )}
+                    </div>
+                  )}
+                </Link>
               );
             })}
           </div>
@@ -291,9 +292,15 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
             }`}
           >
             {items.map((item) => (
-              <div key={item._id} className="mega-menu-item">
+              /* Whole card is a link */
+              <Link
+                key={item._id}
+                href={getItemHref(item)}
+                className="mega-menu-item group/card block p-2 rounded hover:bg-white transition-colors"
+                title={item.name}
+              >
                 {showImages && item.image && (
-                  <div className="relative w-full aspect-square mb-2 bg-gray-100">
+                  <div className="relative w-full aspect-square mb-2 bg-gray-100 overflow-hidden rounded">
                     <ImageRenderer
                       image={item.image}
                       alt={item.name}
@@ -301,14 +308,8 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
                     />
                   </div>
                 )}
-                <Link
-                  href={getItemHref(item)}
-                  className="block hover:underline"
-                  title={item.name}
-                >
-                  <p className="line-clamp-2 text-sm">{item.name}</p>
-                </Link>
-              </div>
+                <p className="line-clamp-2 text-sm ">{item.name}</p>
+              </Link>
             ))}
           </div>
         );

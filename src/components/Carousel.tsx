@@ -106,40 +106,39 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
               key={item._id}
               className="carousel-slide flex-shrink-0 snap-start w-[40%] sm:w-[45%] md:w-[30%] lg:w-[22%] p-1"
             >
-              <div className="bg-white rounded overflow-hidden">
+              {/* Whole card is a link */}
+              <Link
+                href={getItemHref(item)}
+                className="group/card block bg-white rounded overflow-hidden hover:shadow-md transition-shadow"
+                title={item.name}
+              >
                 {showImages && item.image && (
-                  <div className="relative w-full aspect-square bg-gray-100">
+                  <div className="relative w-full aspect-square bg-gray-100 overflow-hidden">
                     <Image
                       src={item.image}
                       alt={item.name}
                       fill
                       sizes="(max-width: 640px) 40vw, (max-width: 768px) 45vw, (max-width: 1024px) 30vw, 22vw"
-                      className="object-cover"
+                      className="object-cover group-hover/card:scale-105 transition-transform duration-300"
                     />
                   </div>
                 )}
-                <div className="py-2">
-                  <Link
-                    href={getItemHref(item)}
-                    className="block hover:underline"
-                    title={item.name}
-                  >
-                    <p className="line-clamp-2 text-sm">{item.name}</p>
-                    {displayPrice > 0 && (
-                      <div className="flex items-baseline gap-2">
-                        <p className="font-semibold text-sm">
-                          {formatPrice(displayPrice)}
+                <div className="py-2 px-1">
+                  <p className="line-clamp-2 text-sm">{item.name}</p>
+                  {displayPrice > 0 && (
+                    <div className="flex items-baseline gap-2">
+                      <p className="font-semibold text-sm">
+                        {formatPrice(displayPrice)}
+                      </p>
+                      {showListPrice && (
+                        <p className="text-xs text-muted-foreground line-through">
+                          {formatPrice(numericListPrice)}
                         </p>
-                        {showListPrice && (
-                          <p className="text-xs text-muted-foreground line-through">
-                            {formatPrice(numericListPrice)}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
+              </Link>
             </div>
           );
         })}
