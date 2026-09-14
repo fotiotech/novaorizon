@@ -348,7 +348,7 @@ const Search = () => {
   }, [data]);
 
   return (
-    <div className="flex flex-col lg:flex-row w-full min-h-screen bg-background">
+    <div className="flex flex-col lg:flex-row w-full min-h-screen bg-background p-2 lg:px-8 lg:py-4">
       <ListFilter
         openClose={openClose}
         setOpenClose={setOpenClose}
@@ -361,7 +361,7 @@ const Search = () => {
         handleFilterClick={handleFilterClick}
       />
 
-      <div className="flex-1 px-4 py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto">
+      <div className="flex-1 p-2 lg:py-4 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h2 className="text-sm font-semibold text-foreground">
