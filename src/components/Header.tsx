@@ -394,72 +394,67 @@ const Header = () => {
   return (
     <>
       <header
-        className="sticky top-0 z-30 lg:pt-2 border-b border-border bg-background/80 shadow-sm backdrop-blur-md"
+        className=" sticky top-0 z-30 lg:pt-2 max-w-7xl px-2 md:px-6 lg:px-8 border-b border-border bg-background/80 shadow-sm backdrop-blur-md"
         role="banner"
       >
-        <div className="mx-auto max-w-7xl px-2 md:px-6 lg:px-8">
-          <div className="flex flex-col">
-            <div className="flex flex-wrap items-center lg:flex-nowrap lg:gap-x-5">
-              <div className="flex w-full items-center justify-between lg:w-auto lg:flex-none">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    className="rounded-full p-2 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
-                    aria-label="Toggle navigation menu"
-                  >
-                    <Menu
-                      style={{ fontSize: 28 }}
-                      className="text-foreground"
-                    />
-                  </button>
-                  <Link
-                    href="/"
-                    className="flex-shrink-0 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                    aria-label="Homepage"
-                  >
-                    <Image
-                      src="/logoc1.png"
-                      width={100}
-                      height={100}
-                      alt="logo"
-                      priority
-                      className="h-auto w-auto"
-                    />
-                  </Link>
-                </div>
-
-                <div className="flex items-center gap-3 lg:hidden">
-                  <UserProfile />
-                  <CartIcon />
-                </div>
+        <div className="flex flex-col">
+          <div className="flex flex-wrap items-center lg:flex-nowrap lg:gap-x-5">
+            <div className="flex w-full items-center justify-between lg:w-auto lg:flex-none">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className="rounded-full p-2 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                  aria-label="Toggle navigation menu"
+                >
+                  <Menu style={{ fontSize: 28 }} className="text-foreground" />
+                </button>
+                <Link
+                  href="/"
+                  className="flex-shrink-0 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                  aria-label="Homepage"
+                >
+                  <Image
+                    src="/logoc1.png"
+                    width={100}
+                    height={100}
+                    alt="logo"
+                    priority
+                    className="h-auto w-auto"
+                  />
+                </Link>
               </div>
 
-              {/* Full width on mobile; fills all available desktop space. */}
-              <div className="order-2 w-full min-w-0 lg:order-none lg:flex-1 lg:mx-20">
-                <SearchBarWithAutocomplete
-                  searchInput={searchInput}
-                  setSearchInput={setSearchInput}
-                  onSearchSubmit={handleSearchSubmit}
-                />
-              </div>
-
-              <div className="hidden flex-none items-center gap-3 lg:flex">
+              <div className="flex items-center gap-3 lg:hidden">
                 <UserProfile />
                 <CartIcon />
               </div>
             </div>
 
-            <div
-              className={`w-full overflow-hidden transition-all duration-300 `}
-            >
-              <div className="overflow-x-auto scrollbar-none">
-                <nav aria-label="Main navigation">
-                  <ul className="flex items-center gap-0.5 whitespace-nowrap">
-                    {navigationItems}
-                  </ul>
-                </nav>
-              </div>
+            {/* Full width on mobile; fills all available desktop space. */}
+            <div className="order-2 w-full min-w-0 lg:order-none lg:flex-1 lg:mx-20">
+              <SearchBarWithAutocomplete
+                searchInput={searchInput}
+                setSearchInput={setSearchInput}
+                onSearchSubmit={handleSearchSubmit}
+              />
+            </div>
+
+            <div className="hidden flex-none items-center gap-3 lg:flex">
+              <UserProfile />
+              <CartIcon />
+            </div>
+          </div>
+
+          <div
+            className={`w-full overflow-hidden transition-all duration-300 `}
+          >
+            <div className="overflow-x-auto scrollbar-none">
+              <nav aria-label="Main navigation">
+                <ul className="flex items-center gap-0.5 whitespace-nowrap">
+                  {navigationItems}
+                </ul>
+              </nav>
             </div>
           </div>
         </div>

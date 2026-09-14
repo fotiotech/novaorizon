@@ -5,7 +5,7 @@ export function SignIn() {
   return (
     <button
       onClick={() => signIn()}
-      className="bg-primary rounded-full py-1 px-3 font-semibold text-white hover:bg-primary/90 transition-colors"
+      className="bg-primary rounded-full py-1 px-3 text-white hover:bg-primary/90 transition-colors"
     >
       Sign In
     </button>
