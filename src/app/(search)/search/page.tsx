@@ -124,7 +124,7 @@ const Search = () => {
           group.children?.forEach(walk);
         };
 
-        // ⭐ Only walk sets whose code is keyFeatures or specifications.
+        // Only walk sets whose code is keyFeatures or specifications.
         sets.forEach((set: any) => {
           const setCode = String(set.code || "");
           if (!ALLOWED_ATTRIBUTE_SETS.has(setCode)) return;
@@ -140,6 +140,17 @@ const Search = () => {
       cancelled = true;
     };
   }, [derivedCategoryId]);
+
+  // ----- hasActiveFilters — used by the effect AND the trigger button -----
+  // Must be declared BEFORE the search effect so it can gate the fetch.
+  const hasActiveFilters = useMemo(() => {
+    if (query || category || brand || priceMin || priceMax) return true;
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key] of params.entries()) {
+      if (key.startsWith("attr_")) return true;
+    }
+    return false;
+  }, [query, category, brand, priceMin, priceMax, searchParams]);
 
   // Enhanced debounced search
   const debouncedSearch = useCallback(
@@ -200,9 +211,10 @@ const Search = () => {
     return filters;
   }, [category, brand, priceMin, priceMax, searchParams]);
 
-  // Fetch results when search params change
+  const urlSignature = useMemo(() => searchParams.toString(), [searchParams]);
+
   useEffect(() => {
-    if (query || category || brand || priceMin || priceMax) {
+    if (hasActiveFilters) {
       const filters = buildFilters();
       debouncedSearch(query, filters);
     } else {
@@ -214,16 +226,8 @@ const Search = () => {
         priceRange: { min: 0, max: 0 },
       });
     }
-  }, [
-    query,
-    category,
-    brand,
-    priceMin,
-    priceMax,
-    page,
-    debouncedSearch,
-    buildFilters,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSignature, page, debouncedSearch]);
 
   const handleFilterClick = useCallback(
     (key: string, value: string): void => {
@@ -241,15 +245,6 @@ const Search = () => {
     if (query) params.set("query", query);
     router.push(`/search?${params.toString()}`);
   }, [query, router]);
-
-  const hasActiveFilters = useMemo(() => {
-    if (category || brand || priceMin || priceMax) return true;
-    const params = new URLSearchParams(searchParams.toString());
-    for (const [key] of params.entries()) {
-      if (key.startsWith("attr_")) return true;
-    }
-    return false;
-  }, [category, brand, priceMin, priceMax, searchParams]);
 
   // ----- Build attribute filter options -----
   const attributeFilters = useMemo(() => {
@@ -404,9 +399,11 @@ const Search = () => {
         ) : data.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-60 text-muted-foreground">
             <p className="text-lg">
-              {query ? "No results found." : "No products available."}
+              {hasActiveFilters
+                ? "No results found."
+                : "No products available."}
             </p>
-            {query && (
+            {hasActiveFilters && (
               <p className="text-sm mt-1">
                 Try adjusting your search or filters.
               </p>

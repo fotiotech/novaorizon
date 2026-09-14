@@ -30,9 +30,11 @@ export async function searchProducts(
   if (query && query.trim() !== "") {
     textClause.text = {
       query: query,
-      // `dynamic: true` on the index means every string field is indexed,
-      // so wildcard covers them all — including flat category attributes.
-      path: { wildcard: "*" },
+      // Explicit paths are supported by every Atlas Search version and
+      // don't depend on the index being rebuilt with `dynamic: true`.
+      // Once you confirm the index is active with wildcard support, you
+      // can swap this back to `path: { wildcard: "*" }`.
+      path: ["name", "description", "shortDescription", "tags"],
       fuzzy: {
         maxEdits: 2,
         prefixLength: 1,
@@ -53,12 +55,10 @@ export async function searchProducts(
   };
 
   for (const f of filters) {
-    // Term filter (categoryId, brand, …)
     if (f.term) {
       const [path, value] = Object.entries(f.term)[0];
       addTerm(path, value as string);
     }
-    // Range filter (price, …)
     if (f.range) {
       const [path, range]: any = Object.entries(f.range)[0];
       const rangeClause: any = {};
@@ -68,28 +68,38 @@ export async function searchProducts(
         filterClauses.push({ range: { path, ...rangeClause } });
       }
     }
-    // Attribute filter — flat model: the attribute code IS the path.
     if (f.attribute) {
       const { key, value } = f.attribute;
       if (key && value !== undefined && value !== null && value !== "") {
-        filterClauses.push({
-          equals: { path: String(key), value: String(value) },
-        });
+        const raw = String(value);
+        const asNumber = Number(raw);
+        const numericValue =
+          raw.trim() !== "" &&
+          Number.isFinite(asNumber) &&
+          String(asNumber) === raw
+            ? asNumber
+            : null;
+
+        if (numericValue !== null) {
+          filterClauses.push({
+            equals: { path: String(key), value: numericValue },
+          });
+        } else {
+          filterClauses.push({
+            equals: { path: String(key), value: raw },
+          });
+        }
       }
     }
   }
 
   // ----- 3. Compose compound -----
-  const must = [];
+  const must: any[] = [];
   if (textClause.text) must.push(textClause);
+
   const filter = filterClauses.length > 0 ? filterClauses : undefined;
 
-  if (must.length > 0 || filter) {
-    searchStage.compound = {
-      must: must.length ? must : undefined,
-      filter: filter,
-    };
-  } else {
+  if (must.length === 0 && !filter) {
     return {
       hits: [],
       total: { value: 0 },
@@ -101,9 +111,18 @@ export async function searchProducts(
     };
   }
 
+  const compound: any = {};
+  if (must.length > 0) {
+    compound.must = must;
+  } else {
+    // Safe match-all when the user has only applied filters.
+    compound.must = [{ exists: { path: "name" } }];
+  }
+  if (filter) compound.filter = filter;
+
+  searchStage.compound = compound;
+
   // ----- 4. Pipeline with $facet -----
-  // Flat model → the whole document is small, so we keep every field
-  // (including dynamic attributes) and only strip heavy arrays.
   const pipeline: any[] = [
     { $search: searchStage },
     {
@@ -141,13 +160,7 @@ export async function searchProducts(
               preserveNullAndEmptyArrays: true,
             },
           },
-          {
-            $project: {
-              _id: 1,
-              name: "$categoryInfo.name",
-              count: 1,
-            },
-          },
+          { $project: { _id: 1, name: "$categoryInfo.name", count: 1 } },
           { $sort: { count: -1 } },
         ],
         brands: [
@@ -162,13 +175,7 @@ export async function searchProducts(
             },
           },
           { $unwind: { path: "$brandInfo", preserveNullAndEmptyArrays: true } },
-          {
-            $project: {
-              _id: 1,
-              name: "$brandInfo.name",
-              count: 1,
-            },
-          },
+          { $project: { _id: 1, name: "$brandInfo.name", count: 1 } },
           { $sort: { count: -1 } },
         ],
         priceRange: [
@@ -185,6 +192,9 @@ export async function searchProducts(
     },
   ];
 
+  // 👇 TEMP DIAGNOSTIC — remove once search is verified working
+  console.log("[search] stage:", JSON.stringify(searchStage, null, 2));
+
   const [result] = await Product.aggregate(pipeline);
 
   const hits = result.hits || [];
@@ -192,6 +202,14 @@ export async function searchProducts(
   const brands = result.brands || [];
   const priceRange = result.priceRange?.[0] || { min: 0, max: 0 };
   const total = result.totalCount?.[0]?.total || 0;
+
+  // 👇 TEMP DIAGNOSTIC — remove once search is verified working
+  console.log("[search] raw result counts:", {
+    hits: hits.length,
+    total,
+    categories: categories.length,
+    brands: brands.length,
+  });
 
   return {
     hits: hits.map((hit: any) => ({
