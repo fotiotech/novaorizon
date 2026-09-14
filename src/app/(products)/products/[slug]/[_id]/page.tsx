@@ -43,6 +43,27 @@ interface Params {
   _id: string;
 }
 
+// ---------- Typography tokens ----------
+// Single source of truth for the page's type scale. Any component that
+// renders text should use these tokens so headings align across sections.
+const TYPO = {
+  /** Product name — the page's H1. */
+  pageTitle:
+    "text-base md:text-xl font-semibold text-foreground/90 leading-snug",
+  /** Section heading (Description, Shipping, Related menus, …). */
+  sectionTitle: "text-lg font-semibold text-foreground leading-snug",
+  /** Sub-label inside a section (variant theme label, spec group name, …). */
+  label: "text-sm font-semibold text-foreground",
+  /** Price — the most prominent number on the page. */
+  price: "text-2xl font-semibold text-foreground leading-tight",
+  /** Default body copy. */
+  body: "text-sm text-foreground",
+  /** Muted / secondary copy. */
+  muted: "text-sm text-muted-foreground",
+  /** Tiny helper text. */
+  tiny: "text-xs text-muted-foreground",
+} as const;
+
 // ---------- Helpers ----------
 function slugify(text: string): string {
   return text
@@ -143,17 +164,16 @@ const CarrierShippingOptions: React.FC<{
 
   if (loading)
     return (
-      <div className="mt-2 text-muted-foreground">
-        Loading shipping options...
-      </div>
+      <div className={`mt-2 ${TYPO.muted}`}>Loading shipping options...</div>
     );
-  if (error) return <div className="mt-2 text-destructive">{error}</div>;
+  if (error)
+    return <div className="mt-2 text-sm text-destructive">{error}</div>;
 
   return (
-    <div className="mt-4 ">
-      <h3 className="text-lg font-semibold mb-1">Shipping Options</h3>
+    <div className="mt-5">
+      <h3 className={`${TYPO.sectionTitle} mb-2`}>Shipping Options</h3>
       {!primaryAddress ? (
-        <p className="text-sm text-muted-foreground">
+        <p className={TYPO.muted}>
           Please{" "}
           <Link
             href="/account/addresses"
@@ -164,7 +184,7 @@ const CarrierShippingOptions: React.FC<{
           to check shipping availability.
         </p>
       ) : availableCarriers.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className={TYPO.muted}>
           No carriers serve your region (
           {primaryAddress.city || primaryAddress.state || "your area"}).
         </p>
@@ -179,16 +199,18 @@ const CarrierShippingOptions: React.FC<{
                 key={carrier._id}
                 className="flex justify-between items-center border-b border-border pb-1 last:border-0"
               >
-                <div>
-                  <span className="font-medium">{carrier.name}</span>
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-foreground">
+                    {carrier.name}
+                  </span>
                   {regionDetail && (
-                    <span className="text-sm text-muted-foreground ml-2">
+                    <span className={`ml-2 ${TYPO.muted}`}>
                       (Est. delivery: {regionDetail.averageDeliveryTime})
                     </span>
                   )}
                 </div>
                 {regionDetail && (
-                  <span className="font-semibold text-primary">
+                  <span className="text-sm font-semibold text-primary">
                     {regionDetail.basePrice} CFA
                   </span>
                 )}
@@ -260,9 +282,9 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                         className="hover:underline line-clamp-1"
                         title={item.name}
                       >
-                        {item.name}
+                        <span className={TYPO.body}>{item.name}</span>
                         {item.price && (
-                          <p className="font-semibold text-sm">
+                          <p className="text-sm font-semibold text-foreground">
                             {item.price} F
                           </p>
                         )}
@@ -290,9 +312,11 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                         className="block"
                         title={item.name}
                       >
-                        <p className="line-clamp-2 text-sm">{item.name}</p>
+                        <p className={`line-clamp-2 ${TYPO.body}`}>
+                          {item.name}
+                        </p>
                         {item.price && (
-                          <p className="font-semibold text-sm">
+                          <p className="text-sm font-semibold text-foreground">
                             {item.price} F
                           </p>
                         )}
@@ -316,7 +340,7 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
               );
             default:
               return (
-                <div className="text-yellow-600">
+                <div className="text-sm text-yellow-600">
                   Unknown display type: {display}
                 </div>
               );
@@ -326,7 +350,7 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
         return (
           <div key={_id} className="menu-node py-3 bg-white">
             {sectionTitle && (
-              <h2 className="text-xl font-semibold mb-2">{sectionTitle}</h2>
+              <h2 className={`${TYPO.sectionTitle} mb-2`}>{sectionTitle}</h2>
             )}
             <div className="menu-content">{renderContent()}</div>
           </div>
@@ -386,7 +410,7 @@ const ThemeCard: React.FC<ThemeCardProps> = ({
         )}
       </div>
       <span
-        className={`text-[11px] font-semibold truncate w-full text-left ${
+        className={`text-xs font-semibold truncate w-full text-left ${
           isActive
             ? "text-primary"
             : isAvailable
@@ -480,14 +504,8 @@ const VariantSelector: React.FC<VariantSelectorProps> = ({
         return (
           <div key={themeKey}>
             <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-sm font-semibold text-foreground">
-                {label}
-              </span>
-              {activeValue && (
-                <span className="text-sm text-muted-foreground">
-                  {activeValue}
-                </span>
-              )}
+              <span className={TYPO.label}>{label}</span>
+              {activeValue && <span className={TYPO.muted}>{activeValue}</span>}
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -681,7 +699,7 @@ export default function Details(props: { params: Promise<Params> }) {
   if (error) {
     return (
       <div className="w-full p-8 text-center">
-        <div className="text-destructive mb-4">{error}</div>
+        <div className="text-sm text-destructive mb-4">{error}</div>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
@@ -694,7 +712,7 @@ export default function Details(props: { params: Promise<Params> }) {
   if (!product) {
     return (
       <div className="w-full p-2 text-center">
-        <div className="text-xl mb-4">Product not found</div>
+        <div className="text-lg font-semibold mb-4">Product not found</div>
         <Link
           href="/"
           className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
@@ -704,8 +722,6 @@ export default function Details(props: { params: Promise<Params> }) {
       </div>
     );
   }
-
-  console.log("Rendering product details for:", product);
 
   const {
     _id = "",
@@ -732,15 +748,15 @@ export default function Details(props: { params: Promise<Params> }) {
 
   // Reusable description markup
   const descriptionBlock = (
-    <div className="mt-4 bg-background rounded">
-      <h2 className="text-lg font-semibold mb-1">Description</h2>
+    <div className="mt-5">
+      <h2 className={`${TYPO.sectionTitle} mb-2`}>Description</h2>
       {description ? (
         <div
-          className="prose max-w-none text-foreground"
+          className="prose prose-sm max-w-none text-foreground"
           dangerouslySetInnerHTML={{ __html: description }}
         />
       ) : (
-        <p className="text-muted-foreground">No description available.</p>
+        <p className={TYPO.muted}>No description available.</p>
       )}
     </div>
   );
@@ -756,14 +772,17 @@ export default function Details(props: { params: Promise<Params> }) {
               {Array.isArray(displayImages) && displayImages.length > 0 ? (
                 <>
                   {brand?.name && (
-                    <Link href={`/brandStore?brandId=${_id}`}>
+                    <Link
+                      href={`/brandStore?brandId=${_id}`}
+                      className={TYPO.muted}
+                    >
                       visit <span className="text-primary">{brand?.name}</span>
                     </Link>
                   )}
                   <DetailImages file={displayImages} />
                 </>
               ) : (
-                <div className="w-full flex items-center justify-center bg-muted text-muted-foreground rounded p-6">
+                <div className="w-full flex items-center justify-center bg-muted text-muted-foreground rounded p-6 text-sm">
                   No images available
                 </div>
               )}
@@ -774,23 +793,22 @@ export default function Details(props: { params: Promise<Params> }) {
 
             {/* Right column: product info */}
             <div className="md:w-1/2 text-foreground">
-              <h1 className="text-sm font-bold text-muted-foreground lg:text-lg mb-2">
-                {name}
-              </h1>
+              <h1 className={`${TYPO.pageTitle} mb-2`}>{name}</h1>
+
               {typeof displayPrice === "number" && (
-                <div className="text-2xl font-semibold mb-2">
-                  {displayPrice} F
-                </div>
+                <div className={`${TYPO.price} mb-2`}>{displayPrice} F</div>
               )}
+
               <div
-                className={`${
+                className={`text-sm font-medium mb-3 ${
                   inStock
                     ? "text-green-600 dark:text-green-400"
                     : "text-destructive"
-                } mb-2`}
+                }`}
               >
                 {stockStatus}
               </div>
+
               {Array.isArray(variants) && variants.length > 0 && (
                 <VariantSelector
                   product={product}
@@ -800,6 +818,7 @@ export default function Details(props: { params: Promise<Params> }) {
                   onSelectValue={handleSelectValue}
                 />
               )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 w-full">
                 <CheckoutButton
                   product={{
@@ -820,22 +839,23 @@ export default function Details(props: { params: Promise<Params> }) {
                   }}
                 />
               </div>
+
               <CarrierShippingOptions
                 product={product}
                 userAddresses={userAddresses}
               />
+
               {/* Mobile-only: Key Features stay inline */}
               {isMobile && (
                 <ProductAttributes product={product} variant="keyFeatures" />
               )}
 
               {shortDescription && (
-                <div className="my-3 rounded">
-                  <p className="text-muted-foreground text-sm">
-                    {shortDescription}
-                  </p>
+                <div className="my-4">
+                  <p className={TYPO.muted}>{shortDescription}</p>
                 </div>
               )}
+
               {/* Mobile-only: Specifications trigger — opens bottom sheet */}
               {isMobile && (
                 <button
@@ -843,7 +863,7 @@ export default function Details(props: { params: Promise<Params> }) {
                   onClick={() => setIsSpecsSheetOpen(true)}
                   className="mt-3 w-full flex items-center justify-between text-foreground transition-colors"
                 >
-                  <span className="text-lg font-semibold">Specifications</span>
+                  <span className={TYPO.sectionTitle}>Specifications</span>
                   <svg
                     width="18"
                     height="18"
@@ -858,10 +878,12 @@ export default function Details(props: { params: Promise<Params> }) {
                   </svg>
                 </button>
               )}
+
               {/* Desktop: both sections inline */}
               {!isMobile && (
                 <ProductAttributes product={product} variant="both" />
               )}
+
               {/* Mobile: specifications inside the bottom sheet */}
               {isMobile && (
                 <BottomSheet
