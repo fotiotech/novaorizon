@@ -227,21 +227,16 @@ const UserProfile = React.memo(() => {
   const unreadCount = useUnreadMessages();
   const user = session?.data?.user as any;
 
+  if (!user) return <SignIn />;
+
   return (
-    <div className="flex items-center gap-1.5">
-      {user ? (
-        <Link
-          href="/profile"
-          className="rounded-md text-sm text-foreground transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <span className="hidden sm:inline">{user?.name}</span>
-        </Link>
-      ) : (
-        <SignIn />
-      )}
-      <span className="text-muted-foreground" aria-hidden="true">
-        <NavigateNext style={{ fontSize: 16 }} />
-      </span>
+    <Link
+      href="/profile"
+      className="flex items-center gap-1.5 rounded-md text-sm text-foreground transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+      aria-label="Profile"
+    >
+      <span className=" font-semibold">{user?.name}</span>
+
       <div className="relative">
         {unreadCount > 0 && (
           <span
@@ -251,15 +246,12 @@ const UserProfile = React.memo(() => {
             {unreadCount}
           </span>
         )}
-        <Link
-          href="/profile"
-          className="rounded-full transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring"
-          aria-label="Profile"
-        >
-          <Person style={{ fontSize: 28 }} className="text-foreground" />
-        </Link>
+        <Person
+          style={{ fontSize: 28 }}
+          className="text-foreground transition-transform hover:scale-110"
+        />
       </div>
-    </div>
+    </Link>
   );
 });
 
@@ -405,7 +397,7 @@ const Header = () => {
         className="sticky top-0 z-30 border-b border-border bg-background/80 shadow-sm backdrop-blur-md"
         role="banner"
       >
-        <div className="mx-auto max-w-7xl px-3 py-2 sm:px-4 lg:px-6">
+        <div className="mx-auto max-w-7xl px-2 lg:px-6">
           <div className="flex flex-col gap-y-2">
             <div className="flex flex-wrap items-center lg:flex-nowrap lg:gap-x-5">
               <div className="flex w-full items-center justify-between lg:w-auto lg:flex-none">
