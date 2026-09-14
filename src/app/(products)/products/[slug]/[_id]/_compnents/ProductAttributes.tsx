@@ -4,8 +4,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { getCategoryAttributeSets } from "@/app/actions/category";
 
-const toCamel = (code: string) =>
-  code.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+type Variant = "both" | "keyFeatures" | "specifications";
+
+interface ProductAttributesProps {
+  product: any;
+  /**
+   * Which section(s) to render.
+   *   "both"           → Key Features + Specifications  (desktop default)
+   *   "keyFeatures"    → Key Features only              (mobile inline)
+   *   "specifications" → Specifications only            (mobile bottom sheet)
+   */
+  variant?: Variant;
+}
 
 const renderValue = (value: any): string => {
   if (value === undefined || value === null) return "";
@@ -16,7 +26,10 @@ const renderValue = (value: any): string => {
   return String(value);
 };
 
-export default function ProductAttributes({ product }: { product: any }) {
+export default function ProductAttributes({
+  product,
+  variant = "both",
+}: ProductAttributesProps) {
   const [sets, setSets] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +49,8 @@ export default function ProductAttributes({ product }: { product: any }) {
     const kf: any[] = [];
     const specs: any[] = [];
 
-    const readValue = (code: string) => product?.[toCamel(code)];
+    // Attribute codes are already camelCase in the DB.
+    const readValue = (code: string) => product?.[code];
 
     const walk = (group: any): any => {
       const attrs: any[] = [];
@@ -57,8 +71,9 @@ export default function ProductAttributes({ product }: { product: any }) {
     };
 
     for (const set of sets) {
-      const code = toCamel(String(set.code || ""));
-      if (code === "keyFeatures") {
+      const setCode = String(set.code || "");
+
+      if (setCode === "keyFeatures") {
         for (const group of set.groups || []) {
           const collect = (g: any) => {
             (g.attributes || []).forEach((a: any) => {
@@ -70,7 +85,7 @@ export default function ProductAttributes({ product }: { product: any }) {
           };
           collect(group);
         }
-      } else if (code === "specifications") {
+      } else if (setCode === "specifications") {
         for (const group of set.groups || []) {
           const built = walk(group);
           if (built.attributes.length || built.groups.length) specs.push(built);
@@ -82,14 +97,21 @@ export default function ProductAttributes({ product }: { product: any }) {
   }, [sets, product]);
 
   if (loading) return null;
-  if (!keyFeatures.length && !specifications.length) return null;
+
+  const showKeyFeatures = variant === "both" || variant === "keyFeatures";
+  const showSpecifications = variant === "both" || variant === "specifications";
+
+  const hasKeyFeatures = showKeyFeatures && keyFeatures.length > 0;
+  const hasSpecifications = showSpecifications && specifications.length > 0;
+
+  if (!hasKeyFeatures && !hasSpecifications) return null;
 
   return (
     <>
-      {keyFeatures.length > 0 && (
+      {hasKeyFeatures && (
         <div className="mt-4">
           <h2 className="text-xl font-semibold mb-2">Key Features</h2>
-          <ul className="list-disc space-y-1">
+          <ul className=" space-y-1">
             {keyFeatures.map((item, i) => (
               <li key={i}>
                 <strong>{item.k}:</strong> {renderValue(item.v)}
@@ -99,9 +121,11 @@ export default function ProductAttributes({ product }: { product: any }) {
         </div>
       )}
 
-      {specifications.length > 0 && (
+      {hasSpecifications && (
         <div className="mt-4">
-          <h2 className="text-xl font-semibold mb-2">Specifications</h2>
+          {variant === "both" && (
+            <h2 className="text-xl font-semibold mb-2">Specifications</h2>
+          )}
           {specifications.map((group, idx) => (
             <div key={idx} className="mb-4">
               <h3 className="font-semibold text-neutral-600 mb-1">

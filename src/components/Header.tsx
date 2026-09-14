@@ -133,7 +133,7 @@ const SearchBarWithAutocomplete = React.memo(
             type="text"
             name="searchInput"
             value={searchInput}
-            placeholder="Search Dyfk"
+            placeholder="Search Novaorizon"
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onFocus={() => {

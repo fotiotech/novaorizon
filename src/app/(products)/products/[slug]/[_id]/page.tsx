@@ -1,22 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import React, { useCallback, useEffect, useState, useRef, use } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  use,
+} from "react";
 import AddToCart from "@/components/AddToCart";
 import CheckoutButton from "@/components/CheckoutButton";
 import DetailImages from "@/components/DetailImages";
 import ImageRenderer from "@/components/ImageRenderer";
 import Spinner from "@/components/Spinner";
 import ProductViewAnalytics from "./_compnents/ProductViewAnalytics";
-import ReviewForm from "@/components/product/reviews/ProductReviews";
 import ExistingReviews from "@/components/product/reviews/ExistingReviews";
 import { getCarriers } from "@/app/actions/carrier";
 import { useUserData } from "@/app/context/UserDataContext";
-import Image from "next/image";
 import { getMenusByLocation } from "@/app/actions/menu";
 import Carousel from "@/components/Carousel";
+import Image from "next/image";
 import { findProducts } from "@/app/actions/products";
 import ProductAttributes from "./_compnents/ProductAttributes";
+import BottomSheet from "@/components/ux/BottomSheet";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 // ---------- Types ----------
 interface Carrier {
@@ -43,14 +51,6 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/**
- * Keys on a variant that are NOT theme codes — these get their own handling
- * in `applyVariant` and must never be treated as theme dimensions.
- *
- *   `attributes` is the model's own key-value sub-array; without excluding
- *   it the variant-sync effect would treat it as a theme key and cause
- *   spurious merges on every render.
- */
 const RESERVED_VARIANT_KEYS = new Set<string>([
   "_id",
   "sku",
@@ -64,15 +64,9 @@ const RESERVED_VARIANT_KEYS = new Set<string>([
   "__v",
 ]);
 
-/** camelCase a snake_case attribute code. */
 const toCamel = (code: string): string =>
   code.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
-/**
- * Return the list of theme keys for a product/variant.
- *  1. Prefer the explicit `variantThemes` array on the product.
- *  2. Otherwise scan the variant's own keys, skipping reserved keys.
- */
 function getThemeKeys(product: any, variant: any): string[] {
   const declared = Array.isArray(product?.variantThemes)
     ? product.variantThemes
@@ -84,45 +78,11 @@ function getThemeKeys(product: any, variant: any): string[] {
   return Object.keys(variant).filter((k) => !RESERVED_VARIANT_KEYS.has(k));
 }
 
-/**
- * Merge a selected variant into the product shown on the page.
- * Theme keys are copied to the root (so `product.color === "Green"` reflects
- * the current selection); price & images are overridden explicitly; other
- * reserved keys are left untouched.
- */
-function applyVariant(product: any, variant: any) {
-  if (!product || !variant) return product;
-  const merged = JSON.parse(JSON.stringify(product));
-
-  for (const key of Object.keys(variant)) {
-    if (!RESERVED_VARIANT_KEYS.has(key)) {
-      merged[key] = variant[key];
-    }
-  }
-
-  if (typeof variant.price === "number") {
-    merged.price = variant.price;
-  }
-  if (Array.isArray(variant.images) && variant.images.length > 0) {
-    merged.images = variant.images;
-  }
-
-  return merged;
-}
-
-function renderAttributeValue(value: any): string {
-  if (value === undefined || value === null) return "";
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "value" in value &&
-    "unit" in value
-  ) {
-    return `${value.value} ${value.unit}`;
-  }
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+function formatPrice(value: any): string {
+  if (value === undefined || value === null || value === "") return "";
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return `${n} F`;
 }
 
 function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
@@ -237,62 +197,6 @@ const CarrierShippingOptions: React.FC<{
           })}
         </ul>
       )}
-    </div>
-  );
-};
-
-// ---------- Variant Card Component ----------
-const VariantCard: React.FC<{
-  variant: any;
-  themeKeys: string[];
-  onSelect: (variant: any) => void;
-  isActive: boolean;
-}> = ({ variant, themeKeys, onSelect, isActive }) => {
-  const variantImage = variant.images?.[0] || null;
-  const price = variant.price || 0;
-
-  return (
-    <div
-      onClick={() => onSelect(variant)}
-      className={`min-w-[80px] max-w-[100px] flex-shrink-0 border rounded-lg p-1 bg-background hover:shadow-md transition-all cursor-pointer flex flex-col ${
-        isActive
-          ? "border-primary ring-2 ring-primary/20"
-          : " hover:border-primary/50"
-      }`}
-    >
-      {/* Optional theme-value caption — enable if you want text labels on the
-          cards in addition to the image swatch.
-      {themeKeys.length > 0 && (
-        <div className="text-[10px] text-muted-foreground truncate mb-0.5">
-          {themeKeys.map((key) => (
-            <span key={key} className="mr-1">
-              {key}: {variant[key]}
-            </span>
-          ))}
-        </div>
-      )}
-      */}
-
-      {variantImage ? (
-        <div className="relative aspect-square w-full h-20">
-          <Image
-            src={variantImage}
-            alt=""
-            fill
-            className="object-contain"
-            sizes="100px"
-          />
-        </div>
-      ) : (
-        <div className="w-full h-20 bg-muted flex items-center justify-center text-muted-foreground text-xs">
-          No image
-        </div>
-      )}
-      <div className="mt-0.5 w-full">
-        <div className="font-semibold text-xs text-primary">
-          {typeof price === "number" ? `${price} F` : "Price unavailable"}
-        </div>
-      </div>
     </div>
   );
 };
@@ -432,16 +336,201 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
   );
 };
 
+// ---------- Per-theme Variant Card ----------
+interface ThemeCardProps {
+  value: string;
+  image?: string | null;
+  price?: number | null;
+  isActive: boolean;
+  isAvailable: boolean;
+  onClick: () => void;
+}
+
+const ThemeCard: React.FC<ThemeCardProps> = ({
+  value,
+  image,
+  price,
+  isActive,
+  isAvailable,
+  onClick,
+}) => {
+  return (
+    <button
+      type="button"
+      disabled={!isAvailable}
+      onClick={onClick}
+      aria-pressed={isActive}
+      aria-label={value}
+      title={value}
+      className={`flex-shrink-0 w-[92px] flex flex-col items-center gap-1 rounded-lg border p-1 transition-all ${
+        isActive
+          ? "border-primary border-2 bg-primary/5"
+          : isAvailable
+            ? "border-border  hover:border-primary/60 bg-background"
+            : "border-border bg-background opacity-40 cursor-not-allowed"
+      }`}
+    >
+      <div className="relative w-full h-[68px] bg-muted/40 rounded overflow-hidden">
+        {image ? (
+          <Image
+            src={image}
+            alt={value}
+            fill
+            className={`object-contain ${isAvailable ? "" : "grayscale"}`}
+            sizes="92px"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">
+            No image
+          </div>
+        )}
+      </div>
+      <span
+        className={`text-[11px] font-semibold truncate w-full text-left ${
+          isActive
+            ? "text-primary"
+            : isAvailable
+              ? "text-foreground"
+              : "text-muted-foreground"
+        }`}
+      >
+        {price != null ? formatPrice(price) : "—"}
+      </span>
+    </button>
+  );
+};
+
+// ---------- Variant Selector ----------
+interface VariantSelectorProps {
+  product: any;
+  themeKeys: string[];
+  themeValues: Record<string, string[]>;
+  selectedValues: Record<string, string>;
+  onSelectValue: (themeKey: string, value: string) => void;
+}
+
+const VariantSelector: React.FC<VariantSelectorProps> = ({
+  product,
+  themeKeys,
+  themeValues,
+  selectedValues,
+  onSelectValue,
+}) => {
+  if (themeKeys.length === 0) return null;
+
+  const isAvailable = (themeKey: string, value: string): boolean => {
+    if (!product?.variants) return false;
+    for (const v of product.variants) {
+      if (String(v[themeKey]) !== value) continue;
+      let ok = true;
+      for (const k of themeKeys) {
+        if (k === themeKey) continue;
+        if (selectedValues[k] && String(v[k]) !== selectedValues[k]) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) return true;
+    }
+    return false;
+  };
+
+  const representativeFor = (themeKey: string, value: string): any | null => {
+    if (!product?.variants) return null;
+    let firstMatch: any = null;
+    for (const v of product.variants) {
+      if (String(v[themeKey]) !== value) continue;
+      if (!firstMatch) firstMatch = v;
+      let ok = true;
+      for (const k of themeKeys) {
+        if (k === themeKey) continue;
+        if (selectedValues[k] && String(v[k]) !== selectedValues[k]) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) return v;
+    }
+    return firstMatch;
+  };
+
+  const imageFor = (themeKey: string, value: string): string | null => {
+    const v = representativeFor(themeKey, value);
+    if (!v) return null;
+    if (Array.isArray(v.images) && v.images.length > 0) return v.images[0];
+    return null;
+  };
+
+  const priceFor = (themeKey: string, value: string): number | null => {
+    const v = representativeFor(themeKey, value);
+    if (!v) return null;
+    if (typeof v.price === "number") return v.price;
+    return null;
+  };
+
+  return (
+    <div className="mt-4 space-y-5">
+      {themeKeys.map((themeKey) => {
+        const values = themeValues[themeKey] || [];
+        if (values.length === 0) return null;
+
+        const activeValue = selectedValues[themeKey] || "";
+        const label = themeKey.charAt(0).toUpperCase() + themeKey.slice(1);
+
+        return (
+          <div key={themeKey}>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-sm font-semibold text-foreground">
+                {label}
+              </span>
+              {activeValue && (
+                <span className="text-sm text-muted-foreground">
+                  {activeValue}
+                </span>
+              )}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {values.map((value) => {
+                const isSelected = activeValue === value;
+                const available = isAvailable(themeKey, value);
+                const img = imageFor(themeKey, value);
+                const price = priceFor(themeKey, value);
+
+                return (
+                  <ThemeCard
+                    key={value}
+                    value={value}
+                    image={img}
+                    price={price}
+                    isActive={isSelected}
+                    isAvailable={available}
+                    onClick={() => onSelectValue(themeKey, value)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ---------- Main Page ----------
 export default function Details(props: { params: Promise<Params> }) {
   const params = use(props.params);
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVariantIndex, setSelectedVariantIndex] = useState<
-    number | null
-  >(null);
+
+  const [selectedValues, setSelectedValues] = useState<Record<string, string>>(
+    {},
+  );
+  const [isSpecsSheetOpen, setIsSpecsSheetOpen] = useState(false);
   const initialLoadComplete = useRef(false);
+
+  const isMobile = useIsMobile();
 
   const { addresses: userAddresses } = useUserData();
 
@@ -473,10 +562,10 @@ export default function Details(props: { params: Promise<Params> }) {
       .finally(() => setLoading(false));
   }, [params._id]);
 
-  // Reset the "initial load done" flag when the product id changes.
   useEffect(() => {
     initialLoadComplete.current = false;
-    setSelectedVariantIndex(null);
+    setSelectedValues({});
+    setIsSpecsSheetOpen(false);
   }, [params._id]);
 
   // Fetch related menus
@@ -487,108 +576,105 @@ export default function Details(props: { params: Promise<Params> }) {
     setMenusLoading(true);
     getMenusByLocation("product_related", { productId: product._id })
       .then((res) => {
-        if (res.success) {
-          setMenus(res.data || []);
-        } else {
-          console.error("Failed to load related menus:", res.error);
-        }
+        if (res.success) setMenus(res.data || []);
+        else console.error("Failed to load related menus:", res.error);
       })
       .catch((err) => console.error(err))
       .finally(() => setMenusLoading(false));
   }, [product?._id]);
 
-  // -----------------------------------------------------------------
-  // Variant sync on initial load
-  // -----------------------------------------------------------------
-  // We look for a variant whose theme keys match any theme keys that may
-  // already be set at the product root (e.g. because the URL or a prior
-  // selection pinned them). If none match, we fall back to the first
-  // variant. Theme keys are derived via `getThemeKeys` — using the
-  // product's declared `variantThemes` when available, and skipping
-  // reserved keys (`attributes`, `mainImage`, …) otherwise.
-  // -----------------------------------------------------------------
+  const themeKeys = useMemo<string[]>(() => {
+    if (!product?.variants?.length) return [];
+    return getThemeKeys(product, product.variants[0]);
+  }, [product]);
+
+  const themeValues = useMemo<Record<string, string[]>>(() => {
+    const map: Record<string, string[]> = {};
+    if (!product?.variants) return map;
+    for (const key of themeKeys) {
+      const seen = new Set<string>();
+      for (const v of product.variants) {
+        const val = v[key];
+        if (val !== undefined && val !== null && val !== "") {
+          seen.add(String(val));
+        }
+      }
+      map[key] = Array.from(seen);
+    }
+    return map;
+  }, [product, themeKeys]);
+
   useEffect(() => {
     if (
       !product ||
       !Array.isArray(product.variants) ||
       product.variants.length === 0 ||
+      themeKeys.length === 0 ||
       initialLoadComplete.current
     ) {
       return;
     }
+    const first = product.variants[0];
+    const init: Record<string, string> = {};
+    for (const key of themeKeys) {
+      if (first[key] !== undefined && first[key] !== null) {
+        init[key] = String(first[key]);
+      }
+    }
+    setSelectedValues(init);
+    initialLoadComplete.current = true;
+  }, [product, themeKeys]);
 
-    const firstVariant = product.variants[0];
-    const themeKeys = getThemeKeys(product, firstVariant);
-
-    let foundIndex = -1;
-    if (themeKeys.length > 0) {
-      for (let i = 0; i < product.variants.length; i++) {
-        const variant = product.variants[i];
-        let matches = true;
-        for (const key of themeKeys) {
-          const productValue = product[key];
-          const variantValue = variant[key];
-          if (productValue !== undefined && productValue !== variantValue) {
-            matches = false;
-            break;
-          }
-        }
-        if (matches) {
-          foundIndex = i;
+  const matchedVariant = useMemo<any | null>(() => {
+    if (!product?.variants?.length) return null;
+    for (const v of product.variants) {
+      let ok = true;
+      for (const k of themeKeys) {
+        if (selectedValues[k] && String(v[k]) !== selectedValues[k]) {
+          ok = false;
           break;
         }
       }
+      if (ok) return v;
     }
+    return null;
+  }, [product, themeKeys, selectedValues]);
 
-    if (foundIndex === -1) {
-      foundIndex = 0;
-    }
+  const handleSelectValue = useCallback(
+    (themeKey: string, value: string) => {
+      if (!product?.variants?.length) return;
 
-    const currentVariant = product.variants[foundIndex];
+      const candidate: Record<string, string> = {
+        ...selectedValues,
+        [themeKey]: value,
+      };
 
-    // Detect whether the product root needs a merge with the selected
-    // variant (theme keys or price/images differ).
-    let needsUpdate = false;
-    for (const key of themeKeys) {
-      if (product[key] !== currentVariant[key]) {
-        needsUpdate = true;
-        break;
+      const exact = product.variants.find((v: any) => {
+        for (const k of themeKeys) {
+          if (candidate[k] && String(v[k]) !== candidate[k]) return false;
+        }
+        return true;
+      });
+
+      if (exact) {
+        setSelectedValues(candidate);
+        return;
       }
-    }
-    if (
-      !needsUpdate &&
-      typeof currentVariant.price === "number" &&
-      product.price !== currentVariant.price
-    ) {
-      needsUpdate = true;
-    }
-    if (
-      !needsUpdate &&
-      Array.isArray(currentVariant.images) &&
-      currentVariant.images.length > 0 &&
-      JSON.stringify(product.images) !== JSON.stringify(currentVariant.images)
-    ) {
-      needsUpdate = true;
-    }
 
-    if (needsUpdate) {
-      setProduct(applyVariant(product, currentVariant));
-    }
-
-    setSelectedVariantIndex(foundIndex);
-    initialLoadComplete.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product]);
-
-  const handleVariantSelect = useCallback(
-    (variant: any, index: number) => {
-      if (product) {
-        const merged = applyVariant(product, variant);
-        setProduct(merged);
-        setSelectedVariantIndex(index);
+      const fallback = product.variants.find(
+        (v: any) => String(v[themeKey]) === value,
+      );
+      if (fallback) {
+        const next: Record<string, string> = {};
+        for (const k of themeKeys) {
+          if (fallback[k] !== undefined && fallback[k] !== null) {
+            next[k] = String(fallback[k]);
+          }
+        }
+        setSelectedValues(next);
       }
     },
-    [product],
+    [product, themeKeys, selectedValues],
   );
 
   if (loading) return <Spinner size={32} />;
@@ -625,53 +711,77 @@ export default function Details(props: { params: Promise<Params> }) {
     _id = "",
     brand,
     name = "Untitled Product",
-    sku = "",
     listPrice = 0,
-    price = 0,
-    quantity = 0,
+    price: basePrice = 0,
+    quantity: baseQuantity = 0,
     shortDescription = "",
     description = "",
     variants = [],
-    images = [],
+    images: baseImages = [],
   } = product;
 
-  const displayPrice = price || listPrice || 0;
-  const inStock = quantity > 0;
+  const displayPrice = matchedVariant?.price ?? basePrice ?? listPrice ?? 0;
+  const displayQuantity = matchedVariant?.quantity ?? baseQuantity;
+  const displayImages =
+    Array.isArray(matchedVariant?.images) && matchedVariant.images.length > 0
+      ? matchedVariant.images
+      : baseImages;
+
+  const inStock = displayQuantity > 0;
   const stockStatus = inStock ? "In Stock" : "Out of Stock";
+
+  // Reusable description markup
+  const descriptionBlock = (
+    <div className="mt-4 bg-background rounded">
+      <h2 className="text-lg font-semibold mb-1">Description</h2>
+      {description ? (
+        <div
+          className="prose max-w-none text-foreground"
+          dangerouslySetInnerHTML={{ __html: description }}
+        />
+      ) : (
+        <p className="text-muted-foreground">No description available.</p>
+      )}
+    </div>
+  );
 
   return (
     <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-2 md:px-8">
       <ProductViewAnalytics productId={params._id} />
       <div className="max-w-6xl mx-auto">
-        {/* Product Basic Info */}
         <>
           <div className="flex flex-col md:flex-row gap-4">
-            {Array.isArray(images) && images.length > 0 ? (
-              <div className="md:w-1/2">
-                {brand?.name && (
-                  <Link href={`/brandStore?brandId=${_id}`} className="">
-                    visit <span className="text-primary">{brand?.name}</span>
-                  </Link>
-                )}
-                <DetailImages file={images} />
-              </div>
-            ) : (
-              <div className="w-full md:w-1/2 flex items-center justify-center bg-muted text-muted-foreground rounded p-6">
-                No images available
-              </div>
-            )}
+            {/* Left column: images + (desktop) description */}
+            <div className="md:w-1/2">
+              {Array.isArray(displayImages) && displayImages.length > 0 ? (
+                <>
+                  {brand?.name && (
+                    <Link href={`/brandStore?brandId=${_id}`}>
+                      visit <span className="text-primary">{brand?.name}</span>
+                    </Link>
+                  )}
+                  <DetailImages file={displayImages} />
+                </>
+              ) : (
+                <div className="w-full flex items-center justify-center bg-muted text-muted-foreground rounded p-6">
+                  No images available
+                </div>
+              )}
 
+              {/* Desktop-only: description under the images */}
+              <div className="hidden md:block">{descriptionBlock}</div>
+            </div>
+
+            {/* Right column: product info */}
             <div className="md:w-1/2 text-foreground">
               <h1 className="text-sm font-bold text-muted-foreground lg:text-lg mb-2">
                 {name}
               </h1>
-
               {typeof displayPrice === "number" && (
                 <div className="text-2xl font-semibold mb-2">
                   {displayPrice} F
                 </div>
               )}
-
               <div
                 className={`${
                   inStock
@@ -681,29 +791,15 @@ export default function Details(props: { params: Promise<Params> }) {
               >
                 {stockStatus}
               </div>
-
-              {/* Variant Cards */}
               {Array.isArray(variants) && variants.length > 0 && (
-                <div className="mb-2">
-                  <h3 className="text-sm font-medium mb-1">
-                    Available Variants
-                  </h3>
-                  <div className="flex overflow-x-auto gap-2 pb-1 md:grid md:grid-cols-2 lg:grid-cols-3 scrollbar-hide">
-                    {variants.map((v: any, idx: number) => (
-                      <VariantCard
-                        key={idx}
-                        variant={v}
-                        themeKeys={getThemeKeys(product, v)}
-                        onSelect={(variant) =>
-                          handleVariantSelect(variant, idx)
-                        }
-                        isActive={selectedVariantIndex === idx}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <VariantSelector
+                  product={product}
+                  themeKeys={themeKeys}
+                  themeValues={themeValues}
+                  selectedValues={selectedValues}
+                  onSelectValue={handleSelectValue}
+                />
               )}
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 w-full">
                 <CheckoutButton
                   product={{
@@ -719,45 +815,73 @@ export default function Details(props: { params: Promise<Params> }) {
                   product={{
                     _id,
                     name,
-                    image: images[0] || "",
+                    image: displayImages[0] || "",
                     price: displayPrice,
                   }}
                 />
               </div>
-
               <CarrierShippingOptions
                 product={product}
                 userAddresses={userAddresses}
               />
+              {/* Mobile-only: Key Features stay inline */}
+              {isMobile && (
+                <ProductAttributes product={product} variant="keyFeatures" />
+              )}
+
+              {shortDescription && (
+                <div className="my-3 rounded">
+                  <p className="text-muted-foreground text-sm">
+                    {shortDescription}
+                  </p>
+                </div>
+              )}
+              {/* Mobile-only: Specifications trigger — opens bottom sheet */}
+              {isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setIsSpecsSheetOpen(true)}
+                  className="mt-3 w-full flex items-center justify-between text-foreground transition-colors"
+                >
+                  <span className="text-lg font-semibold">Specifications</span>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+              )}
+              {/* Desktop: both sections inline */}
+              {!isMobile && (
+                <ProductAttributes product={product} variant="both" />
+              )}
+              {/* Mobile: specifications inside the bottom sheet */}
+              {isMobile && (
+                <BottomSheet
+                  open={isSpecsSheetOpen}
+                  onClose={() => setIsSpecsSheetOpen(false)}
+                  title="Specifications"
+                >
+                  <ProductAttributes
+                    product={product}
+                    variant="specifications"
+                  />
+                </BottomSheet>
+              )}
             </div>
           </div>
-
-          {shortDescription && (
-            <div className="my-3 rounded">
-              <p className="text-muted-foreground text-sm">
-                {shortDescription}
-              </p>
-            </div>
-          )}
         </>
 
-        {/* Key Features and Specifications */}
-        <ProductAttributes product={product} />
+        {/* Mobile-only: description stays below the columns */}
+        <div className="md:hidden">{descriptionBlock}</div>
 
-        {/* Description */}
-        <div className="mt-4 bg-background rounded">
-          <h2 className="text-lg font-semibold mb-1">Description</h2>
-          {description ? (
-            <div
-              className="prose max-w-none text-foreground"
-              dangerouslySetInnerHTML={{ __html: description }}
-            />
-          ) : (
-            <p className="text-muted-foreground">No description available.</p>
-          )}
-        </div>
-
-        {/* Related Menus */}
         {menusLoading ? (
           <div className="mt-4 flex justify-center">
             <Spinner size={24} />
@@ -766,9 +890,7 @@ export default function Details(props: { params: Promise<Params> }) {
           <RelatedMenusRenderer menus={menus} />
         )}
 
-        {/* Reviews */}
         <div className="mt-4 bg-background rounded">
-          {/* <ReviewForm productId={product._id} userId={""} /> */}
           <ExistingReviews reviews={product?.reviews} />
         </div>
       </div>
