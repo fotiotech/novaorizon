@@ -184,14 +184,14 @@ const FilterContent: React.FC<FilterContentProps> = ({
         <div className="bg-muted/30 rounded-lg p-4 border border-border">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm font-medium text-muted-foreground">
-              Min: ${filters?.priceRange?.min}
+              Min: F{filters?.priceRange?.min}
             </span>
             <span className="text-sm font-medium text-muted-foreground">
-              Max: ${filters?.priceRange?.max}
+              Max: F{filters?.priceRange?.max}
             </span>
           </div>
           <div className="text-xs font-semibold text-primary">
-            ${filters?.priceRange?.min} - ${filters?.priceRange?.max}
+            F{filters?.priceRange?.min} - F{filters?.priceRange?.max}
           </div>
         </div>
       </div>
