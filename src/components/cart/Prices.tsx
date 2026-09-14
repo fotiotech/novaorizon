@@ -7,11 +7,12 @@ type PricesProps = {
   currency?: string;
 };
 
-export function Prices({ amount, currency = "CFA" }: PricesProps) {
-  return new Intl.NumberFormat("fr-CM", {
-    style: "currency",
-    currency,
-  }).format(amount);
+export function Prices({ amount, currency = "F" }: PricesProps) {
+  return (
+    <span>
+      {amount} {currency}
+    </span>
+  );
 }
 
 export const TotalPrice = ({
@@ -27,5 +28,9 @@ export const TotalPrice = ({
     (total, item) => total + item.price * item.quantity,
     0,
   );
-  return <Prices amount={amount + (shippingPrice || 0)} currency={currency} />;
+  return (
+    <span>
+      {amount + (shippingPrice || 0)} {currency}
+    </span>
+  );
 };

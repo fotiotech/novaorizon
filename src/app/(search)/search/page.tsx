@@ -12,22 +12,11 @@ import { Prices } from "@/components/cart/Prices";
 import ListFilter from "@/components/ListFilter";
 import { debounce } from "./_component/debounce";
 
-// ---------- Config ----------
-/**
- * Only these two sets contribute attributes to the filter panel.
- * Everything else (identification, basicInformation, logisticsAndShipping,
- * pricingAndInventory, …) is used by the form but is not a customer-facing
- * filter dimension.
- */
 const ALLOWED_ATTRIBUTE_SETS = new Set<string>([
   "keyFeatures",
   "specifications",
 ]);
 
-/**
- * Attribute types we never surface as filters — their values are URLs
- * or binary media and shouldn't be rendered as filter options.
- */
 const EXCLUDED_ATTRIBUTE_TYPES = new Set<string>(["file"]);
 
 // ---------- Types ----------
@@ -312,10 +301,10 @@ const Search = () => {
   // Memoized product list
   const productList = useMemo(() => {
     return data.map((item: any) => {
-      const imageUrl = item.mainImage || item.main_image || null;
+      const imageUrl = item.images?.[0] || null;
       const title = item.name || item.title;
-      const price = item.listPrice ?? item.list_price;
-      const currency = item.currency || "CFA";
+      const price = item.price;
+      const currency = "F";
 
       return (
         <Link
@@ -409,7 +398,7 @@ const Search = () => {
           </div>
         ) : isLoading ? (
           <div className="flex flex-col items-center justify-center h-60">
-            <Spinner size={40} />
+            <Spinner size={25} />
             <p className="mt-3 text-muted-foreground">Searching...</p>
           </div>
         ) : data.length === 0 ? (
