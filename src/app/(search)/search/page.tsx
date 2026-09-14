@@ -12,6 +12,32 @@ import { Prices } from "@/components/cart/Prices";
 import ListFilter from "@/components/ListFilter";
 import { debounce } from "./_component/debounce";
 
+// ---------- Config ----------
+/**
+ * Only these two sets contribute attributes to the filter panel.
+ * Everything else (identification, basicInformation, logisticsAndShipping,
+ * pricingAndInventory, …) is used by the form but is not a customer-facing
+ * filter dimension.
+ */
+const ALLOWED_ATTRIBUTE_SETS = new Set<string>([
+  "keyFeatures",
+  "specifications",
+]);
+
+/**
+ * Attribute types we never surface as filters — their values are URLs
+ * or binary media and shouldn't be rendered as filter options.
+ */
+const EXCLUDED_ATTRIBUTE_TYPES = new Set<string>(["file"]);
+
+// ---------- Types ----------
+type AttributeDef = {
+  code: string;
+  name: string;
+  options: string[];
+};
+
+// ---------- Helpers ----------
 /** Format a flat attribute value to a display string. */
 const formatAttributeValue = (value: any): string => {
   if (value === undefined || value === null) return "";
@@ -29,28 +55,9 @@ const formatAttributeValue = (value: any): string => {
   return String(value);
 };
 
-/**
- * Extract attribute key/value pairs from a flat product document.
- *
- * `attributeCodes` comes from the category's attribute configuration —
- * it is the *only* source of truth for which root keys are category
- * attributes. System fields declared on the Product model are never in
- * this list, so there is nothing to filter out here.
- */
-const extractAttributes = (
-  product: any,
-  attributeCodes: string[],
-): { key: string; value: string }[] => {
-  if (!product || attributeCodes.length === 0) return [];
-  const out: { key: string; value: string }[] = [];
-  for (const code of attributeCodes) {
-    const value = product[code];
-    if (value === undefined || value === null || value === "") continue;
-    if (Array.isArray(value) && value.length === 0) continue;
-    out.push({ key: code, value: formatAttributeValue(value) });
-  }
-  return out;
-};
+/** Reject values that are obviously URLs or binary blobs. */
+const looksLikeUrl = (s: string): boolean =>
+  /^https?:\/\//i.test(s) || s.startsWith("data:") || s.length > 200;
 
 const Search = () => {
   const searchParams = useSearchParams();
@@ -75,7 +82,7 @@ const Search = () => {
     priceRange: { min: 0, max: 0 },
   });
   const [totalCount, setTotalCount] = useState(0);
-  const [attributeCodes, setAttributeCodes] = useState<string[]>([]);
+  const [attributeDefs, setAttributeDefs] = useState<AttributeDef[]>([]);
 
   // ----- Derive the active category for attribute lookup -----
   const derivedCategoryId = useMemo(() => {
@@ -87,28 +94,58 @@ const Search = () => {
     return typeof raw === "object" ? String(raw._id ?? raw) : String(raw);
   }, [category, data]);
 
-  // ----- Fetch attribute codes for the active category -----
+  // ----- Fetch attribute definitions (keyFeatures + specifications only) -----
   useEffect(() => {
     if (!derivedCategoryId) {
-      setAttributeCodes([]);
+      setAttributeDefs([]);
       return;
     }
     let cancelled = false;
     getCategoryAttributeSets(derivedCategoryId)
       .then((sets) => {
         if (cancelled) return;
-        const codes = new Set<string>();
+        const defMap = new Map<string, AttributeDef>();
+
         const walk = (group: any) => {
           group.attributes?.forEach((a: any) => {
-            if (a.code) codes.add(a.code);
+            if (!a.code) return;
+            // Skip file/image attributes — their values are URLs.
+            if (EXCLUDED_ATTRIBUTE_TYPES.has(String(a.type || ""))) return;
+
+            if (!defMap.has(a.code)) {
+              defMap.set(a.code, {
+                code: a.code,
+                name: a.name || a.code,
+                options: Array.isArray(a.options)
+                  ? a.options.filter((o: any) => !looksLikeUrl(String(o)))
+                  : [],
+              });
+            } else {
+              const existing = defMap.get(a.code)!;
+              if (Array.isArray(a.options) && a.options.length > 0) {
+                existing.options = Array.from(
+                  new Set([
+                    ...existing.options,
+                    ...a.options.filter((o: any) => !looksLikeUrl(String(o))),
+                  ]),
+                );
+              }
+            }
           });
           group.children?.forEach(walk);
         };
-        sets.forEach((set: any) => set.groups?.forEach(walk));
-        setAttributeCodes(Array.from(codes));
+
+        // ⭐ Only walk sets whose code is keyFeatures or specifications.
+        sets.forEach((set: any) => {
+          const setCode = String(set.code || "");
+          if (!ALLOWED_ATTRIBUTE_SETS.has(setCode)) return;
+          set.groups?.forEach(walk);
+        });
+
+        setAttributeDefs(Array.from(defMap.values()));
       })
       .catch(() => {
-        if (!cancelled) setAttributeCodes([]);
+        if (!cancelled) setAttributeDefs([]);
       });
     return () => {
       cancelled = true;
@@ -225,36 +262,52 @@ const Search = () => {
     return false;
   }, [category, brand, priceMin, priceMax, searchParams]);
 
-  // ----- Build attribute filter options from flat products -----
+  // ----- Build attribute filter options -----
   const attributeFilters = useMemo(() => {
-    if (!data || data.length === 0 || attributeCodes.length === 0) return [];
+    if (attributeDefs.length === 0) return [];
 
-    const attrMap: Record<
-      string,
-      { key: string; values: Record<string, number> }
-    > = {};
-
+    // Count value occurrences across the current page of results.
+    const counts: Record<string, Record<string, number>> = {};
     data.forEach((product) => {
-      const attrs = extractAttributes(product, attributeCodes);
-      attrs.forEach(({ key, value }) => {
-        if (!attrMap[key]) {
-          attrMap[key] = { key, values: {} };
-        }
-        if (!attrMap[key].values[value]) {
-          attrMap[key].values[value] = 0;
-        }
-        attrMap[key].values[value] += 1;
+      attributeDefs.forEach((def) => {
+        const raw = product[def.code];
+        if (raw === undefined || raw === null || raw === "") return;
+        if (Array.isArray(raw) && raw.length === 0) return;
+        const formatted = formatAttributeValue(raw);
+        if (!formatted || looksLikeUrl(formatted)) return;
+        if (!counts[def.code]) counts[def.code] = {};
+        counts[def.code][formatted] = (counts[def.code][formatted] ?? 0) + 1;
       });
     });
 
-    return Object.values(attrMap).map((attr) => ({
-      key: attr.key,
-      values: Object.entries(attr.values).map(([value, count]) => ({
-        value,
-        count,
-      })),
-    }));
-  }, [data, attributeCodes]);
+    return attributeDefs
+      .map((def) => {
+        const resultValues = Object.keys(counts[def.code] || {});
+        const allValues = Array.from(
+          new Set([...def.options, ...resultValues]),
+        ).filter((v) => v && !looksLikeUrl(v));
+
+        if (allValues.length === 0) return null;
+
+        return {
+          key: def.code,
+          name: def.name,
+          values: allValues.map((value) => ({
+            value,
+            count: counts[def.code]?.[value] ?? 0,
+          })),
+        };
+      })
+      .filter(
+        (
+          item,
+        ): item is {
+          key: string;
+          name: string;
+          values: { value: string; count: number }[];
+        } => item !== null,
+      );
+  }, [data, attributeDefs]);
 
   // Memoized product list
   const productList = useMemo(() => {
@@ -268,14 +321,14 @@ const Search = () => {
         <Link
           key={item._id}
           href={`/products/${title?.slice(0, 15) || "product"}/${item._id}`}
-          className="group bg-background border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/30"
+          className="group flex flex-col bg-background border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/30"
         >
           {imageUrl ? (
-            <div className="w-full aspect-[4/3] bg-muted/30">
+            <div className="relative w-full aspect-square bg-muted/30 overflow-hidden shrink-0">
               <ImageRenderer image={imageUrl} />
             </div>
           ) : (
-            <div className="w-full aspect-[4/3] bg-muted flex items-center justify-center text-muted-foreground text-sm">
+            <div className="w-full aspect-square bg-muted flex items-center justify-center text-muted-foreground text-sm">
               No image
             </div>
           )}
@@ -311,7 +364,7 @@ const Search = () => {
       <div className="flex-1 px-4 py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h2 className="text-xl font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             {query ? (
               <>
                 Search Results for:{" "}
