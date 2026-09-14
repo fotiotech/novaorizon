@@ -141,16 +141,27 @@ const Search = () => {
     };
   }, [derivedCategoryId]);
 
-  // ----- hasActiveFilters — used by the effect AND the trigger button -----
-  // Must be declared BEFORE the search effect so it can gate the fetch.
-  const hasActiveFilters = useMemo(() => {
-    if (query || category || brand || priceMin || priceMax) return true;
+  // ----- Filter predicates -----
+  //
+  // `hasNonQueryFilters` — anything that isn't the search term. Controls
+  // whether the "Clear filters" button is visible; the button should never
+  // appear when the only URL param is `query`, because clearing would be a
+  // no-op (same URL, no navigation).
+  //
+  // `shouldSearch` — the search term OR any filter. Gates the fetch effect.
+  const hasNonQueryFilters = useMemo(() => {
+    if (category || brand || priceMin || priceMax) return true;
     const params = new URLSearchParams(searchParams.toString());
     for (const [key] of params.entries()) {
       if (key.startsWith("attr_")) return true;
     }
     return false;
-  }, [query, category, brand, priceMin, priceMax, searchParams]);
+  }, [category, brand, priceMin, priceMax, searchParams]);
+
+  const shouldSearch = useMemo(
+    () => Boolean(query || hasNonQueryFilters),
+    [query, hasNonQueryFilters],
+  );
 
   // Enhanced debounced search
   const debouncedSearch = useCallback(
@@ -211,10 +222,11 @@ const Search = () => {
     return filters;
   }, [category, brand, priceMin, priceMax, searchParams]);
 
+  // Re-run the search whenever any relevant URL parameter changes.
   const urlSignature = useMemo(() => searchParams.toString(), [searchParams]);
 
   useEffect(() => {
-    if (hasActiveFilters) {
+    if (shouldSearch) {
       const filters = buildFilters();
       debouncedSearch(query, filters);
     } else {
@@ -240,10 +252,14 @@ const Search = () => {
     [searchParams, router],
   );
 
+  // Clear every filter EXCEPT the search query. Always produces a URL that
+  // differs from the current one whenever the button is visible, so
+  // router.push reliably triggers navigation.
   const clearFilters = useCallback(() => {
     const params = new URLSearchParams();
     if (query) params.set("query", query);
-    router.push(`/search?${params.toString()}`);
+    const qs = params.toString();
+    router.push(qs ? `/search?${qs}` : "/search");
   }, [query, router]);
 
   // ----- Build attribute filter options -----
@@ -360,8 +376,9 @@ const Search = () => {
           </h2>
 
           <div className="flex items-center gap-3">
-            {hasActiveFilters && (
+            {hasNonQueryFilters && (
               <button
+                type="button"
                 onClick={clearFilters}
                 className="flex items-center gap-1 text-destructive hover:text-destructive/80 text-sm font-medium transition-colors"
               >
@@ -371,6 +388,7 @@ const Search = () => {
             )}
 
             <button
+              type="button"
               className="lg:hidden flex items-center gap-2 text-primary hover:text-primary/80 transition-colors bg-muted/50 px-3 py-2 rounded-lg"
               onClick={() => setOpenClose((prev) => !prev)}
             >
@@ -385,6 +403,7 @@ const Search = () => {
           <div className="flex flex-col items-center justify-center h-60 text-destructive">
             <p className="text-lg">{error}</p>
             <button
+              type="button"
               onClick={() => window.location.reload()}
               className="mt-4 bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition"
             >
@@ -399,11 +418,9 @@ const Search = () => {
         ) : data.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-60 text-muted-foreground">
             <p className="text-lg">
-              {hasActiveFilters
-                ? "No results found."
-                : "No products available."}
+              {shouldSearch ? "No results found." : "No products available."}
             </p>
-            {hasActiveFilters && (
+            {shouldSearch && (
               <p className="text-sm mt-1">
                 Try adjusting your search or filters.
               </p>
@@ -413,7 +430,7 @@ const Search = () => {
           <>
             <div className="mb-4 text-sm text-muted-foreground">
               Found {totalCount} {totalCount === 1 ? "result" : "results"}
-              {hasActiveFilters && " (filtered)"}
+              {hasNonQueryFilters && " (filtered)"}
             </div>
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
