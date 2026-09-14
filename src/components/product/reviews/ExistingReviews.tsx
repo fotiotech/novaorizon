@@ -19,7 +19,7 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
   if (!reviews || reviews?.length === 0) {
     return (
       <div className="bg-background rounded-lg">
-        <h2 className="text-2xl font-semibold text-foreground mb-4">
+        <h2 className="text-lg font-bold text-foreground mb-4">
           Customer Reviews
         </h2>
         <p className="text-muted-foreground">

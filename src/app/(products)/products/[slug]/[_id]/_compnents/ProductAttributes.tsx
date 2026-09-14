@@ -110,7 +110,7 @@ export default function ProductAttributes({
     <>
       {hasKeyFeatures && (
         <div className="mt-4">
-          <h2 className="text-xl font-semibold mb-2">Key Features</h2>
+          <h2 className="text-lg font-bold mb-2">Key Features</h2>
           <ul className=" space-y-1">
             {keyFeatures.map((item, i) => (
               <li key={i}>
@@ -124,7 +124,7 @@ export default function ProductAttributes({
       {hasSpecifications && (
         <div className="mt-4">
           {variant === "both" && (
-            <h2 className="text-xl font-semibold mb-2">Specifications</h2>
+            <h2 className="text-lg font-bold mb-2">Specifications</h2>
           )}
           {specifications.map((group, idx) => (
             <div key={idx} className="mb-4">

@@ -48,10 +48,9 @@ interface Params {
 // renders text should use these tokens so headings align across sections.
 const TYPO = {
   /** Product name — the page's H1. */
-  pageTitle:
-    "text-base md:text-xl font-semibold text-foreground/90 leading-snug",
+  pageTitle: "text-base font-semibold text-foreground/90 leading-snug",
   /** Section heading (Description, Shipping, Related menus, …). */
-  sectionTitle: "text-lg font-semibold text-foreground leading-snug",
+  sectionTitle: "text-lg font-bold text-foreground leading-snug",
   /** Sub-label inside a section (variant theme label, spec group name, …). */
   label: "text-sm font-semibold text-foreground",
   /** Price — the most prominent number on the page. */

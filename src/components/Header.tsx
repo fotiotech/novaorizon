@@ -363,7 +363,7 @@ const Header = () => {
         <li key={item._id} className="inline-block">
           <Link
             href={href}
-            className="block rounded-lg px-4 py-2 text-base font-medium text-foreground transition-all duration-200 hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+            className="block rounded-lg p-2 text-base font-medium text-foreground transition-all duration-200 hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {item.name}
           </Link>
@@ -394,11 +394,11 @@ const Header = () => {
   return (
     <>
       <header
-        className="sticky top-0 z-30 border-b border-border bg-background/80 shadow-sm backdrop-blur-md"
+        className="sticky top-0 z-30 lg:pt-2 border-b border-border bg-background/80 shadow-sm backdrop-blur-md"
         role="banner"
       >
-        <div className="mx-auto max-w-7xl px-2 lg:px-6">
-          <div className="flex flex-col gap-y-2">
+        <div className="mx-auto max-w-7xl px-2 md:px-6 lg:px-8">
+          <div className="flex flex-col">
             <div className="flex flex-wrap items-center lg:flex-nowrap lg:gap-x-5">
               <div className="flex w-full items-center justify-between lg:w-auto lg:flex-none">
                 <div className="flex items-center gap-2">

@@ -206,4 +206,8 @@ const Product =
   (mongoose.models.Product as mongoose.Model<IProduct>) ||
   mongoose.model<IProduct>("Product", ProductSchema);
 
+export const PRODUCT_SCHEMA_PATHS: readonly string[] = Object.freeze(
+  Object.keys(Product.schema.paths),
+);
+
 export default Product;

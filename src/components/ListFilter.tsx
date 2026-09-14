@@ -11,9 +11,11 @@ type Filter = {
   count: number;
 };
 
+// Attribute filter option — flat model. `key` IS the product root field
+// (e.g. "color", "material"). No `scope` because there are no nested
+// keyFeatures/specifications/variants attribute paths anymore.
 type AttributeFilterOption = {
-  key: string; // e.g. "color"
-  scope: string; // "keyFeatures" | "specifications" | "variants"
+  key: string;
   values: { value: string; count: number }[];
 };
 
@@ -35,8 +37,7 @@ const ListFilter = ({
   filters,
   handleFilterClick,
 }: FilterListProps) => {
-  // <= 1023px → bottom sheet; >= 1024px → sidebar. Same breakpoint the
-  // rest of the app uses for mobile layouts.
+  // <= 1023px → bottom sheet; >= 1024px → sidebar.
   const isMobile = useIsMobile(1023);
 
   // ── Mobile: bottom sheet ──────────────────────────────────────────
@@ -77,7 +78,7 @@ const ListFilter = ({
 export default ListFilter;
 
 // ─────────────────────────────────────────────────────────────────────
-// Content — identical for both modes; only the CTA row differs.
+// Content — shared between sheet (mobile) and sidebar (desktop)
 // ─────────────────────────────────────────────────────────────────────
 interface FilterContentProps {
   filters: FilterListProps["filters"];
@@ -138,7 +139,7 @@ const FilterContent: React.FC<FilterContentProps> = ({
         </ul>
       </div>
 
-      {/* Attribute filters */}
+      {/* Attribute filters — flat model: URL key is `attr_<code>` */}
       {filters.attributes && filters.attributes.length > 0 && (
         <div className="mb-6">
           <h4 className="font-bold text-base text-foreground mb-3">
@@ -154,10 +155,7 @@ const FilterContent: React.FC<FilterContentProps> = ({
                   <li key={val.value}>
                     <button
                       onClick={() =>
-                        handleFilterClick(
-                          `attr_${attr.scope}_${attr.key}`,
-                          val.value,
-                        )
+                        handleFilterClick(`attr_${attr.key}`, val.value)
                       }
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors flex justify-between items-center group"
                     >
@@ -196,7 +194,7 @@ const FilterContent: React.FC<FilterContentProps> = ({
         </div>
       </div>
 
-      {/* Mobile-only action row (inside the bottom sheet) */}
+      {/* Mobile-only action row */}
       {mobile && onDone && (
         <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border">
           <div className="flex gap-3">

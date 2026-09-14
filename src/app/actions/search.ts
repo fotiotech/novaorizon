@@ -1,3 +1,4 @@
+// app/actions/search.ts
 "use server";
 
 import { connection } from "@/utils/connection";
@@ -29,14 +30,9 @@ export async function searchProducts(
   if (query && query.trim() !== "") {
     textClause.text = {
       query: query,
-      path: [
-        "name",
-        "description",
-        "tags",
-        "keyFeatures.v",
-        "specifications.attributes.v",
-        "variants.attributes.v",
-      ],
+      // `dynamic: true` on the index means every string field is indexed,
+      // so wildcard covers them all — including flat category attributes.
+      path: { wildcard: "*" },
       fuzzy: {
         maxEdits: 2,
         prefixLength: 1,
@@ -57,12 +53,12 @@ export async function searchProducts(
   };
 
   for (const f of filters) {
-    // Existing term filter
+    // Term filter (categoryId, brand, …)
     if (f.term) {
       const [path, value] = Object.entries(f.term)[0];
       addTerm(path, value as string);
     }
-    // Existing range filter
+    // Range filter (price, …)
     if (f.range) {
       const [path, range]: any = Object.entries(f.range)[0];
       const rangeClause: any = {};
@@ -72,18 +68,12 @@ export async function searchProducts(
         filterClauses.push({ range: { path, ...rangeClause } });
       }
     }
-    // ----- NEW: attribute filter -----
+    // Attribute filter — flat model: the attribute code IS the path.
     if (f.attribute) {
-      const { key, value, scope } = f.attribute;
-      // Only allow known scopes
-      if (["keyFeatures", "specifications", "variants"].includes(scope)) {
+      const { key, value } = f.attribute;
+      if (key && value !== undefined && value !== null && value !== "") {
         filterClauses.push({
-          compound: {
-            must: [
-              { equals: { path: `${scope}.k`, value: key } },
-              { equals: { path: `${scope}.v`, value: value } },
-            ],
-          },
+          equals: { path: String(key), value: String(value) },
         });
       }
     }
@@ -100,7 +90,6 @@ export async function searchProducts(
       filter: filter,
     };
   } else {
-    // No query and no filters → return empty
     return {
       hits: [],
       total: { value: 0 },
@@ -113,26 +102,23 @@ export async function searchProducts(
   }
 
   // ----- 4. Pipeline with $facet -----
+  // Flat model → the whole document is small, so we keep every field
+  // (including dynamic attributes) and only strip heavy arrays.
   const pipeline: any[] = [
     { $search: searchStage },
     {
       $facet: {
         hits: [
+          { $addFields: { score: { $meta: "searchScore" } } },
           { $skip: (page - 1) * size },
           { $limit: size },
           {
             $project: {
-              _id: 1,
-              name: 1,
-              description: 1,
-              listPrice: 1,
-              price: 1,
-              mainImage: 1,
-              categoryId: "$categoryId",
-              brand: "$brand",
-              quantity: 1,
-              status: 1,
-              score: { $meta: "searchScore" },
+              variants: 0,
+              reviewsRatings: 0,
+              __v: 0,
+              createdAt: 0,
+              updatedAt: 0,
             },
           },
         ],
