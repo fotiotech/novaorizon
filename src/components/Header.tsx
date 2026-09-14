@@ -350,7 +350,7 @@ const Header = () => {
             _id: cat._id,
             name: cat.name,
             contentType: "Category",
-            href: `/category?id=${cat._id}`,
+            href: `/category/${cat.url_slug}/${cat._id}`,
           }));
 
     return itemsToRender.map((item) => {

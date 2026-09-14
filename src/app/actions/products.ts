@@ -30,14 +30,96 @@ function toPlain(value: any): any {
   return value;
 }
 
-export async function findProductByCategory(id: string): Promise<any> {
+export async function findProductByCategory(
+  id: string | string[],
+): Promise<any> {
   await connection();
+
   try {
-    const products = await Product.find({ categoryId: id }).lean();
+    const rawIds = Array.isArray(id) ? id : [id];
+    const ids = rawIds.map((v) => String(v ?? "")).filter(Boolean);
+
+    if (ids.length === 0) {
+      console.log("[findProductByCategory] no ids provided");
+      return [];
+    }
+
+    const objectIds = ids
+      .filter((v) => mongoose.Types.ObjectId.isValid(v))
+      .map((v) => new mongoose.Types.ObjectId(v));
+
+    // -------- Attempt 1: ObjectId match (normal case) --------
+    let products: any[] = await Product.find({
+      categoryId: { $in: objectIds },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log("[findProductByCategory] objectId query", {
+      requested: ids,
+      objectIds: objectIds.map(String),
+      matched: products.length,
+    });
+
+    // -------- Attempt 2: string-stored categoryId --------
+    if (products.length === 0) {
+      products = await Product.find({
+        categoryId: { $in: ids as any },
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      console.log("[findProductByCategory] string query", {
+        matched: products.length,
+      });
+    }
+
+    // -------- Attempt 3: raw collection (bypass Mongoose casting) --------
+    if (products.length === 0) {
+      const raw = await Product.collection
+        .find({ categoryId: { $in: ids } })
+        .limit(200)
+        .toArray();
+      products = raw as any[];
+
+      console.log("[findProductByCategory] raw collection query", {
+        matched: products.length,
+      });
+    }
+
+    // -------- Diagnostics: what DOES exist in the DB? --------
+    if (products.length === 0) {
+      const totalProducts = await Product.estimatedDocumentCount();
+      const sample = await Product.find({}, "categoryId name").limit(5).lean();
+
+      // Show how many products reference each of the requested ids
+      const foundIds = new Set<string>();
+      const allCategoryRefs = await Product.distinct("categoryId");
+      for (const ref of allCategoryRefs) {
+        foundIds.add(String(ref));
+      }
+
+      console.log("[findProductByCategory] DIAGNOSTICS", {
+        totalProducts,
+        requested: ids,
+        requestedAreValidObjectIds: ids.map((v) =>
+          mongoose.Types.ObjectId.isValid(v),
+        ),
+        sampleOfProductsInDb: sample.map((p: any) => ({
+          name: p.name,
+          categoryId: String(p.categoryId),
+        })),
+        sampleOfCategoryIdsInDb: Array.from(foundIds).slice(0, 10),
+        requestedIdsPresentInDb: ids.filter((v) => foundIds.has(v)),
+      });
+    }
+
     return toPlain(products);
-  } catch (error) {
-    console.error("findProductByCategory error:", error);
-    return { error: "Failed to fetch products by category" };
+  } catch (error: any) {
+    console.error("[findProductByCategory] THREW:", error);
+    return {
+      error: error?.message || "Failed to fetch products by category",
+    };
   }
 }
 

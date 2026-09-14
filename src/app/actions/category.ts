@@ -497,3 +497,36 @@ export async function getCategory(
   const all = await Category.find().populate("property").lean();
   return toPlain(all);
 }
+
+// ==================================================================
+// LEAN READ FOR TREE RENDERING (no property populate)
+// ==================================================================
+export async function getCategoriesForTree(): Promise<
+  Array<{
+    _id: string;
+    name: string;
+    slug: string;
+    parentId: string | null;
+    imageUrl: string[];
+    description?: string;
+    sortOrder?: number;
+  }>
+> {
+  await connection();
+  const rows = await Category.find(
+    {},
+    "_id name slug parentId imageUrl description sortOrder",
+  )
+    .sort({ sortOrder: 1, name: 1 })
+    .lean();
+
+  return rows.map((c: any) => ({
+    _id: String(c._id),
+    name: String(c.name ?? ""),
+    slug: String(c.slug ?? ""),
+    parentId: c.parentId ? String(c.parentId) : null,
+    imageUrl: Array.isArray(c.imageUrl) ? c.imageUrl.map(String) : [],
+    description: c.description ?? undefined,
+    sortOrder: typeof c.sortOrder === "number" ? c.sortOrder : undefined,
+  }));
+}

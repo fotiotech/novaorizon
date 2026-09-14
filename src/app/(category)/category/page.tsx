@@ -1,587 +1,526 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
-  FilterList,
-  GridView,
-  ViewList,
-  Sort,
   ExpandMore,
-  Star,
-  StarHalf,
-  ArrowDropDown,
+  ExpandLess,
+  UnfoldMore,
+  UnfoldLess,
+  Menu as MenuIcon,
 } from "@mui/icons-material";
-import { Product, Category } from "@/constant/types";
-import { findProductByCategory } from "@/app/actions/products";
-import { getCategory } from "@/app/actions/category";
+import Spinner from "@/components/Spinner";
+import BottomSheet from "@/components/ux/BottomSheet";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { getCategoriesForTree } from "@/app/actions/category";
 
-// Define more detailed types
-interface ShopProduct extends Product {
-  rating?: number;
-  reviewCount?: number;
-  inStock: boolean;
-  featured?: boolean;
+// ---------- Types ----------
+type CategoryNode = {
+  _id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  imageUrl: string[];
+  description?: string;
+  sortOrder?: number;
+};
+
+// ---------- Helpers ----------
+function fallbackSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-interface ShopCategory extends Category {
-  productCount?: number;
+function catHref(cat: CategoryNode): string {
+  const slug = cat.slug || fallbackSlug(cat.name || "");
+  return `/category/${slug}/${cat._id}`;
 }
 
-const ShopCategoryPage = () => {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const categoryId = searchParams.get("id");
+function catImage(cat: CategoryNode): string | null {
+  return cat.imageUrl?.[0] ?? null;
+}
 
-  const [categories, setCategories] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<any | null>(null);
+// ---------- Page ----------
+export default function CategoriesIndexPage() {
+  const isMobile = useIsMobile();
+
+  const [allCategories, setAllCategories] = useState<CategoryNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState("featured");
-  const [priceRange, setPriceRange] = useState([0, 1000]);
-  const [inStockOnly, setInStockOnly] = useState(false);
-  const [selectedRatings, setSelectedRatings] = useState<number[]>([]);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch all categories on component mount
+  // Which nodes are expanded in the sidebar.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // Which node's children are shown in the main grid. `null` = top level.
+  const [selectedParent, setSelectedParent] = useState<string | null>(null);
+
+  // Mobile bottom-sheet visibility.
+  const [isCategoriesSheetOpen, setIsCategoriesSheetOpen] = useState(false);
+
+  // ---------- Fetch ----------
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const categoriesData = await getCategory();
-        setCategories(categoriesData || []);
-
-        // If there's a category ID in the URL, select it
-        if (categoryId) {
-          const category = categoriesData.find(
-            (cat: any) => cat.id === categoryId,
-          );
-          if (category) {
-            setSelectedCategory(category);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-      }
+    let cancelled = false;
+    setLoading(true);
+    getCategoriesForTree()
+      .then((list) => {
+        if (cancelled) return;
+        setAllCategories(Array.isArray(list) ? list : []);
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Failed to load categories:", err);
+        setError("Failed to load categories");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-
-    fetchCategories();
   }, []);
 
-  // Fetch products when selectedCategory changes
-  useEffect(() => {
-    const fetchProducts = async () => {
-      if (!selectedCategory) return;
+  // ---------- Build tree ----------
+  const { byId, childrenByParent, topLevel } = useMemo(() => {
+    const byId = new Map<string, CategoryNode>();
+    const childrenByParent = new Map<string, CategoryNode[]>();
+    const topLevel: CategoryNode[] = [];
 
-      setProductsLoading(true);
-      try {
-        const productsData = await findProductByCategory(selectedCategory._id);
-        setProducts(productsData || []);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        setProducts([]);
-      } finally {
-        setProductsLoading(false);
-        setLoading(false);
+    for (const c of allCategories) byId.set(c._id, c);
+
+    for (const c of allCategories) {
+      const pid = c.parentId;
+      if (!pid || !byId.has(pid)) {
+        topLevel.push(c);
+      } else {
+        const arr = childrenByParent.get(pid) ?? [];
+        arr.push(c);
+        childrenByParent.set(pid, arr);
       }
+    }
+
+    const byOrder = (a: CategoryNode, b: CategoryNode) => {
+      const ao = a.sortOrder ?? Number.POSITIVE_INFINITY;
+      const bo = b.sortOrder ?? Number.POSITIVE_INFINITY;
+      if (ao !== bo) return ao - bo;
+      return a.name.localeCompare(b.name);
     };
+    topLevel.sort(byOrder);
+    for (const arr of childrenByParent.values()) arr.sort(byOrder);
 
-    fetchProducts();
-  }, [selectedCategory]);
+    return { byId, childrenByParent, topLevel };
+  }, [allCategories]);
 
-  // Handle category selection
-  const handleCategoryChange = (category: ShopCategory) => {
-    setSelectedCategory(category);
-    setShowCategoryDropdown(false);
-    // Update URL without page refresh
-    router.push(`/category?id=${category._id}`, { scroll: false });
+  // ---------- Derived ----------
+  const visibleCards = useMemo(() => {
+    if (!selectedParent) return topLevel;
+    return childrenByParent.get(selectedParent) ?? [];
+  }, [selectedParent, topLevel, childrenByParent]);
+
+  const breadcrumb = useMemo(() => {
+    if (!selectedParent) return [] as CategoryNode[];
+    const chain: CategoryNode[] = [];
+    let curr = byId.get(selectedParent);
+    const guard = new Set<string>();
+    while (curr && !guard.has(curr._id)) {
+      guard.add(curr._id);
+      chain.unshift(curr);
+      const pid = curr.parentId;
+      if (!pid) break;
+      curr = byId.get(pid);
+    }
+    return chain;
+  }, [selectedParent, byId]);
+
+  // ---------- Sidebar interactions ----------
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  // Filter and sort products
-  const filteredAndSortedProducts = useMemo(() => {
-    let result = [...products];
+  const expandAll = () => {
+    const all = new Set<string>();
+    for (const c of allCategories) {
+      if (childrenByParent.get(c._id)?.length) all.add(c._id);
+    }
+    setExpanded(all);
+  };
 
-    // Filter by price range
-    result = result.filter(
-      (product) =>
-        product.listPrice >= priceRange[0] &&
-        product.listPrice <= priceRange[1],
+  const collapseAll = () => setExpanded(new Set());
+
+  // Called when the user clicks a category name in the sidebar.
+  // Navigation itself is handled by the <Link>, we only need to:
+  //   - ensure the clicked node stays expanded so its children show
+  //   - close the mobile sheet so the user lands on the target page
+  const handleSidebarLinkClick = (cat: CategoryNode) => {
+    if (childrenByParent.get(cat._id)?.length) {
+      setExpanded((prev) => {
+        if (prev.has(cat._id)) return prev;
+        const next = new Set(prev);
+        next.add(cat._id);
+        return next;
+      });
+    }
+    if (isMobile) setIsCategoriesSheetOpen(false);
+  };
+
+  // ---------- Recursive sidebar row ----------
+  const renderRow = (cat: CategoryNode, depth = 0): React.ReactNode => {
+    const kids = childrenByParent.get(cat._id) ?? [];
+    const hasChildren = kids.length > 0;
+    const isExpanded = expanded.has(cat._id);
+    const isSelected = selectedParent === cat._id;
+    const thumb = catImage(cat);
+
+    return (
+      <li key={cat._id}>
+        <div
+          className={`flex items-center rounded-md transition-colors ${
+            isSelected
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-foreground hover:bg-muted/60"
+          }`}
+          style={{ paddingLeft: `${depth * 12}px` }}
+        >
+          {hasChildren ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleExpand(cat._id);
+              }}
+              className="p-1 text-muted-foreground hover:text-foreground"
+              aria-label={isExpanded ? "Collapse" : "Expand"}
+              aria-expanded={isExpanded}
+            >
+              {isExpanded ? (
+                <ExpandLess fontSize="small" />
+              ) : (
+                <ExpandMore fontSize="small" />
+              )}
+            </button>
+          ) : (
+            <span className="inline-block w-6" aria-hidden="true" />
+          )}
+
+          {thumb && (
+            <span className="relative mr-2 h-6 w-6 flex-shrink-0 overflow-hidden rounded bg-muted">
+              <Image
+                src={thumb}
+                alt=""
+                fill
+                sizes="24px"
+                className="object-cover"
+              />
+            </span>
+          )}
+
+          {/* Category name — real <Link> so prefetch, middle-click, cmd-click,
+              and native browser navigation all work. */}
+          <Link
+            href={catHref(cat)}
+            onClick={() => handleSidebarLinkClick(cat)}
+            className="flex-1 cursor-pointer py-1.5 pr-2 text-left text-sm hover:underline"
+            aria-current={isSelected ? "page" : undefined}
+          >
+            {cat.name}
+          </Link>
+        </div>
+
+        {hasChildren && isExpanded && (
+          <ul className="mt-0.5 space-y-0.5">
+            {kids.map((k) => renderRow(k, depth + 1))}
+          </ul>
+        )}
+      </li>
     );
-
-    // Filter by stock status
-    if (inStockOnly) {
-      result = result.filter((product) => product.stock_status.join(", "));
-    }
-
-    // Filter by ratings
-    if (selectedRatings.length > 0) {
-      result = result.filter((product) =>
-        selectedRatings.some(
-          (rating) => Math.floor(product.rating || 0) === rating,
-        ),
-      );
-    }
-
-    // Sort products
-    switch (sortBy) {
-      case "price-low":
-        result.sort(
-          (a, b) => (a.salePrice || a.listPrice) - (b.salePrice || b.listPrice),
-        );
-        break;
-      case "price-high":
-        result.sort(
-          (a, b) => (b.salePrice || b.listPrice) - (a.salePrice || a.listPrice),
-        );
-        break;
-      case "rating":
-        result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
-      case "title":
-        result.sort((a, b) => a.title.localeCompare(b.title));
-        break;
-      default: // featured
-        result.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
-    }
-
-    return result;
-  }, [products, sortBy, priceRange, inStockOnly, selectedRatings]);
-
-  // Render star ratings
-  const renderRating = (rating: number) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<Star key={i} className="text-yellow-400 text-sm" />);
-    }
-
-    if (hasHalfStar) {
-      stars.push(
-        <StarHalf key={fullStars} className="text-yellow-400 text-sm" />,
-      );
-    }
-
-    const emptyStars = 5 - stars.length;
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(
-        <Star key={fullStars + i + 1} className="text-gray-300 text-sm" />,
-      );
-    }
-
-    return stars;
   };
 
+  // ---------- Reusable sidebar body ----------
+  const sidebarBody = (
+    <>
+      <div className="mb-2 flex items-center justify-between px-1">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Categories
+        </h2>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={expandAll}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label="Expand all"
+            title="Expand all"
+          >
+            <UnfoldMore fontSize="small" />
+          </button>
+          <button
+            type="button"
+            onClick={collapseAll}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label="Collapse all"
+            title="Collapse all"
+          >
+            <UnfoldLess fontSize="small" />
+          </button>
+        </div>
+      </div>
+
+      <nav aria-label="Category navigation">
+        <ul className="space-y-0.5">{topLevel.map((c) => renderRow(c, 0))}</ul>
+      </nav>
+    </>
+  );
+
+  // ---------- States ----------
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-gray-200 h-80 rounded"></div>
-            ))}
-          </div>
-        </div>
+      <div className="flex justify-center py-20">
+        <Spinner size={32} />
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h1 className="text-xl font-semibold mb-2">{error}</h1>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-4 rounded-lg bg-primary px-5 py-2 text-primary-foreground hover:bg-primary/90 transition"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (allCategories.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <h1 className="text-2xl font-bold text-foreground mb-2">
+          No categories yet
+        </h1>
+        <p className="text-muted-foreground">
+          Check back later once categories have been created.
+        </p>
+      </div>
+    );
+  }
+
+  // ---------- Render ----------
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumbs */}
-      <nav className="text-sm breadcrumbs mb-6">
-        <ul className="flex space-x-2 text-gray-600">
+      <nav className="text-sm mb-6">
+        <ul className="flex flex-wrap items-center gap-1 text-muted-foreground">
           <li>
-            <Link href="/" className="hover:text-blue-600">
+            <Link href="/" className="hover:text-primary">
               Home
             </Link>
           </li>
-          <li className="before:content-['/'] before:mr-2">
-            <Link href="/shop" className="hover:text-blue-600">
-              Shop
-            </Link>
+          <li className="before:content-['/'] before:mx-2">
+            <button
+              type="button"
+              onClick={() => setSelectedParent(null)}
+              className={`hover:text-primary ${
+                selectedParent === null ? "text-foreground" : ""
+              }`}
+            >
+              Categories
+            </button>
           </li>
-          <li className="before:content-['/'] before:mr-2">
-            {selectedCategory?.name || "Select a Category"}
-          </li>
+          {breadcrumb.map((node, i) => {
+            const isLast = i === breadcrumb.length - 1;
+            return (
+              <li key={node._id} className="before:content-['/'] before:mx-2">
+                {isLast ? (
+                  <span className="text-foreground">{node.name}</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedParent(node._id)}
+                    className="hover:text-primary"
+                  >
+                    {node.name}
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
-      {/* Category Selection */}
-      <div className="mb-8">
-        <div className="relative inline-block">
-          <button
-            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-            className="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2 text-lg font-semibold hover:border-gray-400"
-          >
-            {selectedCategory?.name || "Select a Category"}
-            <ArrowDropDown />
-          </button>
+      {/* Mobile-only: categories trigger */}
+      <button
+        type="button"
+        onClick={() => setIsCategoriesSheetOpen(true)}
+        className="mb-4 flex w-full items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-muted/50 transition-colors md:hidden"
+      >
+        <MenuIcon fontSize="small" />
+        Browse categories
+      </button>
 
-          {/* {showCategoryDropdown && (
-            <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-300 rounded-md shadow-lg z-10 max-h-80 overflow-y-auto">
-              {categories.map((category) => (
-                <button
-                  title="clear"
-                  type="button"
-                  key={category._id}
-                  onClick={() => handleCategoryChange(category)}
-                  className={`block w-full text-left px-4 py-2 hover:bg-gray-100 ${
-                    selectedCategory?._id === category._id
-                      ? "bg-blue-50 text-blue-600"
-                      : ""
-                  }`}
-                >
-                  {category.name}
-                </button>
-              ))}
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* ---------- Desktop sidebar ---------- */}
+        <aside className="hidden md:block md:w-64 flex-shrink-0">
+          <div className="rounded-lg border border-border bg-background p-3 md:sticky md:top-24">
+            {sidebarBody}
+          </div>
+        </aside>
+
+        {/* ---------- Main ---------- */}
+        <main className="flex-1 min-w-0">
+          <div className="flex items-baseline justify-between mb-4">
+            <h1 className="text-2xl font-bold text-foreground">
+              {breadcrumb.length > 0
+                ? breadcrumb[breadcrumb.length - 1].name
+                : "Browse Categories"}
+            </h1>
+            {selectedParent && (
+              <button
+                type="button"
+                onClick={() => setSelectedParent(null)}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Back to top level
+              </button>
+            )}
+          </div>
+
+          {visibleCards.length === 0 ? (
+            <div className="rounded-lg border border-border bg-background p-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                This category has no sub-categories.
+              </p>
             </div>
-          )} */}
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {visibleCards.map((cat) => {
+                const kids = childrenByParent.get(cat._id) ?? [];
+                const hasChildren = kids.length > 0;
+                const imageUrl = catImage(cat);
 
-        {selectedCategory && (
-          <p className="text-gray-600 mt-2">{selectedCategory.description}</p>
-        )}
+                return (
+                  <div
+                    key={cat._id}
+                    className="group flex flex-col overflow-hidden rounded-xl border border-border bg-background transition-all hover:border-primary/30 hover:shadow-md"
+                  >
+                    <Link
+                      href={catHref(cat)}
+                      className="relative block aspect-[16/9] w-full overflow-hidden bg-muted/40"
+                    >
+                      {imageUrl ? (
+                        <Image
+                          src={imageUrl}
+                          alt={cat.name}
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                          No image
+                        </div>
+                      )}
+                    </Link>
+
+                    <div className="flex flex-1 flex-col p-4">
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <Link
+                          href={catHref(cat)}
+                          className="text-base font-semibold text-foreground hover:text-primary transition-colors"
+                        >
+                          {cat.name}
+                        </Link>
+
+                        {hasChildren && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedParent(
+                                cat._id === selectedParent ? null : cat._id,
+                              )
+                            }
+                            className="flex-shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            aria-label={
+                              cat._id === selectedParent
+                                ? "Hide sub-categories"
+                                : "Show sub-categories"
+                            }
+                          >
+                            <ExpandMore
+                              fontSize="small"
+                              className={`transition-transform ${
+                                cat._id === selectedParent ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+                        )}
+                      </div>
+
+                      {cat.description && (
+                        <p className="mb-2 line-clamp-2 text-xs text-muted-foreground">
+                          {cat.description}
+                        </p>
+                      )}
+
+                      {hasChildren ? (
+                        <ul className="mt-auto flex flex-wrap gap-1.5">
+                          {kids.slice(0, 6).map((k) => (
+                            <li key={k._id}>
+                              <Link
+                                href={catHref(k)}
+                                className="inline-block rounded-full bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                              >
+                                {k.name}
+                              </Link>
+                            </li>
+                          ))}
+                          {kids.length > 6 && (
+                            <li>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedParent(cat._id)}
+                                className="inline-block rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                +{kids.length - 6} more
+                              </button>
+                            </li>
+                          )}
+                        </ul>
+                      ) : (
+                        <p className="mt-auto text-xs text-muted-foreground">
+                          No sub-categories
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </main>
       </div>
 
-      {!selectedCategory ? (
-        <div className="text-center py-12">
-          <h2 className="text-xl font-medium mb-4">
-            Please select a category to view products
-          </h2>
-          <p className="text-gray-600">
-            Choose from the categories above to browse our products.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col md:flex-row gap-8">
-            {/* Filters Sidebar - Hidden on mobile by default */}
-            <div
-              className={`md:w-1/4 ${
-                showFilters ? "block" : "hidden md:block"
-              }`}
-            >
-              <div className="bg-white p-6 rounded-lg shadow-md sticky top-4">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-lg font-semibold">Filters</h2>
-                  <button
-                    title="clear"
-                    type="button"
-                    onClick={() => setShowFilters(false)}
-                    className="md:hidden text-gray-500"
-                  >
-                    &times;
-                  </button>
-                </div>
-
-                {/* Price Range Filter */}
-                <div className="mb-6">
-                  <h3 className="font-medium mb-3">Price Range</h3>
-                  <input
-                    title="range"
-                    type="range"
-                    min="0"
-                    max="1000"
-                    value={priceRange[1]}
-                    onChange={(e) =>
-                      setPriceRange([0, parseInt(e.target.value)])
-                    }
-                    className="w-full"
-                  />
-                  <div className="flex justify-between mt-2 text-sm">
-                    <span>${priceRange[0]}</span>
-                    <span>${priceRange[1]}</span>
-                  </div>
-                </div>
-
-                {/* Availability Filter */}
-                <div className="mb-6">
-                  <h3 className="font-medium mb-3">Availability</h3>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={inStockOnly}
-                      onChange={(e) => setInStockOnly(e.target.checked)}
-                      className="mr-2"
-                    />
-                    In Stock Only
-                  </label>
-                </div>
-
-                {/* Ratings Filter */}
-                <div className="mb-6">
-                  <h3 className="font-medium mb-3">Customer Rating</h3>
-                  {[4, 3, 2, 1].map((rating) => (
-                    <label key={rating} className="flex items-center mb-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedRatings.includes(rating)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedRatings([...selectedRatings, rating]);
-                          } else {
-                            setSelectedRatings(
-                              selectedRatings.filter((r) => r !== rating),
-                            );
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      <div className="flex">{renderRating(rating)}</div>
-                      <span className="ml-1 text-sm">& up</span>
-                    </label>
-                  ))}
-                </div>
-
-                <button
-                  title="clear"
-                  type="button"
-                  onClick={() => {
-                    setPriceRange([0, 1000]);
-                    setInStockOnly(false);
-                    setSelectedRatings([]);
-                  }}
-                  className="text-blue-600 hover:underline text-sm"
-                >
-                  Clear All Filters
-                </button>
-              </div>
-            </div>
-
-            {/* Products Section */}
-            <div className="md:w-3/4">
-              {/* Toolbar */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <p className="text-gray-600 mb-4 md:mb-0">
-                  Showing {filteredAndSortedProducts.length} of{" "}
-                  {products.length} products
-                </p>
-
-                <div className="flex items-center gap-4">
-                  {/* View Toggle */}
-                  <div className="flex border rounded-md overflow-hidden">
-                    <button
-                      title="clear"
-                      type="button"
-                      onClick={() => setViewMode("grid")}
-                      className={`p-2 ${
-                        viewMode === "grid" ? "bg-gray-100" : "bg-white"
-                      }`}
-                    >
-                      <GridView />
-                    </button>
-                    <button
-                      title="clear"
-                      type="button"
-                      onClick={() => setViewMode("list")}
-                      className={`p-2 ${
-                        viewMode === "list" ? "bg-gray-100" : "bg-white"
-                      }`}
-                    >
-                      <ViewList />
-                    </button>
-                  </div>
-
-                  {/* Sort Dropdown */}
-                  <div className="relative">
-                    <select
-                      title="sort"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="appearance-none border rounded-md py-2 pl-3 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    >
-                      <option value="featured">Featured</option>
-                      <option value="price-low">Price: Low to High</option>
-                      <option value="price-high">Price: High to Low</option>
-                      <option value="rating">Customer Rating</option>
-                      <option value="name">Name A-Z</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                      <ExpandMore />
-                    </div>
-                  </div>
-
-                  {/* Mobile Filter Toggle */}
-                  <button
-                    onClick={() => setShowFilters(true)}
-                    className="md:hidden flex items-center gap-1 border rounded-md px-3 py-2 text-sm"
-                  >
-                    <FilterList /> Filters
-                  </button>
-                </div>
-              </div>
-
-              {productsLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[...Array(6)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="bg-white rounded-lg overflow-hidden shadow-md animate-pulse"
-                    >
-                      <div className="bg-gray-200 h-48 w-full"></div>
-                      <div className="p-4">
-                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-                        <div className="h-6 bg-gray-200 rounded w-1/3 mb-2"></div>
-                        <div className="h-10 bg-gray-200 rounded"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : filteredAndSortedProducts.length === 0 ? (
-                <div className="text-center py-12">
-                  <h3 className="text-xl font-medium mb-2">
-                    No products found
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    Try adjusting your filters to see more results.
-                  </p>
-                  <button
-                    title="clear"
-                    type="button"
-                    onClick={() => {
-                      setPriceRange([0, 1000]);
-                      setInStockOnly(false);
-                      setSelectedRatings([]);
-                    }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
-                  >
-                    Reset Filters
-                  </button>
-                </div>
-              ) : (
-                <div
-                  className={
-                    viewMode === "grid"
-                      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-                      : "space-y-6"
-                  }
-                >
-                  {filteredAndSortedProducts.map((product) => (
-                    <div
-                      key={product._id}
-                      className={
-                        viewMode === "grid"
-                          ? "bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
-                          : "bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow flex"
-                      }
-                    >
-                      <div
-                        className={
-                          viewMode === "grid"
-                            ? "relative h-48 w-full"
-                            : "relative h-48 w-48 flex-shrink-0"
-                        }
-                      >
-                        <Image
-                          src={product.mainImage || "/placeholder-product.jpg"}
-                          alt={product.title}
-                          fill
-                          className="object-cover"
-                        />
-                        {!product.stock_status && (
-                          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                            Out of Stock
-                          </div>
-                        )}
-                        {product.featured && (
-                          <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
-                            Featured
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="p-4 flex-1">
-                        <h3 className="font-semibold text-lg mb-1">
-                          {product.title}
-                        </h3>
-
-                        <div className="flex items-center mb-2">
-                          <div className="flex">
-                            {renderRating(product.rating || 0)}
-                          </div>
-                          <span className="text-gray-600 text-sm ml-1">
-                            ({product.reviewCount || 0})
-                          </span>
-                        </div>
-
-                        <div className="flex items-center mt-3">
-                          {product.sale_price ? (
-                            <>
-                              <span className="text-xl font-bold">
-                                ${product.sale_price}
-                              </span>
-                              <span className="text-gray-500 line-through ml-2">
-                                ${product.listPrice}
-                              </span>
-                              <span className="text-red-500 font-medium ml-2 text-sm">
-                                {Math.round(
-                                  (1 - product.salePrice / product.listPrice) *
-                                    100,
-                                )}
-                                % off
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-xl font-bold">
-                              ${product.listPrice}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="mt-4">
-                          <button
-                            disabled={!product.stock_status}
-                            className={`w-full py-2 rounded-md text-sm ${
-                              product.stock_status === "In Stock"
-                                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            }`}
-                          >
-                            {product.stock_status
-                              ? "Add to Cart"
-                              : "Out of Stock"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Pagination would go here */}
-              {filteredAndSortedProducts.length > 0 && (
-                <div className="flex justify-center mt-8">
-                  <div className="flex gap-1">
-                    <button className="px-3 py-1 border rounded-md text-sm">
-                      1
-                    </button>
-                    <button className="px-3 py-1 border rounded-md bg-blue-600 text-white text-sm">
-                      2
-                    </button>
-                    <button className="px-3 py-1 border rounded-md text-sm">
-                      3
-                    </button>
-                    <button className="px-3 py-1 border rounded-md text-sm">
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
+      {/* Mobile bottom sheet with the category tree */}
+      {isMobile && (
+        <BottomSheet
+          open={isCategoriesSheetOpen}
+          onClose={() => setIsCategoriesSheetOpen(false)}
+          title="Categories"
+        >
+          <div className="px-1 pb-4">{sidebarBody}</div>
+        </BottomSheet>
       )}
     </div>
   );
-};
-
-export default ShopCategoryPage;
+}
