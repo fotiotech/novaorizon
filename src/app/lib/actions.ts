@@ -70,7 +70,9 @@ export async function signup(state: FormState, formData: FormData) {
     //   react: VerificationTemplate({ verificationUrl }),
     // });
 
-    return SignIn();
+    return {
+      message: "Account created successfully. Please log in to your account.",
+    };
   } catch (error: any) {
     console.error(error);
     return { error: "Registration failed. Try again." };
