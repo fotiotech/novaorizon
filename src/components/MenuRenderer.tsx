@@ -217,7 +217,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
                 <Link
                   key={item._id}
                   href={getItemHref(item)}
-                  className="menu-grid-item group/card block p-2 rounded hover:bg-muted/40 transition-colors"
+                  className="menu-grid-item group/card block rounded transition-colors"
                   title={item.name}
                 >
                   {showImages && item.image && (

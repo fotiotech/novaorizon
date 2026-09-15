@@ -6,6 +6,7 @@ import { connection } from "@/utils/connection";
 import crypto from "crypto";
 import { Resend } from "resend";
 import { VerificationTemplate } from "../(auth)/components/auth/VerificationTemplate";
+import { SignIn } from "../(auth)/components/auth/SignInButton";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -60,16 +61,16 @@ export async function signup(state: FormState, formData: FormData) {
     }
 
     // 4. Send the verification link
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/verify?token=${token}`;
+    // const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/verify?token=${token}`;
 
-    await resend.emails.send({
-      from: "Novaorizon <fotiodev1g@gmail.com>",
-      to: email,
-      subject: "Verify your email address",
-      react: VerificationTemplate({ verificationUrl }),
-    });
+    // await resend.emails.send({
+    //   from: "Novaorizon <fotiodev1g@gmail.com>",
+    //   to: email,
+    //   subject: "Verify your email address",
+    //   react: VerificationTemplate({ verificationUrl }),
+    // });
 
-    return { success: "Verification email sent! Please check your inbox." };
+    return SignIn();
   } catch (error: any) {
     console.error(error);
     return { error: "Registration failed. Try again." };

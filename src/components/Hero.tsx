@@ -78,7 +78,7 @@ const HeaderScroll: React.FC = () => {
   return (
     <section
       aria-label="Hero carousel"
-      className="relative h-60 md:h-72 lg:h-[400px] overflow-hidden mx-2 lg:mx-10 my-4 rounded-xl shadow-lg"
+      className="relative h-52 md:h-72 lg:h-[400px] overflow-hidden mx-2 lg:mx-10 my-2 rounded-xl shadow-lg"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >

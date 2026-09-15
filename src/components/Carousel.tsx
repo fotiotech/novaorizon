@@ -104,7 +104,7 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
           return (
             <div
               key={item._id}
-              className="carousel-slide flex-shrink-0 snap-start w-[40%] sm:w-[45%] md:w-[30%] lg:w-[22%] p-1"
+              className="carousel-slide flex-shrink-0 snap-start w-[40%] sm:w-[45%] md:w-[30%] lg:w-[22%]"
             >
               {/* Whole card is a link */}
               <Link
