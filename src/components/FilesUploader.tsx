@@ -1,92 +1,155 @@
-// FilesUploader.tsx
+// components/FilesUploader.tsx
 import React, { useEffect, useRef } from "react";
-import { AttachFile } from "@mui/icons-material";
+import { Add } from "@mui/icons-material";
 import { useDropzone } from "react-dropzone";
 import Image from "next/image";
-import { useFileUploader } from "@/hooks/useFileUploader ";
-import Spinner from "./Spinner";
 
 type FilesUploaderProps = {
   files: string[];
   addFiles: (newFiles: File[]) => void;
+  onRemove: (index: number, fileUrl: string) => Promise<any>;
+  loading?: boolean;
+  progressByName?: Record<string, number>;
 };
 
-const FilesUploader: React.FC<FilesUploaderProps> = ({ files, addFiles }) => {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+const FilesUploader: React.FC<FilesUploaderProps> = ({
+  files,
+  addFiles,
+  onRemove,
+  loading = false,
+  progressByName = {},
+}) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const { loading, removeFile } = useFileUploader();
+  // ✅ Guard: ensure files is always an array
+  const fileArray = Array.isArray(files) ? files : [];
 
   const onDrop = (acceptedFiles: File[]) => {
     addFiles(acceptedFiles);
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: {
       "image/*": [".jpeg", ".jpg", ".png", ".gif"],
     },
     multiple: true,
+    noClick: true,
   });
 
-  const handleClick = () => inputRef.current?.click();
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollLeft = 0;
+    }
+  }, [fileArray]);
+
+  const handleRemove = async (e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const fileUrl = fileArray[index];
+    if (!fileUrl) return;
+
+    const fileName = fileUrl.split("/").pop() || "";
+    const isUploading =
+      progressByName[fileName] !== undefined && progressByName[fileName] < 100;
+
+    if (isUploading) {
+      alert("Please wait for the upload to complete before removing the file");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to remove this image?")) return;
+
+    try {
+      await onRemove(index, fileUrl);
+    } catch (error) {
+      console.error("Remove failed:", error);
+      alert((error as Error).message || "Failed to remove image");
+    }
+  };
 
   return (
-    <div className="whitespace-nowrap w-full overflow-clip overflow-x-auto scrollbar-none my-4 space-x-3">
-      {files.map((file, index) => (
-        <div
-          key={index}
-          className="relative inline-block border-2 border-gray-600 w-44 h-56 rounded-md overflow-hidden"
-        >
-          {loading ? (
-            <Spinner />
-          ) : (
-            <Image
-              src={file}
-              alt={`Uploaded file ${index + 1}`}
-              width={500}
-              height={500}
-              className="h-full w-full object-cover"
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => removeFile(index, files)}
-            className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
-            title="Remove Image"
-          >
-            ✕
-          </button>
-        </div>
-      ))}
-
+    <div className="w-full max-w-full overflow-x-hidden my-4">
       <div
-        className={`${
-          files.length > 0 ? "w-60 border-thiR" : "w-full border-gray-600"
-        } border-2 h-56 align-top p-4 rounded-md text-center inline-block`}
+        ref={containerRef}
+        className="flex overflow-x-auto overflow-y-hidden gap-4 pb-2 scroll-smooth"
+        style={{
+          scrollbarWidth: "thin",
+          scrollSnapType: "x mandatory",
+        }}
       >
+        {fileArray.map((fileUrl, index) => {
+          const fileName = fileUrl.split("/").pop() || "";
+          const uploadProgress = progressByName[fileName];
+          const isUploading =
+            uploadProgress !== undefined && uploadProgress < 100;
+
+          return (
+            <div
+              key={index}
+              className="relative flex-shrink-0 w-44 h-44 overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:shadow-md"
+              style={{ scrollSnapAlign: "start" }}
+            >
+              {isUploading ? (
+                <div className="flex h-full w-full flex-col items-center justify-center bg-muted p-4">
+                  <div className="mb-2 h-2.5 w-full overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {uploadProgress}%
+                  </span>
+                </div>
+              ) : (
+                <Image
+                  src={fileUrl}
+                  alt={`Uploaded image ${index + 1}`}
+                  width={176}
+                  height={176}
+                  className="h-full w-full object-cover"
+                />
+              )}
+              <button
+                type="button"
+                onClick={(e) => handleRemove(e, index)}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-xs font-semibold text-destructive-foreground shadow-md transition-transform hover:scale-105"
+                aria-label="Remove image"
+                disabled={isUploading}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+
         <div
           {...getRootProps()}
-          className={`p-6 ${
-            isDragActive ? "border-blue-500" : "border-gray-400"
+          className={`flex h-44 w-44 flex-shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed bg-card/60 text-center transition-all duration-200 ${
+            isDragActive
+              ? "border-primary bg-primary/5 shadow-md"
+              : "border-border hover:border-primary/60 hover:bg-primary/5"
           }`}
+          onClick={open}
         >
-          <input {...getInputProps()} ref={inputRef} />
-          {isDragActive ? (
-            <p>Drop the files here ...</p>
-          ) : (
-            <div>
-              <AttachFile style={{ fontSize: 32 }} />
-              <p className="text-wrap">Drag and drop some images here</p>
+          <input {...getInputProps()} />
+          <div className="px-2">
+            <div className="mb-3 inline-flex rounded-full bg-primary/10 p-3 text-primary">
+              <Add className="text-2xl" />
             </div>
-          )}
+            <p className="text-sm font-medium text-foreground">
+              {isDragActive ? "Drop images here" : "Click to select images"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              or drag and drop
+            </p>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              JPEG, PNG, GIF
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={handleClick}
-          className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-        >
-          Select Images
-        </button>
       </div>
     </div>
   );
