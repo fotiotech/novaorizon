@@ -781,7 +781,7 @@ export default function Details(props: { params: Promise<Params> }) {
   );
 
   return (
-    <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-2 md:px-8">
+    <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-3 md:px-8">
       <ProductViewAnalytics productId={params._id} />
       <div className="max-w-6xl mx-auto">
         <>

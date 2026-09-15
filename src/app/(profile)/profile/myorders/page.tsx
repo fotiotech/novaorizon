@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { findOrders } from "@/app/actions/order";
 import Spinner from "@/components/Spinner";
+import OrderDetailsSheet from "./_component/OrderDetailsSheet";
 
 const MyOrders = () => {
   const { data: session, status } = useSession();
@@ -12,6 +13,11 @@ const MyOrders = () => {
   const user: any = session?.user;
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Which order's details are open in the sheet (null = closed)
+  const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     if (status === "loading") return;
@@ -43,9 +49,7 @@ const MyOrders = () => {
     );
   }
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -95,7 +99,12 @@ const MyOrders = () => {
                 key={order._id}
                 className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow"
               >
-                <Link href={`/profile/myorders/${order.orderNumber}`}>
+                {/* Card body — click opens the details sheet */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderNumber(order.orderNumber)}
+                  className="w-full text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
+                >
                   <div className="p-5">
                     <div className="flex justify-between items-start mb-3">
                       <div className="font-bold text-lg text-gray-800">
@@ -120,8 +129,13 @@ const MyOrders = () => {
                     <div className="text-xs text-gray-400 mt-2">
                       {new Date(order.createdAt).toLocaleDateString()}
                     </div>
+                    <div className="text-xs text-blue-600 mt-3 font-medium">
+                      View details →
+                    </div>
                   </div>
-                </Link>
+                </button>
+
+                {/* Separate action — stays a link */}
                 {order.paymentStatus !== "paid" && (
                   <div className="px-5 pb-5">
                     <Link
@@ -137,6 +151,13 @@ const MyOrders = () => {
           </div>
         )}
       </div>
+
+      {/* Order details bottom sheet */}
+      <OrderDetailsSheet
+        open={selectedOrderNumber !== null}
+        orderNumber={selectedOrderNumber}
+        onClose={() => setSelectedOrderNumber(null)}
+      />
     </div>
   );
 };

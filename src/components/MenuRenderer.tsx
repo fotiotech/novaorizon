@@ -323,7 +323,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
 
   return (
     <div
-      className={`menu-node depth-${depth} p-2 md:px-6 lg:px-8 my-2 rounded shadow-sm ${
+      className={`menu-node depth-${depth} px-3 py-2 md:px-6 lg:px-8 my-2 rounded shadow-sm ${
         isSticky ? "sticky top-0 z-50" : ""
       }`}
       style={style}
