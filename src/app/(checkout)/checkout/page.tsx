@@ -47,6 +47,53 @@ function doesCarrierServeAddress(carrier: any, address: any): boolean {
   });
 }
 
+// ---------- Small UI atoms ----------
+const inputClass =
+  "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30";
+
+const Section: React.FC<{
+  step?: number;
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ step, title, subtitle, action, children }) => (
+  <section className="border-b border-border pb-6 last:border-0 last:pb-0">
+    <header className="mb-4 flex items-start justify-between gap-3">
+      <div>
+        <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+          {step !== undefined && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
+              {step}
+            </span>
+          )}
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
+        )}
+      </div>
+      {action}
+    </header>
+    {children}
+  </section>
+);
+
+const Field: React.FC<{
+  label?: string;
+  className?: string;
+  children: React.ReactNode;
+}> = ({ label, className = "", children }) => (
+  <div className={className}>
+    {label && (
+      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+        {label}
+      </label>
+    )}
+    {children}
+  </div>
+);
+
 const CheckoutPage = () => {
   const { user, addresses, paymentMethods, loading } = useUserData();
   const { items, subtotal, tax, discount } = useCart();
@@ -76,6 +123,7 @@ const CheckoutPage = () => {
     null,
   );
   const [shippingLoading, setShippingLoading] = useState<boolean>(false);
+
   const getGuestIdentity = () => {
     if (typeof window === "undefined") return "";
     const guestId = document.cookie
@@ -85,6 +133,7 @@ const CheckoutPage = () => {
     const sessionId = localStorage.getItem("sessionId") || "";
     return guestId || sessionId;
   };
+
   const [guestForm, setGuestForm] = useState({
     firstName: "",
     lastName: "",
@@ -375,7 +424,6 @@ const CheckoutPage = () => {
     (pm: any) => pm._id?.toString() === selectedPaymentMethodId,
   );
 
-  // Open the payment modal instead of routing away
   const openPaymentModal = (method: string, ref: string) => {
     setActivePaymentMethod(method);
     setActivePaymentRef(ref);
@@ -440,7 +488,6 @@ const CheckoutPage = () => {
         throw new Error(result.error || "Failed to create order");
       }
 
-      // Open payment in modal instead of navigating away
       openPaymentModal(selectedPaymentMethod.methodType, finalOrderNumber);
     } catch (error: any) {
       console.error("Pay Now error:", error.message || error);
@@ -491,7 +538,6 @@ const CheckoutPage = () => {
         throw new Error(result.error || "Failed to create order");
       }
 
-      // Open payment in modal instead of navigating away
       openPaymentModal("CashOnDelivery", finalOrderNumber);
     } catch (error: any) {
       console.error("COD order error:", error.message || error);
@@ -506,7 +552,7 @@ const CheckoutPage = () => {
   // ---------- Render ----------
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <Spinner size={40} />
       </div>
     );
@@ -514,387 +560,384 @@ const CheckoutPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-6 md:py-10">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6 border-b border-border pb-4">
+      <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
+        <h1 className="mb-8 text-2xl font-bold text-foreground md:text-3xl">
           Checkout
         </h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left column: Address, Shipping, Payment */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Contact + Billing Address */}
-            <div className="bg-background border border-border rounded-lg p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-foreground mb-3">
-                {user ? "Billing Address" : "Guest Checkout"}
-              </h2>
-
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-5 lg:gap-12">
+          {/* Left column */}
+          <div className="space-y-6 lg:col-span-3">
+            {/* Address */}
+            <Section
+              step={1}
+              title={user ? "Billing address" : "Contact & address"}
+              subtitle={
+                user
+                  ? "Where should we send your order?"
+                  : "No account needed — we'll email your receipt."
+              }
+            >
               {!user && (
                 <div className="mb-4 grid gap-3 md:grid-cols-2">
-                  <input
-                    value={guestForm.firstName}
-                    onChange={(e) =>
-                      setGuestForm((prev) => ({
-                        ...prev,
-                        firstName: e.target.value,
-                      }))
-                    }
-                    placeholder="First name"
-                    className="w-full p-2 border border-input rounded-lg bg-background text-foreground"
-                  />
-                  <input
-                    value={guestForm.lastName}
-                    onChange={(e) =>
-                      setGuestForm((prev) => ({
-                        ...prev,
-                        lastName: e.target.value,
-                      }))
-                    }
-                    placeholder="Last name"
-                    className="w-full p-2 border border-input rounded-lg bg-background text-foreground"
-                  />
-                  <input
-                    value={guestForm.email}
-                    onChange={(e) =>
-                      setGuestForm((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                    placeholder="Email"
-                    type="email"
-                    className="md:col-span-2 w-full p-2 border border-input rounded-lg bg-background text-foreground"
-                  />
+                  <Field label="First name">
+                    <input
+                      value={guestForm.firstName}
+                      onChange={(e) =>
+                        setGuestForm((p) => ({
+                          ...p,
+                          firstName: e.target.value,
+                        }))
+                      }
+                      placeholder="Jane"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Last name">
+                    <input
+                      value={guestForm.lastName}
+                      onChange={(e) =>
+                        setGuestForm((p) => ({
+                          ...p,
+                          lastName: e.target.value,
+                        }))
+                      }
+                      placeholder="Doe"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Email" className="md:col-span-2">
+                    <input
+                      type="email"
+                      value={guestForm.email}
+                      onChange={(e) =>
+                        setGuestForm((p) => ({ ...p, email: e.target.value }))
+                      }
+                      placeholder="jane@example.com"
+                      className={inputClass}
+                    />
+                  </Field>
                 </div>
               )}
 
               {addresses.length === 0 || !user ? (
-                <div className="space-y-3">
-                  <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Street" className="md:col-span-2">
                     <input
                       value={guestForm.street}
                       onChange={(e) =>
-                        setGuestForm((prev) => ({
-                          ...prev,
-                          street: e.target.value,
-                        }))
+                        setGuestForm((p) => ({ ...p, street: e.target.value }))
                       }
-                      placeholder="Street"
-                      className="md:col-span-2 w-full p-2 border border-input rounded-lg bg-background text-foreground"
+                      placeholder="123 Main St"
+                      className={inputClass}
                     />
+                  </Field>
+                  <Field label="City">
                     <input
                       value={guestForm.city}
                       onChange={(e) =>
-                        setGuestForm((prev) => ({
-                          ...prev,
-                          city: e.target.value,
-                        }))
+                        setGuestForm((p) => ({ ...p, city: e.target.value }))
                       }
-                      placeholder="City"
-                      className="w-full p-2 border border-input rounded-lg bg-background text-foreground"
+                      placeholder="Douala"
+                      className={inputClass}
                     />
+                  </Field>
+                  <Field label="State / Region">
                     <input
                       value={guestForm.state}
                       onChange={(e) =>
-                        setGuestForm((prev) => ({
-                          ...prev,
-                          state: e.target.value,
-                        }))
+                        setGuestForm((p) => ({ ...p, state: e.target.value }))
                       }
-                      placeholder="State / Region"
-                      className="w-full p-2 border border-input rounded-lg bg-background text-foreground"
+                      placeholder="Littoral"
+                      className={inputClass}
                     />
+                  </Field>
+                  <Field label="Country" className="md:col-span-2">
                     <input
                       value={guestForm.country}
                       onChange={(e) =>
-                        setGuestForm((prev) => ({
-                          ...prev,
-                          country: e.target.value,
-                        }))
+                        setGuestForm((p) => ({ ...p, country: e.target.value }))
                       }
-                      placeholder="Country"
-                      className="md:col-span-2 w-full p-2 border border-input rounded-lg bg-background text-foreground"
+                      placeholder="Cameroon"
+                      className={inputClass}
                     />
-                  </div>
-                  {!user && (
-                    <p className="text-sm text-muted-foreground">
-                      Guest checkout is enabled. You can place the order without
-                      creating an account.
-                    </p>
-                  )}
+                  </Field>
                 </div>
               ) : (
-                <>
-                  <select
-                    value={selectedAddressId}
-                    onChange={(e) => setSelectedAddressId(e.target.value)}
-                    className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-transparent"
-                  >
-                    {addresses.map((addr: any) => (
-                      <option
-                        key={addr._id?.toString()}
-                        value={addr._id?.toString()}
-                      >
-                        {addr.label} – {addr.street}, {addr.city} (
-                        {addr.postalCode})
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-3">
+                  <Field label="Saved address">
+                    <select
+                      value={selectedAddressId}
+                      onChange={(e) => setSelectedAddressId(e.target.value)}
+                      className={inputClass}
+                    >
+                      {addresses.map((addr: any) => (
+                        <option
+                          key={addr._id?.toString()}
+                          value={addr._id?.toString()}
+                        >
+                          {addr.label} – {addr.street}, {addr.city}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                   {selectedAddress && (
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      <p>
-                        {selectedAddress.street}, {selectedAddress.city},{" "}
-                        {selectedAddress.state || ""}{" "}
-                        {selectedAddress.postalCode}, {selectedAddress.country}
-                      </p>
+                    <div className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                      {selectedAddress.street}, {selectedAddress.city}
+                      {selectedAddress.state
+                        ? `, ${selectedAddress.state}`
+                        : ""}
+                      {selectedAddress.country
+                        ? `, ${selectedAddress.country}`
+                        : ""}
                     </div>
                   )}
                   <Link
                     href="/profile/address"
-                    className="inline-block mt-2 text-primary hover:underline text-sm"
+                    className="inline-block text-sm font-medium text-primary hover:underline"
                   >
                     Manage addresses
                   </Link>
-                </>
+                </div>
               )}
-            </div>
+            </Section>
 
-            {/* Shipping Information */}
-            <div className="bg-background border border-border rounded-lg p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-foreground mb-3">
-                Shipping Information
-              </h2>
+            {/* Shipping */}
+            <Section
+              step={2}
+              title="Shipping"
+              subtitle="Select your preferred carrier."
+            >
               {selectedAddress ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Shipping to: {selectedAddress.street},{" "}
-                    {selectedAddress.city}, {selectedAddress.country}
-                  </p>
                   {loadingProducts || carrierLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Spinner size={20} />
-                      Loading carriers...
+                      <Spinner size={16} />
+                      Loading carriers…
                     </div>
                   ) : availableCarriers.length === 0 ? (
-                    <p className="text-sm text-destructive">
-                      No carrier available for your region. Please update
-                      address or contact support.
+                    <p className="rounded-lg bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                      No carrier serves this region. Update your address or
+                      contact support.
                     </p>
                   ) : (
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">
-                        Select Carrier
-                      </label>
-                      <select
-                        value={selectedCarrierId}
-                        onChange={(e) => setSelectedCarrierId(e.target.value)}
-                        className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-transparent"
-                      >
-                        {availableCarriers.map((c) => (
-                          <option key={c._id} value={c._id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {shippingLoading && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Spinner size={16} />
-                      Calculating shipping...
-                    </div>
-                  )}
-                  {shippingPrice && !shippingLoading && (
-                    <p className="text-sm font-medium text-secondary-foreground bg-secondary/10 p-2 rounded-lg">
-                      Shipping: {shippingPrice.shippingPrice} CFA (est.
-                      delivery: {shippingPrice.averageDeliveryTime})
-                    </p>
+                    <>
+                      <Field label="Carrier">
+                        <select
+                          value={selectedCarrierId}
+                          onChange={(e) => setSelectedCarrierId(e.target.value)}
+                          className={inputClass}
+                        >
+                          {availableCarriers.map((c) => (
+                            <option key={c._id} value={c._id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      {shippingLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Spinner size={16} />
+                          Calculating shipping…
+                        </div>
+                      ) : shippingPrice ? (
+                        <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm">
+                          <span className="text-muted-foreground">
+                            Estimated delivery:{" "}
+                            {shippingPrice.averageDeliveryTime}
+                          </span>
+                          <span className="font-semibold text-foreground">
+                            {shippingPrice.shippingPrice} CFA
+                          </span>
+                        </div>
+                      ) : null}
+                    </>
                   )}
                 </div>
               ) : (
-                <p className="text-muted-foreground">
-                  Please select a billing address.
+                <p className="text-sm text-muted-foreground">
+                  Select an address above to see shipping options.
                 </p>
               )}
-            </div>
+            </Section>
 
-            {/* Payment Method */}
-            <div className="bg-background border border-border rounded-lg p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-foreground mb-3">
-                Payment Method
-              </h2>
+            {/* Payment */}
+            <Section
+              step={3}
+              title="Payment"
+              subtitle={
+                !user
+                  ? "Guest checkout pays with cash on delivery."
+                  : "Choose how you'd like to pay."
+              }
+            >
               {!user && paymentMethods.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-muted-foreground">
-                    Guest checkout is available with cash on delivery.
-                  </p>
+                <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                  Cash on delivery is the only option for guest checkout.
                 </div>
               ) : paymentMethods.length === 0 ? (
-                <div className="text-center py-4">
+                <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm">
                   <p className="text-muted-foreground">
-                    You have no saved payment methods.
+                    You don't have any saved payment methods yet.
                   </p>
                   <Link
                     href="/profile/payment"
-                    className="inline-block mt-2 text-primary hover:underline"
+                    className="mt-1 inline-block font-medium text-primary hover:underline"
                   >
-                    + Add a payment method
+                    Add a payment method
                   </Link>
                 </div>
               ) : (
-                <>
-                  <select
-                    value={selectedPaymentMethodId}
-                    onChange={(e) => setSelectedPaymentMethodId(e.target.value)}
-                    className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-transparent"
-                  >
-                    {paymentMethods.map((pm: any) => (
-                      <option
-                        key={pm._id?.toString()}
-                        value={pm._id?.toString()}
-                      >
-                        {pm.methodType} –{" "}
-                        {pm.methodType === "CreditCard"
-                          ? `**** ${(pm as any).details.cardNumber?.slice(-4) || "XXXX"}`
-                          : pm.methodType === "MobileMoney"
-                            ? `${(pm as any).details.provider} ${(pm as any).details.phoneNumber}`
-                            : (pm as any).details.email || ""}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-3">
+                  <Field label="Saved method">
+                    <select
+                      value={selectedPaymentMethodId}
+                      onChange={(e) =>
+                        setSelectedPaymentMethodId(e.target.value)
+                      }
+                      className={inputClass}
+                    >
+                      {paymentMethods.map((pm: any) => (
+                        <option
+                          key={pm._id?.toString()}
+                          value={pm._id?.toString()}
+                        >
+                          {pm.methodType} –{" "}
+                          {pm.methodType === "CreditCard"
+                            ? `•••• ${pm.details.cardNumber?.slice(-4) || "XXXX"}`
+                            : pm.methodType === "MobileMoney"
+                              ? `${pm.details.provider} ${pm.details.phoneNumber}`
+                              : pm.details.email || ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                   <Link
                     href="/profile/payment"
-                    className="inline-block mt-2 text-primary hover:underline text-sm"
+                    className="inline-block text-sm font-medium text-primary hover:underline"
                   >
                     Manage payment methods
                   </Link>
-                </>
+                </div>
               )}
-            </div>
+            </Section>
           </div>
 
-          {/* Right column: Order Summary & actions */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-muted/20 border border-border rounded-lg p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-foreground mb-3">
-                Order Summary
-              </h2>
-              {shippingLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Spinner size={20} />
-                  Calculating totals...
-                </div>
-              ) : (
-                <OrderSummary shippingPrice={shippingPrice} />
-              )}
-            </div>
+          {/* Right column — order summary + actions */}
+          <div className="lg:col-span-2">
+            <div className="lg:sticky lg:top-24">
+              <div className="rounded-xl bg-muted/30 p-5">
+                <h2 className="mb-4 text-base font-semibold text-foreground">
+                  Order summary
+                </h2>
+                {shippingLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Spinner size={16} />
+                    Calculating totals…
+                  </div>
+                ) : (
+                  <OrderSummary shippingPrice={shippingPrice} />
+                )}
+              </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              {!user ? (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    void handleCashOnDelivery();
-                  }}
-                  disabled={
-                    (!selectedAddressId && !guestAddressValid) ||
-                    items.length === 0 ||
-                    shippingLoading ||
-                    processing ||
-                    availableCarriers.length === 0
-                  }
-                  className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50 transition shadow-sm"
-                >
-                  {processingAction === "cash-on-delivery"
-                    ? "Placing order..."
-                    : "Continue as Guest"}
-                </button>
-              ) : (
-                <>
+              <div className="mt-6 space-y-3">
+                {!user ? (
                   <button
                     type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      void handlePayNow();
-                    }}
-                    disabled={
-                      !selectedAddressId ||
-                      !selectedPaymentMethodId ||
-                      items.length === 0 ||
-                      shippingLoading ||
-                      processing ||
-                      availableCarriers.length === 0
-                    }
-                    className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50 transition shadow-sm"
-                  >
-                    {processingAction === "pay-now"
-                      ? "Processing..."
-                      : "Pay Now"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       void handleCashOnDelivery();
                     }}
                     disabled={
-                      !selectedAddressId ||
+                      (!selectedAddressId && !guestAddressValid) ||
                       items.length === 0 ||
                       shippingLoading ||
                       processing ||
                       availableCarriers.length === 0
                     }
-                    className="w-full bg-secondary text-secondary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-secondary/90 disabled:opacity-50 transition shadow-sm"
+                    className="w-full rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {processingAction === "cash-on-delivery"
-                      ? "Placing order..."
-                      : "Cash on Delivery"}
+                      ? "Placing order…"
+                      : "Place order"}
                   </button>
-                </>
-              )}
-            </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void handlePayNow();
+                      }}
+                      disabled={
+                        !selectedAddressId ||
+                        !selectedPaymentMethodId ||
+                        items.length === 0 ||
+                        shippingLoading ||
+                        processing ||
+                        availableCarriers.length === 0
+                      }
+                      className="w-full rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {processingAction === "pay-now"
+                        ? "Processing…"
+                        : "Pay now"}
+                    </button>
 
-            {/* Validation messages */}
-            <div className="space-y-1 text-sm">
-              {!user && !guestAddressValid && (
-                <p className="text-destructive">
-                  Please complete your guest contact and address details.
-                </p>
-              )}
-              {!user && !selectedPaymentMethodId && !paymentMethods.length && (
-                <p className="text-destructive">
-                  Guest checkout uses cash on delivery.
-                </p>
-              )}
-              {user && !selectedAddressId && (
-                <p className="text-destructive">
-                  Please select a billing address.
-                </p>
-              )}
-              {user && !selectedPaymentMethodId && (
-                <p className="text-destructive">
-                  Please select a payment method for online payment.
-                </p>
-              )}
-              {availableCarriers.length === 0 &&
-                !loadingProducts &&
-                !carrierLoading && (
-                  <p className="text-destructive">
-                    No carrier available. Please check your address or contact
-                    support.
-                  </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void handleCashOnDelivery();
+                      }}
+                      disabled={
+                        !selectedAddressId ||
+                        items.length === 0 ||
+                        shippingLoading ||
+                        processing ||
+                        availableCarriers.length === 0
+                      }
+                      className="w-full rounded-lg border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {processingAction === "cash-on-delivery"
+                        ? "Placing order…"
+                        : "Cash on delivery"}
+                    </button>
+                  </>
                 )}
+
+                {/* Inline validation summary */}
+                <div className="space-y-1 pt-1 text-xs">
+                  {!user && !guestAddressValid && (
+                    <p className="text-destructive">
+                      Complete your contact and address details.
+                    </p>
+                  )}
+                  {user && !selectedAddressId && (
+                    <p className="text-destructive">
+                      Select a billing address.
+                    </p>
+                  )}
+                  {user && !selectedPaymentMethodId && (
+                    <p className="text-destructive">Select a payment method.</p>
+                  )}
+                  {availableCarriers.length === 0 &&
+                    !loadingProducts &&
+                    !carrierLoading && (
+                      <p className="text-destructive">
+                        No carrier available for your region.
+                      </p>
+                    )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Payment Modal */}
       <PaymentModal
         isOpen={paymentModalOpen}
         onClose={closePaymentModal}
