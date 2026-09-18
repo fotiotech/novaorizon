@@ -1,14 +1,49 @@
 "use client";
 
 import { useState } from "react";
-import { createAddress, updateAddress } from "@/app/actions/address"; // adjust path
+import { createAddress, updateAddress } from "@/app/actions/address";
 import { IAddress } from "@/models/Address";
 
 interface AddressFormProps {
-  initialData?: IAddress | null; // if provided, we're in update mode
-  onSuccess?: () => void; // callback after successful submission
+  initialData?: IAddress | null;
+  onSuccess?: () => void;
   onCancel?: () => void;
 }
+
+interface FieldProps {
+  label: string;
+  name: string;
+  required?: boolean;
+  placeholder?: string;
+  defaultValue?: string;
+}
+
+const Field: React.FC<FieldProps> = ({
+  label,
+  name,
+  required,
+  placeholder,
+  defaultValue,
+}) => (
+  <div>
+    <label
+      htmlFor={name}
+      className="mb-1 block text-sm font-medium text-foreground"
+    >
+      {label}
+      {required && <span className="ml-0.5 text-destructive">*</span>}
+    </label>
+    <input
+      type="text"
+      id={name}
+      name={name}
+      required={required}
+      placeholder={placeholder}
+      defaultValue={defaultValue}
+      className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring"
+    />
+  </div>
+);
 
 export default function AddressForm({
   initialData = null,
@@ -17,8 +52,6 @@ export default function AddressForm({
 }: AddressFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Determine if we are in update mode
   const isUpdate = !!initialData;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -26,20 +59,17 @@ export default function AddressForm({
     setLoading(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
 
     try {
-      let result;
-      if (isUpdate && initialData?._id) {
-        // Update mode: pass the address ID and form data
-        result = await updateAddress(initialData._id.toString(), formData);
-      } else {
-        // Create mode
-        result = await createAddress(formData);
-      }
+      const result =
+        isUpdate && initialData?._id
+          ? await updateAddress(initialData._id.toString(), formData)
+          : await createAddress(formData);
 
       if (result.success) {
-        e.currentTarget.reset();
+        form.reset();
         onSuccess?.();
       } else {
         setError("Failed to save address. Please try again.");
@@ -52,127 +82,90 @@ export default function AddressForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      <div>
-        <label htmlFor="label" className="block text-sm font-medium">
-          Label <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          id="label"
-          name="label"
-          required
-          defaultValue={initialData?.label || ""}
-          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-          placeholder="e.g., Home, Office"
-        />
-      </div>
+      <Field
+        label="Label"
+        name="label"
+        required
+        placeholder="Home, Office…"
+        defaultValue={initialData?.label || ""}
+      />
 
-      <div>
-        <label htmlFor="street" className="block text-sm font-medium">
-          Street <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          id="street"
-          name="street"
-          required
-          defaultValue={initialData?.street || ""}
-          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-        />
-      </div>
+      <Field
+        label="Street"
+        name="street"
+        required
+        placeholder="Street address"
+        defaultValue={initialData?.street || ""}
+      />
 
-      <div>
-        <label htmlFor="city" className="block text-sm font-medium">
-          City <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          id="city"
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="City"
           name="city"
           required
+          placeholder="City"
           defaultValue={initialData?.city || ""}
-          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
         />
-      </div>
-
-      <div>
-        <label htmlFor="state" className="block text-sm font-medium">
-          State (optional)
-        </label>
-        <input
-          type="text"
-          id="state"
+        <Field
+          label="State"
           name="state"
+          placeholder="Optional"
           defaultValue={initialData?.state || ""}
-          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
         />
       </div>
 
-      <div>
-        <label htmlFor="postalCode" className="block text-sm font-medium">
-          Postal Code <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          id="postalCode"
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="Postal code"
           name="postalCode"
           required
+          placeholder="00000"
           defaultValue={initialData?.postalCode || ""}
-          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
         />
-      </div>
-
-      <div>
-        <label htmlFor="country" className="block text-sm font-medium">
-          Country
-        </label>
-        <input
-          type="text"
-          id="country"
+        <Field
+          label="Country"
           name="country"
+          placeholder="Country"
           defaultValue={initialData?.country || "Cameroon"}
-          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
         />
       </div>
 
-      <div className="flex items-center">
+      <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/20 p-3 text-sm text-foreground">
         <input
           type="checkbox"
           id="isDefault"
           name="isDefault"
           defaultChecked={initialData?.isDefault || false}
-          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
         />
-        <label htmlFor="isDefault" className="ml-2 block text-sm">
-          Set as default address
-        </label>
-      </div>
+        Set as default address
+      </label>
 
-      <div className="flex gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-        >
-          {loading ? "Saving..." : isUpdate ? "Update Address" : "Add Address"}
-        </button>
-
+      <div className="flex justify-end gap-3 border-t border-border pt-4">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md text-sm"
+            disabled={loading}
+            className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
           >
             Cancel
           </button>
         )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {loading ? "Saving…" : isUpdate ? "Update address" : "Add address"}
+        </button>
       </div>
     </form>
   );

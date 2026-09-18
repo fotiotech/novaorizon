@@ -1,16 +1,70 @@
 "use client";
 
 import { useState } from "react";
-import { createPaymentMethod } from "@/app/actions/payment"; // adjust path
+import { createPaymentMethod } from "@/app/actions/payment";
 import { IAddress } from "@/models/Address";
 
 interface PaymentMethodFormProps {
-  addresses: IAddress[]; // List of user's addresses for the dropdown (Credit Card only)
+  addresses: IAddress[];
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
 type MethodType = "CreditCard" | "MobileMoney" | "PayPal";
+
+const METHOD_OPTIONS: { value: MethodType; label: string; hint: string }[] = [
+  {
+    value: "CreditCard",
+    label: "Credit / Debit Card",
+    hint: "Visa, Mastercard",
+  },
+  {
+    value: "MobileMoney",
+    label: "Mobile Money",
+    hint: "MTN, Orange, Express Union",
+  },
+  { value: "PayPal", label: "PayPal", hint: "Pay with your PayPal account" },
+];
+
+const inputClass =
+  "block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring";
+
+interface FieldProps {
+  label: string;
+  name: string;
+  required?: boolean;
+  type?: string;
+  placeholder?: string;
+  hint?: string;
+}
+
+const Field: React.FC<FieldProps> = ({
+  label,
+  name,
+  required,
+  type = "text",
+  placeholder,
+  hint,
+}) => (
+  <div>
+    <label
+      htmlFor={name}
+      className="mb-1 block text-sm font-medium text-foreground"
+    >
+      {label}
+      {required && <span className="ml-0.5 text-destructive">*</span>}
+    </label>
+    <input
+      type={type}
+      id={name}
+      name={name}
+      required={required}
+      placeholder={placeholder}
+      className={inputClass}
+    />
+    {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+  </div>
+);
 
 export default function PaymentMethodForm({
   addresses,
@@ -26,10 +80,10 @@ export default function PaymentMethodForm({
     setLoading(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
 
-    // Build the payload based on selected method type
-    let payload: any = { methodType };
+    const payload: any = { methodType };
 
     if (methodType === "CreditCard") {
       payload.details = {
@@ -44,7 +98,7 @@ export default function PaymentMethodForm({
         provider: formData.get("provider") as string,
         reference: (formData.get("reference") as string) || undefined,
       };
-    } else if (methodType === "PayPal") {
+    } else {
       payload.details = {
         email: formData.get("email") as string,
       };
@@ -53,7 +107,7 @@ export default function PaymentMethodForm({
     try {
       const result = await createPaymentMethod(payload);
       if (result.success) {
-        e.currentTarget.reset();
+        form.reset();
         onSuccess?.();
       } else {
         setError("Failed to add payment method.");
@@ -65,92 +119,85 @@ export default function PaymentMethodForm({
     }
   };
 
+  const cardBlocked = methodType === "CreditCard" && addresses.length === 0;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {/* Method Type Selector */}
+      {/* Method type selector as pill tabs */}
       <div>
-        <label htmlFor="methodType" className="block text-sm font-medium">
-          Payment Method Type <span className="text-red-500">*</span>
-        </label>
-        <select
-          id="methodType"
-          value={methodType}
-          onChange={(e) => setMethodType(e.target.value as MethodType)}
-          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-        >
-          <option value="CreditCard">Credit / Debit Card</option>
-          <option value="MobileMoney">Mobile Money (Cameroon)</option>
-          <option value="PayPal">PayPal</option>
-        </select>
+        <p className="mb-2 text-sm font-medium text-foreground">
+          Payment method <span className="text-destructive">*</span>
+        </p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {METHOD_OPTIONS.map((opt) => {
+            const selected = methodType === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setMethodType(opt.value)}
+                className={`rounded-lg border p-3 text-left transition-all ${
+                  selected
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-border bg-background hover:border-primary/40 hover:bg-muted/40"
+                }`}
+              >
+                <span className="block text-sm font-medium text-foreground">
+                  {opt.label}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {opt.hint}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Dynamic Fields based on methodType */}
+      {/* Hidden input so FormData has the method type too */}
+      <input type="hidden" name="methodType" value={methodType} />
+
+      {/* Dynamic fields */}
       {methodType === "CreditCard" && (
-        <>
-          <div>
-            <label htmlFor="cardNumber" className="block text-sm font-medium">
-              Card Number <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="cardNumber"
-              name="cardNumber"
+        <div className="space-y-4">
+          <Field
+            label="Card number"
+            name="cardNumber"
+            required
+            placeholder="4111 1111 1111 1111"
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Expiry date"
+              name="expiryDate"
               required
-              placeholder="4111 1111 1111 1111"
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              placeholder="MM/YY"
+            />
+            <Field
+              label="Cardholder name"
+              name="cardholderName"
+              required
+              placeholder="John Doe"
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="expiryDate" className="block text-sm font-medium">
-                Expiry Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="expiryDate"
-                name="expiryDate"
-                required
-                placeholder="MM/YY"
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="cardholderName"
-                className="block text-sm font-medium"
-              >
-                Cardholder Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="cardholderName"
-                name="cardholderName"
-                required
-                placeholder="John Doe"
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-          </div>
-
           <div>
             <label
               htmlFor="billingAddressId"
-              className="block text-sm font-medium"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
-              Billing Address <span className="text-red-500">*</span>
+              Billing address <span className="text-destructive">*</span>
             </label>
             <select
               id="billingAddressId"
               name="billingAddressId"
               required
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             >
               <option value="">Select an address</option>
               {addresses.map((addr) => (
@@ -160,43 +207,36 @@ export default function PaymentMethodForm({
               ))}
             </select>
             {addresses.length === 0 && (
-              <p className="text-xs text-red-500 mt-1">
-                You need to add a billing address first before adding a credit
-                card.
+              <p className="mt-1 text-xs text-destructive">
+                You need to add a billing address first.
               </p>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {methodType === "MobileMoney" && (
-        <>
+        <div className="space-y-4">
+          <Field
+            label="Phone number"
+            name="phoneNumber"
+            type="tel"
+            required
+            placeholder="699999999"
+            hint="Cameroon format, e.g. 699999999"
+          />
           <div>
-            <label htmlFor="phoneNumber" className="block text-sm font-medium">
-              Phone Number <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="tel"
-              id="phoneNumber"
-              name="phoneNumber"
-              required
-              placeholder="699999999"
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Cameroon format (e.g., 699999999)
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="provider" className="block text-sm font-medium">
-              Mobile Operator <span className="text-red-500">*</span>
+            <label
+              htmlFor="provider"
+              className="mb-1 block text-sm font-medium text-foreground"
+            >
+              Mobile operator <span className="text-destructive">*</span>
             </label>
             <select
               id="provider"
               name="provider"
               required
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             >
               <option value="">Select operator</option>
               <option value="CM_MTNMOBILEMONEY">MTN</option>
@@ -204,56 +244,42 @@ export default function PaymentMethodForm({
               <option value="CM_EUMM">Express Union</option>
             </select>
           </div>
-
-          <div>
-            <label htmlFor="reference" className="block text-sm font-medium">
-              Reference (optional)
-            </label>
-            <input
-              type="text"
-              id="reference"
-              name="reference"
-              placeholder="Transaction ID"
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-            />
-          </div>
-        </>
-      )}
-
-      {methodType === "PayPal" && (
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium">
-            PayPal Email <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            required
-            placeholder="user@example.com"
-            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+          <Field
+            label="Reference"
+            name="reference"
+            placeholder="Transaction ID (optional)"
           />
         </div>
       )}
 
-      <div className="flex gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-        >
-          {loading ? "Saving..." : "Add Payment Method"}
-        </button>
+      {methodType === "PayPal" && (
+        <Field
+          label="PayPal email"
+          name="email"
+          type="email"
+          required
+          placeholder="user@example.com"
+        />
+      )}
 
+      <div className="flex justify-end gap-3 border-t border-border pt-4">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md text-sm"
+            disabled={loading}
+            className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
           >
             Cancel
           </button>
         )}
+        <button
+          type="submit"
+          disabled={loading || cardBlocked}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {loading ? "Saving…" : "Add payment method"}
+        </button>
       </div>
     </form>
   );

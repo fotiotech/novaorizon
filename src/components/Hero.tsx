@@ -69,7 +69,7 @@ const HeaderScroll: React.FC = () => {
 
   if (slides.length === 0) {
     return (
-      <div className="w-full h-60 md:h-72 lg:h-[400px] bg-muted flex items-center justify-center rounded-xl">
+      <div className="w-full h-60 md:h-72 lg:h-[400px] bg-muted flex items-center justify-center rounded-xl mx-2 lg:mx-10 my-2">
         <div className="text-muted-foreground">No hero content available</div>
       </div>
     );
@@ -78,68 +78,112 @@ const HeaderScroll: React.FC = () => {
   return (
     <section
       aria-label="Hero carousel"
-      className="relative h-52 md:h-72 lg:h-[400px] overflow-hidden mx-2 lg:mx-10 my-2 rounded-xl shadow-lg"
+      className="relative overflow-hidden bg-black"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div
-        className="flex h-full transition-transform duration-700 ease-in-out"
-        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-      >
-        {slides.map((hero: any, index) => {
-          const imageUrl = hero.imageUrl || PLACEHOLDER_IMAGE;
-          const title = hero.title || "Novaorizon";
+      {/* Slides container */}
+      <div className="relative">
+        <div
+          className="flex transition-transform duration-700 ease-in-out"
+          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        >
+          {slides.map((hero: any, index) => {
+            const imageUrl = hero.imageUrl || PLACEHOLDER_IMAGE;
+            const title = hero.title || "Novaorizon";
+            const isActive = currentIndex === index;
 
-          return (
-            <div
-              key={hero._id || index}
-              className="relative flex-shrink-0 w-full h-full"
-              aria-hidden={currentIndex !== index}
-            >
-              <Link href={hero.cta_link || "#"} className="block h-full">
-                <Image
-                  src={imageUrl}
-                  alt={title}
-                  fill
-                  className="object-cover"
-                  priority={index === 0}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
+            return (
+              <div
+                key={hero._id || index}
+                className="relative flex-shrink-0 w-full"
+                aria-hidden={!isActive}
+              >
+                <Link
+                  href={hero.cta_link || "#"}
+                  className="block"
+                  tabIndex={isActive ? 0 : -1}
+                >
+                  {/*
+                    Layout:
+                    - Mobile:  vertical (image on top, text below)
+                    - Desktop: horizontal (text left, image right)
+                  */}
+                  <div className="relative grid grid-cols-1 lg:grid-cols-2 items-stretch min-h-[440px] lg:min-h-[460px]">
+                    {/* Text panel */}
+                    <div className="order-2 lg:order-1 relative flex items-center justify-center px-6 py-8 lg:px-12 lg:py-14 bg-black">
+                      {/* Dark overlay for extra depth */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
 
-                <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center text-white">
-                  <h1 className="max-w-4xl text-3xl md:text-5xl font-extrabold drop-shadow-lg line-clamp-3">
-                    {title}
-                  </h1>
-                  {hero.subtitle && (
-                    <p className="mt-2 text-base md:text-xl max-w-2xl text-white/90 drop-shadow">
-                      {hero.subtitle}
-                    </p>
-                  )}
-                  {hero.cta_text && (
-                    <span className="mt-4 inline-block bg-primary text-primary-foreground px-6 py-2 rounded-full text-sm font-medium hover:bg-primary/90 transition-colors">
-                      {hero.cta_text}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            </div>
-          );
-        })}
+                      <div className="relative z-10 max-w-xl text-center lg:text-left">
+                        <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white leading-tight line-clamp-3 drop-shadow-lg">
+                          {title}
+                        </h1>
+
+                        {hero.subtitle && (
+                          <p className="mt-3 text-sm sm:text-base lg:text-lg text-white/80 line-clamp-3">
+                            {hero.subtitle}
+                          </p>
+                        )}
+
+                        {hero.cta_text && (
+                          <span className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                            {hero.cta_text}
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Image panel */}
+                    <div className="order-1 lg:order-2 relative h-56 sm:h-72 lg:h-auto">
+                      <Image
+                        src={imageUrl}
+                        alt={title}
+                        fill
+                        className="object-cover"
+                        priority={index === 0}
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                      />
+                      {/* Dark overlay on the image */}
+                      <div className="absolute inset-0 bg-black/40" />
+                      {/* Mobile: fade image into the text panel below */}
+                      <div className="lg:hidden absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/70 to-transparent" />
+                      {/* Desktop: fade image into the text panel on the left */}
+                      <div className="hidden lg:block absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black via-black/70 to-transparent" />
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Navigation dots */}
       {slides.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
           {slides.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
               aria-label={`Go to slide ${index + 1}`}
-              className={`h-3 w-3 rounded-full transition-all duration-300 ${
+              className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
                 index === currentIndex
                   ? "bg-primary scale-125 shadow-lg"
-                  : "bg-white/50 hover:bg-white/80"
+                  : "bg-white/40 hover:bg-white/70"
               }`}
             />
           ))}

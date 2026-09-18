@@ -3,5 +3,5 @@ export default function BrandStoreRootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <div className="">{children}</div>;
+  return <div className="mt-10">{children}</div>;
 }

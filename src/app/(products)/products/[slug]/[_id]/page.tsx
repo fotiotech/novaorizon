@@ -15,7 +15,7 @@ import DetailImages from "@/components/DetailImages";
 import ImageRenderer from "@/components/ImageRenderer";
 import Spinner from "@/components/Spinner";
 import ProductViewAnalytics from "./_compnents/ProductViewAnalytics";
-import ExistingReviews from "@/components/product/reviews/ExistingReviews";
+import ExistingReviews from "@/app/(products)/products/[slug]/[_id]/_compnents/reviews/ExistingReviews";
 import { getCarriers } from "@/app/actions/carrier";
 import { useUserData } from "@/app/context/UserDataContext";
 import { getMenusByLocation } from "@/app/actions/menu";
@@ -44,22 +44,13 @@ interface Params {
 }
 
 // ---------- Typography tokens ----------
-// Single source of truth for the page's type scale. Any component that
-// renders text should use these tokens so headings align across sections.
 const TYPO = {
-  /** Product name — the page's H1. */
   pageTitle: "text-base font-semibold text-foreground/90 leading-snug",
-  /** Section heading (Description, Shipping, Related menus, …). */
-  sectionTitle: "text-lg font-bold text-foreground leading-snug",
-  /** Sub-label inside a section (variant theme label, spec group name, …). */
+  sectionTitle: "text-lg font-semibold text-foreground leading-snug",
   label: "text-sm font-semibold text-foreground",
-  /** Price — the most prominent number on the page. */
   price: "text-2xl font-semibold text-foreground leading-tight",
-  /** Default body copy. */
   body: "text-sm text-foreground",
-  /** Muted / secondary copy. */
   muted: "text-sm text-muted-foreground",
-  /** Tiny helper text. */
   tiny: "text-xs text-muted-foreground",
 } as const;
 
@@ -78,10 +69,6 @@ function formatPrice(value: any): string {
   return `${n.toLocaleString("en-US")} F`;
 }
 
-/**
- * Return the first positive, finite numeric candidate.
- * This makes `listPrice` reachable when `price` is 0.
- */
 function pickPrice(...candidates: any[]): number {
   for (const c of candidates) {
     if (c === undefined || c === null || c === "") continue;
@@ -89,6 +76,35 @@ function pickPrice(...candidates: any[]): number {
     if (Number.isFinite(n) && n > 0) return n;
   }
   return 0;
+}
+
+function toImageUrl(entry: any): string | null {
+  if (!entry) return null;
+  if (typeof entry === "string") return entry;
+  if (typeof entry === "object") {
+    const candidate =
+      entry.url ?? entry.src ?? entry.publicUrl ?? entry.path ?? entry.image;
+    if (typeof candidate === "string") return candidate;
+    if (candidate && typeof candidate === "object") {
+      const nested = candidate.url ?? candidate.src ?? candidate.publicUrl;
+      if (typeof nested === "string") return nested;
+    }
+  }
+  return null;
+}
+
+function normalizeImages(arr: any): string[] {
+  if (!Array.isArray(arr)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const entry of arr) {
+    const url = toImageUrl(entry);
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return out;
 }
 
 const RESERVED_VARIANT_KEYS = new Set<string>([
@@ -136,7 +152,7 @@ function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
   });
 }
 
-// ---------- Component: Carrier Shipping Options ----------
+// ---------- Carrier Shipping Options ----------
 const CarrierShippingOptions: React.FC<{
   product: any;
   userAddresses: any[];
@@ -176,14 +192,14 @@ const CarrierShippingOptions: React.FC<{
 
   if (loading)
     return (
-      <div className={`mt-2 ${TYPO.muted}`}>Loading shipping options...</div>
+      <div className={`mt-4 ${TYPO.muted}`}>Loading shipping options…</div>
     );
   if (error)
-    return <div className="mt-2 text-sm text-destructive">{error}</div>;
+    return <div className="mt-4 text-sm text-destructive">{error}</div>;
 
   return (
-    <div className="mt-5">
-      <h3 className={`${TYPO.sectionTitle} mb-2`}>Shipping Options</h3>
+    <div className="mt-6">
+      <h3 className={`${TYPO.sectionTitle} mb-2`}>Shipping</h3>
       {!primaryAddress ? (
         <p className={TYPO.muted}>
           Please{" "}
@@ -201,7 +217,7 @@ const CarrierShippingOptions: React.FC<{
           {primaryAddress.city || primaryAddress.state || "your area"}).
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-border rounded-lg border border-border">
           {availableCarriers.map((carrier) => {
             const regionDetail = carrier.regionsServed.find((r) =>
               doesCarrierServeAddress(carrier, primaryAddress),
@@ -209,16 +225,16 @@ const CarrierShippingOptions: React.FC<{
             return (
               <li
                 key={carrier._id}
-                className="flex justify-between items-center border-b border-border pb-1 last:border-0"
+                className="flex items-center justify-between gap-3 px-3 py-2"
               >
                 <div className="min-w-0">
-                  <span className="text-sm font-medium text-foreground">
+                  <p className="text-sm font-medium text-foreground">
                     {carrier.name}
-                  </span>
+                  </p>
                   {regionDetail && (
-                    <span className={`ml-2 ${TYPO.muted}`}>
-                      (Est. delivery: {regionDetail.averageDeliveryTime})
-                    </span>
+                    <p className={TYPO.tiny}>
+                      Estimated delivery: {regionDetail.averageDeliveryTime}
+                    </p>
                   )}
                 </div>
                 {regionDetail && (
@@ -240,11 +256,10 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
   if (!menus || menus.length === 0) return null;
 
   return (
-    <div className="related-menus mt-4 space-y-4">
+    <div className="mt-8 space-y-8">
       {menus.map((menu) => {
         const {
           _id,
-          name,
           sectionTitle,
           display,
           showImages = false,
@@ -281,7 +296,7 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                   {items.map((item: any) => (
                     <li key={item._id} className="flex items-center gap-2">
                       {showImages && item.image && (
-                        <div className="relative w-8 h-8 flex-shrink-0">
+                        <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded">
                           <ImageRenderer
                             image={item.image}
                             alt={item.name}
@@ -291,14 +306,16 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
                       )}
                       <Link
                         href={getItemHref(item)}
-                        className="hover:underline line-clamp-1"
+                        className="flex items-baseline justify-between gap-3 hover:underline"
                         title={item.name}
                       >
-                        <span className={TYPO.body}>{item.name}</span>
+                        <span className={`line-clamp-1 ${TYPO.body}`}>
+                          {item.name}
+                        </span>
                         {item.price > 0 && (
-                          <p className="text-sm font-semibold text-foreground">
+                          <span className="shrink-0 text-sm font-medium text-foreground">
                             {formatPrice(item.price)}
-                          </p>
+                          </span>
                         )}
                       </Link>
                     </li>
@@ -307,33 +324,30 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
               );
             case "Grid":
               return (
-                <div className={`grid gap-3 ${getGridCols()}`}>
+                <div className={`grid gap-4 ${getGridCols()}`}>
                   {items.slice(0, 4).map((item: any) => (
-                    <div key={item._id} className="p-1 rounded">
+                    <Link
+                      key={item._id}
+                      href={getItemHref(item)}
+                      className="group block"
+                      title={item.name}
+                    >
                       {showImages && item.image && (
-                        <div className="relative w-full aspect-square mb-1 bg-gray-100">
+                        <div className="relative mb-2 aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/40">
                           <ImageRenderer
                             image={item.image}
                             alt={item.name}
-                            className="rounded"
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
                           />
                         </div>
                       )}
-                      <Link
-                        href={getItemHref(item)}
-                        className="block"
-                        title={item.name}
-                      >
-                        <p className={`line-clamp-2 ${TYPO.body}`}>
-                          {item.name}
+                      <p className={`line-clamp-2 ${TYPO.body}`}>{item.name}</p>
+                      {item.price > 0 && (
+                        <p className="mt-0.5 text-sm font-semibold text-foreground">
+                          {formatPrice(item.price)}
                         </p>
-                        {item.price > 0 && (
-                          <p className="text-sm font-semibold text-foreground">
-                            {formatPrice(item.price)}
-                          </p>
-                        )}
-                      </Link>
-                    </div>
+                      )}
+                    </Link>
                   ))}
                 </div>
               );
@@ -360,12 +374,12 @@ const RelatedMenusRenderer: React.FC<{ menus: any[] }> = ({ menus }) => {
         };
 
         return (
-          <div key={_id} className="menu-node py-3 bg-white">
+          <section key={_id}>
             {sectionTitle && (
-              <h2 className={`${TYPO.sectionTitle} mb-2`}>{sectionTitle}</h2>
+              <h2 className={`${TYPO.sectionTitle} mb-4`}>{sectionTitle}</h2>
             )}
-            <div className="menu-content">{renderContent()}</div>
-          </div>
+            {renderContent()}
+          </section>
         );
       })}
     </div>
@@ -398,15 +412,15 @@ const ThemeCard: React.FC<ThemeCardProps> = ({
       aria-pressed={isActive}
       aria-label={value}
       title={value}
-      className={`flex-shrink-0 w-[92px] flex flex-col items-center gap-1 rounded-lg border p-1 transition-all ${
+      className={`flex w-[92px] flex-shrink-0 flex-col items-center gap-1 rounded-lg border p-1 transition-all ${
         isActive
-          ? "border-primary border-2 bg-primary/5"
+          ? "border-2 border-primary bg-primary/5"
           : isAvailable
-            ? "border-border  hover:border-primary/60 bg-background"
+            ? "border-border bg-background hover:border-primary/60"
             : "border-border bg-background opacity-40 cursor-not-allowed"
       }`}
     >
-      <div className="relative w-full h-[68px] bg-muted/40 rounded overflow-hidden">
+      <div className="relative h-[68px] w-full overflow-hidden rounded bg-muted/40">
         {image ? (
           <Image
             src={image}
@@ -416,13 +430,13 @@ const ThemeCard: React.FC<ThemeCardProps> = ({
             sizes="92px"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">
+          <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
             No image
           </div>
         )}
       </div>
       <span
-        className={`text-xs font-semibold truncate w-full text-left ${
+        className={`w-full truncate text-left text-xs font-semibold ${
           isActive
             ? "text-primary"
             : isAvailable
@@ -493,8 +507,8 @@ const VariantSelector: React.FC<VariantSelectorProps> = ({
   const imageFor = (themeKey: string, value: string): string | null => {
     const v = representativeFor(themeKey, value);
     if (!v) return null;
-    if (Array.isArray(v.images) && v.images.length > 0) return v.images[0];
-    return null;
+    const normalized = normalizeImages(v.images);
+    return normalized[0] ?? null;
   };
 
   const priceFor = (themeKey: string, value: string): number | null => {
@@ -515,12 +529,12 @@ const VariantSelector: React.FC<VariantSelectorProps> = ({
 
         return (
           <div key={themeKey}>
-            <div className="flex items-baseline gap-2 mb-2">
+            <div className="mb-2 flex items-baseline gap-2">
               <span className={TYPO.label}>{label}</span>
               {activeValue && <span className={TYPO.muted}>{activeValue}</span>}
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-1">
               {values.map((value) => {
                 const isSelected = activeValue === value;
                 const available = isAvailable(themeKey, value);
@@ -561,7 +575,6 @@ export default function Details(props: { params: Promise<Params> }) {
   const initialLoadComplete = useRef(false);
 
   const isMobile = useIsMobile();
-
   const { addresses: userAddresses } = useUserData();
 
   // Fetch product
@@ -708,26 +721,28 @@ export default function Details(props: { params: Promise<Params> }) {
   );
 
   if (loading) return <Spinner size={32} />;
+
   if (error) {
     return (
       <div className="w-full p-8 text-center">
-        <div className="text-sm text-destructive mb-4">{error}</div>
+        <div className="mb-4 text-sm text-destructive">{error}</div>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+          className="rounded bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
         >
           Try Again
         </button>
       </div>
     );
   }
+
   if (!product) {
     return (
       <div className="w-full p-2 text-center">
-        <div className="text-lg font-semibold mb-4">Product not found</div>
+        <div className="mb-4 text-lg font-semibold">Product not found</div>
         <Link
           href="/"
-          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+          className="rounded bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
         >
           Back to Home
         </Link>
@@ -745,30 +760,35 @@ export default function Details(props: { params: Promise<Params> }) {
     shortDescription = "",
     description = "",
     variants = [],
-    images: baseImages = [],
+    images: baseImagesRaw = [],
   } = product;
 
-  // Variant price wins when positive, then base price, then listPrice.
-  // `pickPrice` ignores zeros so a `price: 0` doesn't shadow a real value.
   const displayPrice = pickPrice(matchedVariant?.price, basePrice, listPrice);
-
-  // Only show the struck-through list price when it is a genuine discount.
   const numericListPrice = Number(listPrice) || 0;
   const showListPrice = numericListPrice > displayPrice && displayPrice > 0;
-
   const displayQuantity = matchedVariant?.quantity ?? baseQuantity;
-  const displayImages =
-    Array.isArray(matchedVariant?.images) && matchedVariant.images.length > 0
-      ? matchedVariant.images
-      : baseImages;
+
+  // Merge base + variant images
+  const baseImages = normalizeImages(baseImagesRaw);
+  const variantImages = normalizeImages(matchedVariant?.images);
+
+  const displayImages = useMemo(() => {
+    if (variantImages.length > 0) {
+      const variantSet = new Set(variantImages);
+      return [
+        ...variantImages,
+        ...baseImages.filter((img) => !variantSet.has(img)),
+      ];
+    }
+    return baseImages;
+  }, [variantImages, baseImages]);
 
   const inStock = displayQuantity > 0;
   const stockStatus = inStock ? "In Stock" : "Out of Stock";
 
-  // Reusable description markup
   const descriptionBlock = (
-    <div className="mt-5">
-      <h2 className={`${TYPO.sectionTitle} mb-2`}>Description</h2>
+    <div className="mt-6">
+      <h2 className={`${TYPO.sectionTitle} mb-3`}>Description</h2>
       {description ? (
         <div
           className="prose prose-sm max-w-none text-foreground"
@@ -781,168 +801,158 @@ export default function Details(props: { params: Promise<Params> }) {
   );
 
   return (
-    <div className="w-full bg-background border-b-2 border-border py-1 md:py-3 px-3 md:px-8">
+    <div className="w-full border-b-2 border-border bg-background px-3 py-2 md:px-8 md:py-6">
       <ProductViewAnalytics productId={params._id} />
-      <div className="max-w-6xl mx-auto">
-        <>
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Left column: images + (desktop) description */}
-            <div className="md:w-1/2">
-              {Array.isArray(displayImages) && displayImages.length > 0 ? (
-                <>
-                  {brand?.name && (
-                    <Link
-                      href={`/brandStore?brandId=${_id}`}
-                      className={TYPO.muted}
-                    >
-                      visit <span className="text-primary">{brand?.name}</span>
-                    </Link>
-                  )}
-                  <DetailImages file={displayImages} />
-                </>
-              ) : (
-                <div className="w-full flex items-center justify-center bg-muted text-muted-foreground rounded p-6 text-sm">
-                  No images available
-                </div>
-              )}
-
-              {/* Desktop-only: description under the images */}
-              <div className="hidden md:block">{descriptionBlock}</div>
-            </div>
-
-            {/* Right column: product info */}
-            <div className="md:w-1/2 text-foreground">
-              <h1 className={`${TYPO.pageTitle} mb-2`}>{name}</h1>
-
-              <div className="flex items-baseline gap-3 mb-2">
-                <p className={TYPO.price}>
-                  {displayPrice > 0
-                    ? formatPrice(displayPrice)
-                    : "Price on request"}
-                </p>
-                {showListPrice && (
-                  <p className="text-sm text-muted-foreground line-through">
-                    {formatPrice(numericListPrice)}
-                  </p>
-                )}
-              </div>
-
-              <div
-                className={`text-sm font-medium mb-3 ${
-                  inStock
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-destructive"
-                }`}
-              >
-                {stockStatus}
-              </div>
-
-              {Array.isArray(variants) && variants.length > 0 && (
-                <VariantSelector
-                  product={product}
-                  themeKeys={themeKeys}
-                  themeValues={themeValues}
-                  selectedValues={selectedValues}
-                  onSelectValue={handleSelectValue}
-                />
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 w-full">
-                <CheckoutButton
-                  product={{
-                    _id,
-                    name,
-                    price: displayPrice,
-                  }}
-                  width="w-full"
-                >
-                  Checkout
-                </CheckoutButton>
-                <AddToCart
-                  product={{
-                    _id,
-                    name,
-                    image: displayImages[0] || "",
-                    price: displayPrice,
-                  }}
-                />
-              </div>
-
-              <CarrierShippingOptions
-                product={product}
-                userAddresses={userAddresses}
-              />
-
-              {/* Mobile-only: Key Features stay inline */}
-              {isMobile && (
-                <ProductAttributes product={product} variant="keyFeatures" />
-              )}
-
-              {shortDescription && (
-                <div className="my-4">
-                  <p className={TYPO.muted}>{shortDescription}</p>
-                </div>
-              )}
-
-              {/* Mobile-only: Specifications trigger — opens bottom sheet */}
-              {isMobile && (
-                <button
-                  type="button"
-                  onClick={() => setIsSpecsSheetOpen(true)}
-                  className="mt-3 w-full flex items-center justify-between text-foreground transition-colors"
-                >
-                  <span className={TYPO.sectionTitle}>Specifications</span>
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+      <div className="mx-auto max-w-6xl">
+        {/* Top: images + info */}
+        <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+          {/* Left column */}
+          <div className="md:w-1/2">
+            {displayImages.length > 0 ? (
+              <>
+                {brand?.name && (
+                  <Link
+                    href={`/brandStore?brandId=${_id}`}
+                    className={`mb-2 inline-block ${TYPO.muted} hover:text-primary`}
                   >
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
-                </button>
-              )}
+                    Visit{" "}
+                    <span className="font-medium text-primary">
+                      {brand.name}
+                    </span>
+                  </Link>
+                )}
+                <DetailImages file={displayImages} />
+              </>
+            ) : (
+              <div className="flex w-full items-center justify-center rounded-lg bg-muted p-6 text-sm text-muted-foreground">
+                No images available
+              </div>
+            )}
 
-              {/* Desktop: both sections inline */}
-              {!isMobile && (
-                <ProductAttributes product={product} variant="both" />
-              )}
+            <div className="hidden md:block">{descriptionBlock}</div>
+          </div>
 
-              {/* Mobile: specifications inside the bottom sheet */}
-              {isMobile && (
-                <BottomSheet
-                  open={isSpecsSheetOpen}
-                  onClose={() => setIsSpecsSheetOpen(false)}
-                  title="Specifications"
-                >
-                  <ProductAttributes
-                    product={product}
-                    variant="specifications"
-                  />
-                </BottomSheet>
+          {/* Right column */}
+          <div className="text-foreground md:w-1/2">
+            <h1 className={`${TYPO.pageTitle} mb-2`}>{name}</h1>
+
+            <div className="mb-2 flex items-baseline gap-3">
+              <p className={TYPO.price}>
+                {displayPrice > 0
+                  ? formatPrice(displayPrice)
+                  : "Price on request"}
+              </p>
+              {showListPrice && (
+                <p className="text-sm text-muted-foreground line-through">
+                  {formatPrice(numericListPrice)}
+                </p>
               )}
             </div>
-          </div>
-        </>
 
-        {/* Mobile-only: description stays below the columns */}
+            <div
+              className={`mb-4 text-sm font-medium ${
+                inStock
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-destructive"
+              }`}
+            >
+              {stockStatus}
+            </div>
+
+            {Array.isArray(variants) && variants.length > 0 && (
+              <VariantSelector
+                product={product}
+                themeKeys={themeKeys}
+                themeValues={themeValues}
+                selectedValues={selectedValues}
+                onSelectValue={handleSelectValue}
+              />
+            )}
+
+            <div className="mt-5 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+              <CheckoutButton
+                product={{ _id, name, price: displayPrice }}
+                width="w-full"
+              >
+                Checkout
+              </CheckoutButton>
+              <AddToCart
+                product={{
+                  _id,
+                  name,
+                  image: displayImages[0] || "",
+                  price: displayPrice,
+                }}
+              />
+            </div>
+
+            <CarrierShippingOptions
+              product={product}
+              userAddresses={userAddresses}
+            />
+
+            {isMobile && (
+              <ProductAttributes product={product} variant="keyFeatures" />
+            )}
+
+            {shortDescription && (
+              <div className="my-4">
+                <p className={TYPO.muted}>{shortDescription}</p>
+              </div>
+            )}
+
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setIsSpecsSheetOpen(true)}
+                className="mt-4 flex w-full items-center justify-between text-foreground transition-colors"
+              >
+                <span className={TYPO.sectionTitle}>Specifications</span>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            )}
+
+            {!isMobile && (
+              <ProductAttributes product={product} variant="both" />
+            )}
+
+            {isMobile && (
+              <BottomSheet
+                open={isSpecsSheetOpen}
+                onClose={() => setIsSpecsSheetOpen(false)}
+                title="Specifications"
+              >
+                <ProductAttributes product={product} variant="specifications" />
+              </BottomSheet>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile description */}
         <div className="md:hidden">{descriptionBlock}</div>
 
+        {/* Related menus */}
         {menusLoading ? (
-          <div className="mt-4 flex justify-center">
+          <div className="mt-8 flex justify-center">
             <Spinner size={24} />
           </div>
         ) : (
           <RelatedMenusRenderer menus={menus} />
         )}
 
-        <div className="mt-4 bg-background rounded">
-          <ExistingReviews reviews={product?.reviews} />
-        </div>
+        {/* Reviews */}
+        <ExistingReviews reviews={product?.reviews} />
       </div>
     </div>
   );

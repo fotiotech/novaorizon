@@ -15,6 +15,7 @@ import { toast } from "react-hot-toast";
 import { getCarriers, calculateShippingPrice } from "@/app/actions/carrier";
 import { findProducts } from "@/app/actions/products";
 import Spinner from "@/components/Spinner";
+import PaymentModal from "./component/PaymentModal";
 
 // ---------- Types ----------
 export type CalcShippingPrice = {
@@ -61,6 +62,11 @@ const CheckoutPage = () => {
   const [processingAction, setProcessingAction] = useState<
     "pay-now" | "cash-on-delivery" | null
   >(null);
+
+  // ---------- Payment modal state ----------
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [activePaymentMethod, setActivePaymentMethod] = useState<string>("");
+  const [activePaymentRef, setActivePaymentRef] = useState<string>("");
 
   // ---------- Carrier & shipping state ----------
   const [selectedCarrierId, setSelectedCarrierId] = useState<string>("");
@@ -365,6 +371,21 @@ const CheckoutPage = () => {
     };
   };
 
+  const selectedPaymentMethod = paymentMethods.find(
+    (pm: any) => pm._id?.toString() === selectedPaymentMethodId,
+  );
+
+  // Open the payment modal instead of routing away
+  const openPaymentModal = (method: string, ref: string) => {
+    setActivePaymentMethod(method);
+    setActivePaymentRef(ref);
+    setPaymentModalOpen(true);
+  };
+
+  const closePaymentModal = () => {
+    setPaymentModalOpen(false);
+  };
+
   // Handlers
   const handlePayNow = async () => {
     if (processingRef.current) return;
@@ -419,12 +440,8 @@ const CheckoutPage = () => {
         throw new Error(result.error || "Failed to create order");
       }
 
-      const paymentMethodParam = encodeURIComponent(
-        selectedPaymentMethod.methodType,
-      );
-      router.push(
-        `/checkout/payment?payment_ref=${finalOrderNumber}&paymentMethod=${paymentMethodParam}`,
-      );
+      // Open payment in modal instead of navigating away
+      openPaymentModal(selectedPaymentMethod.methodType, finalOrderNumber);
     } catch (error: any) {
       console.error("Pay Now error:", error.message || error);
       toast.error(error.message || "Failed to proceed to payment");
@@ -473,9 +490,9 @@ const CheckoutPage = () => {
       if (!result.success) {
         throw new Error(result.error || "Failed to create order");
       }
-      router.push(
-        `/checkout/payment?payment_ref=${finalOrderNumber}&paymentMethod=CashOnDelivery`,
-      );
+
+      // Open payment in modal instead of navigating away
+      openPaymentModal("CashOnDelivery", finalOrderNumber);
     } catch (error: any) {
       console.error("COD order error:", error.message || error);
       toast.error(error.message || "Failed to place order");
@@ -494,10 +511,6 @@ const CheckoutPage = () => {
       </div>
     );
   }
-
-  const selectedPaymentMethod = paymentMethods.find(
-    (pm: any) => pm._id?.toString() === selectedPaymentMethodId,
-  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -800,7 +813,7 @@ const CheckoutPage = () => {
                 </button>
               ) : (
                 <>
-                  {/* <button
+                  <button
                     type="button"
                     onClick={(event) => {
                       event.preventDefault();
@@ -820,7 +833,7 @@ const CheckoutPage = () => {
                     {processingAction === "pay-now"
                       ? "Processing..."
                       : "Pay Now"}
-                  </button> */}
+                  </button>
 
                   <button
                     type="button"
@@ -880,6 +893,14 @@ const CheckoutPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        onClose={closePaymentModal}
+        paymentMethod={activePaymentMethod}
+        paymentRef={activePaymentRef}
+      />
     </div>
   );
 };

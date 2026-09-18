@@ -1,4 +1,3 @@
-// components/ProductAttributes.tsx (storefront)
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -26,6 +25,34 @@ const renderValue = (value: any): string => {
   return String(value);
 };
 
+// ---------- Section title ----------
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => (
+  <h2 className="mb-3 text-lg font-semibold text-foreground">{children}</h2>
+);
+
+// ---------- Bordered 50/50 attribute table ----------
+const AttrTable: React.FC<{ items: { k: string; v: any }[] }> = ({ items }) => (
+  <table className="w-full border-collapse border border-border">
+    <tbody>
+      {items.map((item, i) => (
+        <tr key={i} className="border-b border-border last:border-b-0">
+          <th
+            scope="row"
+            className="w-1/2 border-r border-border bg-muted/50 px-3 py-2 text-left align-top text-sm font-medium capitalize text-foreground"
+          >
+            {item.k}
+          </th>
+          <td className="w-1/2 px-3 py-2 align-top text-sm text-foreground">
+            {renderValue(item.v)}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
+
 export default function ProductAttributes({
   product,
   variant = "both",
@@ -49,7 +76,6 @@ export default function ProductAttributes({
     const kf: any[] = [];
     const specs: any[] = [];
 
-    // Attribute codes are already camelCase in the DB.
     const readValue = (code: string) => product?.[code];
 
     const walk = (group: any): any => {
@@ -107,75 +133,45 @@ export default function ProductAttributes({
   if (!hasKeyFeatures && !hasSpecifications) return null;
 
   return (
-    <>
+    <div className="mt-6 space-y-6">
       {hasKeyFeatures && (
-        <div className="mt-4">
-          <h2 className="text-lg font-bold mb-2">Key Features</h2>
-          <ul className=" space-y-1">
-            {keyFeatures.map((item, i) => (
-              <li key={i}>
-                <strong>{item.k}:</strong> {renderValue(item.v)}
-              </li>
-            ))}
-          </ul>
+        <div>
+          <SectionTitle>Key features</SectionTitle>
+          <AttrTable items={keyFeatures} />
         </div>
       )}
 
       {hasSpecifications && (
-        <div className="mt-4">
-          {variant === "both" && (
-            <h2 className="text-lg font-bold mb-2">Specifications</h2>
-          )}
-          {specifications.map((group, idx) => (
-            <div key={idx} className="mb-4">
-              <h3 className="font-semibold text-neutral-600 mb-1">
-                {group.name}
-              </h3>
-              {group.attributes.length > 0 && (
-                <table className="min-w-full border-collapse border border-border">
-                  <tbody>
-                    {group.attributes.map((attr: any, i: number) => (
-                      <tr key={i} className="border-b border-border">
-                        <th className="py-1 text-left font-medium capitalize w-1/3 bg-muted/50">
-                          {attr.k}
-                        </th>
-                        <td className="py-1 px-3 text-foreground">
-                          {renderValue(attr.v)}
-                        </td>
-                      </tr>
+        <div>
+          {variant === "both" && <SectionTitle>Specifications</SectionTitle>}
+          <div className="space-y-5">
+            {specifications.map((group, idx) => (
+              <div key={idx}>
+                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.name}
+                </h3>
+
+                {group.attributes.length > 0 && (
+                  <AttrTable items={group.attributes} />
+                )}
+
+                {group.groups.length > 0 && (
+                  <div className="mt-3 space-y-4 border-l-2 border-border pl-4">
+                    {group.groups.map((sub: any, subIdx: number) => (
+                      <div key={subIdx}>
+                        <h4 className="mb-2 text-sm font-medium text-foreground">
+                          {sub.name}
+                        </h4>
+                        <AttrTable items={sub.attributes} />
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              )}
-              {group.groups.length > 0 && (
-                <div className="ml-4">
-                  {group.groups.map((sub: any, subIdx: number) => (
-                    <div key={subIdx} className="mb-3">
-                      <h4 className="font-medium text-neutral-600 mb-1">
-                        {sub.name}
-                      </h4>
-                      <table className="min-w-full border-collapse border border-border">
-                        <tbody>
-                          {sub.attributes.map((attr: any, i: number) => (
-                            <tr key={i} className="border-b border-border">
-                              <th className="py-1 text-left font-medium capitalize w-1/3 bg-muted/50">
-                                {attr.k}
-                              </th>
-                              <td className="py-1 px-3 text-foreground">
-                                {renderValue(attr.v)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useUserData } from "@/app/context/UserDataContext";
-import ProductReviews from "@/components/product/reviews/ProductReviews";
+import ProductReviews from "@/app/(products)/products/[slug]/[_id]/_compnents/reviews/ProductReviews";
 import { useSearchParams } from "next/navigation";
 
 export default function ProductReviewPage() {
