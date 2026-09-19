@@ -87,7 +87,6 @@ export default function ProductAttributes({
       const children: any[] = [];
 
       (group.attributes || []).forEach((attr: any) => {
-        if (attr.isHighlight) return;
         const value = readValue(attr.code);
         if (value === undefined || value === null || value === "") return;
         attrs.push({ k: attr.name || attr.code, v: value });
