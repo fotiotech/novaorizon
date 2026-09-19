@@ -189,6 +189,9 @@ const Header = () => {
   }, []);
 
   const navigationItems = useMemo(() => {
+    // Navbar is home-only; skip all work on every other route.
+    if (!isHomePage) return null;
+
     const itemsToRender =
       navItems.length > 0
         ? navItems
@@ -218,7 +221,7 @@ const Header = () => {
         </li>
       );
     });
-  }, [navItems, category, isTransparent]);
+  }, [navItems, category, isTransparent, isHomePage]);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((p) => !p), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
@@ -287,12 +290,12 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Navbar row */}
+          {/* Navbar row — visible only on home page after scrolling */}
           <div
             className={`w-full overflow-hidden transition-all duration-300 ${
-              isAtTop && isHomePage
-                ? "max-h-0 opacity-0"
-                : "max-h-16 opacity-100"
+              isHomePage && !isAtTop
+                ? "max-h-16 opacity-100"
+                : "max-h-0 opacity-0"
             }`}
           >
             <div className="overflow-x-auto scrollbar-none pb-1">

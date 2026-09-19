@@ -3,5 +3,5 @@ export default function CartRootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <div className="mt-10">{children}</div>;
+  return <div className="">{children}</div>;
 }

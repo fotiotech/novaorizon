@@ -62,7 +62,7 @@ const Profile = () => {
     <div className="min-h-screen bg-gray-50 pb-10">
       {/* Header */}
       <div className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className=" px-3 lg:px-10 py-4 flex justify-between items-center">
           <div className="font-semibold text-xl text-gray-800">Profile</div>
           <div className="flex items-center gap-4">
             <button
