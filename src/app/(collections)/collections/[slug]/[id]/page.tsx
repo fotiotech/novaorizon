@@ -1,13 +1,23 @@
 import { connection } from "@/utils/connection";
 import { Collection } from "@/models/Collection";
+
 import {
-  getModelForTargetType,
-  buildQueryFromRules,
-} from "@/lib/collection-helpers";
+  getTrendingItems,
+  getRecommendations,
+  getRecentlyViewed,
+  // getRelatedProducts, // uncomment once you want to resolve related here
+} from "@/app/actions/events";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import {
+  buildQueryFromRules,
+  getModelForTargetType,
+  normalizeItem,
+} from "@/app/lib/collection/collection-helpers";
 
 export const dynamic = "force-dynamic";
+
+const ITEM_LIMIT = 50;
 
 function slugify(text: string): string {
   return text
@@ -16,10 +26,6 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/**
- * Get the route prefix for a given target type.
- * You can adjust these to match your actual routing.
- */
 function getRoutePrefix(targetType: string): string {
   const map: Record<string, string> = {
     Product: "products",
@@ -32,43 +38,65 @@ function getRoutePrefix(targetType: string): string {
   return map[targetType] || "item";
 }
 
-/**
- * Resolve items from a collection based on its targetType and type (manual/rule).
- */
-async function resolveCollectionItems(collection: any) {
+async function resolveCollectionItems(
+  collection: any,
+  context?: { productId?: string },
+) {
   const targetType = collection.targetType;
+
+  // ---------- Recommendation ----------
+  if (collection.type === "recommendation") {
+    const limit = collection.recommendationLimit || 10;
+    let raw: any[] = [];
+    switch (collection.recommendationType) {
+      case "trending":
+        raw = await getTrendingItems(limit);
+        break;
+      case "personalized":
+        raw = await getRecommendations(limit);
+        break;
+      case "recentlyViewed":
+        raw = await getRecentlyViewed(limit);
+        break;
+      default:
+        raw = [];
+    }
+    return raw.map((item) => normalizeItem(item, "Product"));
+  }
+
+  // ---------- Related ----------
+  if (collection.type === "related") {
+    // Requires a product context — this page has none.
+    if (!context?.productId) return [];
+    // If you want to resolve related here, import getRelatedProducts
+    // and call it with context.productId.
+    return [];
+  }
+
+  // ---------- Rule / Manual ----------
   const Model = getModelForTargetType(targetType);
   if (!Model) return [];
 
-  let items: any[] = [];
+  let raw: any[] = [];
 
   if (collection.type === "manual") {
-    // Manual collection: items are stored as ObjectIds
-    if (collection.items && collection.items.length > 0) {
-      items = await (Model as any)
+    if (collection.items?.length > 0) {
+      raw = await (Model as any)
         .find({ _id: { $in: collection.items } })
+        .limit(ITEM_LIMIT)
         .lean();
     }
   } else {
-    // Rule-based collection – only Product and Collection support rules
+    // rule
     if (["Product", "Collection"].includes(targetType)) {
       const query = buildQueryFromRules(collection.rules, targetType);
       if (Object.keys(query).length > 0) {
-        items = await (Model as any).find(query).lean();
+        raw = await (Model as any).find(query).limit(ITEM_LIMIT).lean();
       }
     }
-    // For other target types, rules are not allowed (the form prevents it),
-    // so we return empty array.
   }
 
-  // Normalize items: extract name and image
-  return items.map((item: any) => ({
-    _id: item._id.toString(),
-    name: item.name || item.title || "Unnamed",
-    price: item.price || null,
-    image: item.images || null,
-    contentType: targetType,
-  }));
+  return raw.map((item) => normalizeItem(item, targetType));
 }
 
 export default async function CollectionDetailPage({
@@ -80,20 +108,28 @@ export default async function CollectionDetailPage({
 
   await connection();
 
-  const collection: any = await Collection.findById(id).lean();
+  const collection: any = await Collection.findOne({
+    _id: id,
+    status: "active",
+  }).lean();
+
   if (!collection) {
     notFound();
+  }
+
+  // Ensure the slug in the URL matches the collection name; redirect if not.
+  const canonicalSlug = slugify(collection.name);
+  if (slug !== canonicalSlug) {
+    redirect(`/collections/${canonicalSlug}/${id}`);
   }
 
   const items = await resolveCollectionItems(collection);
 
   const title = collection.name || "Collection";
   const description = collection.description || "";
-  const imageUrl = collection.imageUrl || "/placeholder.png";
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Collection header */}
       <div className="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4">
         {collection.imageUrl && (
           <div className="relative w-full md:w-48 h-48 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
@@ -114,7 +150,6 @@ export default async function CollectionDetailPage({
           <p className="text-sm text-muted-foreground mt-1">
             {items.length} item{items.length !== 1 ? "s" : ""}
           </p>
-          {/* Show target type for clarity */}
           <p className="text-xs text-muted-foreground mt-0.5">
             Type: {collection.targetType}
           </p>
@@ -131,6 +166,12 @@ export default async function CollectionDetailPage({
             const itemSlug = slugify(item.name);
             const routePrefix = getRoutePrefix(item.contentType);
             const link = `/${routePrefix}/${itemSlug}/${item._id}`;
+
+            const numericListPrice = Number(item.listPrice) || 0;
+            const showListPrice =
+              numericListPrice > 0 &&
+              item.price != null &&
+              numericListPrice > item.price;
 
             return (
               <Link
@@ -151,9 +192,19 @@ export default async function CollectionDetailPage({
                     {item.name}
                   </h2>
 
-                  <p className="font-semibold text-sm">{item?.price} F</p>
+                  {item.price != null && (
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <p className="font-semibold text-sm">
+                        {item.price.toLocaleString("en-US")} F
+                      </p>
+                      {showListPrice && (
+                        <p className="text-xs text-muted-foreground line-through">
+                          {numericListPrice.toLocaleString("en-US")} F
+                        </p>
+                      )}
+                    </div>
+                  )}
 
-                  {/* Show content type badge for non‑Product items */}
                   {item.contentType !== "Product" && (
                     <p className="text-xs text-muted-foreground mt-1">
                       {item.contentType}

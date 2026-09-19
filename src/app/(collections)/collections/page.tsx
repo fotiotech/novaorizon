@@ -4,7 +4,6 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-// Simple slugify for collection names
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -12,7 +11,6 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// Human‑readable target type label
 function getTargetTypeLabel(targetType: string): string {
   const map: Record<string, string> = {
     Category: "Category",
@@ -28,7 +26,7 @@ function getTargetTypeLabel(targetType: string): string {
 export default async function CollectionsPage() {
   await connection();
 
-  const collections = await Collection.find({})
+  const collections = await Collection.find({ status: "active" })
     .select("_id name description imageUrl targetType")
     .sort({ order: 1, createdAt: -1 })
     .lean();
@@ -59,7 +57,7 @@ export default async function CollectionsPage() {
             <Link
               key={collection._id}
               href={`/collections/${slug}/${collection._id}`}
-              className="group block bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+              className="group flex flex-col bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
             >
               <div className="relative aspect-square bg-gray-100">
                 <img
@@ -69,7 +67,7 @@ export default async function CollectionsPage() {
                   loading="lazy"
                 />
               </div>
-              <div className="p-3">
+              <div className="p-3 flex-1 flex flex-col">
                 <h2 className="text-sm font-medium text-foreground line-clamp-2 group-hover:underline">
                   {collection.name}
                 </h2>
@@ -78,8 +76,7 @@ export default async function CollectionsPage() {
                     {collection.description}
                   </p>
                 )}
-                {/* Target type badge */}
-                <span className="inline-block mt-2 text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
+                <span className="inline-block mt-auto pt-2 text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground self-start">
                   {getTargetTypeLabel(collection.targetType)}
                 </span>
               </div>
