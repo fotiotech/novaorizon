@@ -10,7 +10,7 @@ type Item = {
   image: string | null;
   price: number | null;
   listPrice?: number | null;
-  contentType: string; // "Product", "Collection", "Category", etc.
+  contentType?: string | null; // tolerate missing contentType
 };
 
 type Menu = {
@@ -43,6 +43,18 @@ type MenuRendererProps = {
   context?: any;
 };
 
+// ------------------------------------------------------------------
+// URL helpers
+// ------------------------------------------------------------------
+const CONTENT_TYPE_PATH: Record<string, string> = {
+  Product: "products",
+  Category: "categories",
+  Brand: "brands",
+  Collection: "collections",
+  Promotion: "promotions",
+  Page: "pages",
+};
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -50,6 +62,16 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function getItemHref(item: Item): string {
+  const segment =
+    CONTENT_TYPE_PATH[item.contentType ?? "Product"] ?? "products";
+  const slug = slugify(item.name || "");
+  return slug ? `/${segment}/${slug}/${item._id}` : `/${segment}/${item._id}`;
+}
+
+// ------------------------------------------------------------------
+// Price helpers
+// ------------------------------------------------------------------
 function formatPrice(value: any): string {
   if (value === undefined || value === null || value === "") return "";
   const n = typeof value === "number" ? value : Number(value);
@@ -57,10 +79,6 @@ function formatPrice(value: any): string {
   return `${n.toLocaleString("en-US")} F`;
 }
 
-/**
- * Return the first positive, finite numeric candidate.
- * Makes `listPrice` reachable when `price` is 0/missing.
- */
 function pickPrice(...candidates: any[]): number {
   for (const c of candidates) {
     if (c === undefined || c === null || c === "") continue;
@@ -70,27 +88,33 @@ function pickPrice(...candidates: any[]): number {
   return 0;
 }
 
+// ------------------------------------------------------------------
+// Root
+// ------------------------------------------------------------------
 export default async function MenuRenderer({
   location,
   className = "",
   depth = 0,
   context,
 }: MenuRendererProps) {
-  const { success, data, error } = await getMenusByLocation(location, context);
+  const result = await getMenusByLocation(location, context);
 
-  if (!success || !data || data.length === 0) {
+  if (!result.success || !result.data || result.data.length === 0) {
     return <div className="text-gray-500 p-4 text-center" />;
   }
 
   return (
     <div className={`menu-location-${location} ${className}`}>
-      {data.map((menu: Menu) => (
+      {result.data.map((menu: Menu) => (
         <MenuNode key={menu._id} menu={menu} depth={depth} />
       ))}
     </div>
   );
 }
 
+// ------------------------------------------------------------------
+// Node
+// ------------------------------------------------------------------
 function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
   const {
     name,
@@ -101,7 +125,6 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
     display,
     position,
     columns = 4,
-    maxDepth = 5,
     showImages = false,
     backgroundColor,
     backgroundImage,
@@ -110,17 +133,9 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
     items = [],
   } = menu;
 
-  if (depth > maxDepth) return null;
-
   const style: React.CSSProperties = {};
   if (backgroundColor) style.backgroundColor = backgroundColor;
   if (backgroundImage) style.backgroundImage = `url(${backgroundImage})`;
-
-  const getItemHref = (item: Item) => {
-    const slug = slugify(item.name);
-    const prefix = item.contentType.toLowerCase() + "s";
-    return `/${prefix}/${slug}/${item._id}`;
-  };
 
   const renderFallback = () => {
     if (link) {
@@ -137,7 +152,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
   };
 
   const getGridCols = () => {
-    const cols = Math.min(columns || 4, 6);
+    const cols = Math.min(Number(columns) || 4, 6);
     if (cols === 1) return "grid-cols-1";
     const colMap: Record<number, string> = {
       2: "grid-cols-2",
@@ -150,9 +165,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
   };
 
   const renderContent = () => {
-    const hasItems = items && items.length > 0;
-
-    if (!hasItems) {
+    if (!items || items.length === 0) {
       return renderFallback();
     }
 
@@ -168,7 +181,6 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
 
               return (
                 <li key={item._id}>
-                  {/* Whole row is a link */}
                   <Link
                     href={getItemHref(item)}
                     className="flex items-center gap-3 rounded p-1 -m-1 hover:bg-muted/40 transition-colors"
@@ -213,7 +225,6 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
                 numericListPrice > displayPrice && displayPrice > 0;
 
               return (
-                /* Whole card is a link */
                 <Link
                   key={item._id}
                   href={getItemHref(item)}
@@ -257,7 +268,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
               image: item.image,
               price: item.price,
               listPrice: item.listPrice,
-              contentType: item.contentType, // ✅ passes contentType
+              contentType: item.contentType ?? "Product",
             }))}
             showImages={showImages}
           />
@@ -266,7 +277,10 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
       case "Dropdown":
         return (
           <div className="menu-dropdown relative group inline-block">
-            <button className="dropdown-trigger px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition w-full sm:w-auto">
+            <button
+              type="button"
+              className="dropdown-trigger px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition w-full sm:w-auto"
+            >
               {name}
             </button>
             <div className="dropdown-content absolute left-0 mt-1 hidden group-hover:block group-focus-within:block bg-white shadow-lg rounded p-2 min-w-[150px] z-10 w-full sm:w-auto">
@@ -292,7 +306,6 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
             }`}
           >
             {items.map((item) => (
-              /* Whole card is a link */
               <Link
                 key={item._id}
                 href={getItemHref(item)}

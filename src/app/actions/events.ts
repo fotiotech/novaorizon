@@ -16,6 +16,17 @@ interface TrackEventParams {
   metadata?: Record<string, any>;
 }
 
+// ─── Helper: normalize a userId to an ObjectId when possible ──
+// Aggregations do NOT auto-cast, so we must cast explicitly.
+function toObjectIdOrRaw(value: any): any {
+  if (value === null || value === undefined) return value;
+  if (value instanceof mongoose.Types.ObjectId) return value;
+  if (typeof value === "string" && mongoose.Types.ObjectId.isValid(value)) {
+    return new mongoose.Types.ObjectId(value);
+  }
+  return value;
+}
+
 // ─── 1. Track any event (userId resolved server-side) ──
 
 export async function trackEvent(params: TrackEventParams) {
@@ -23,7 +34,9 @@ export async function trackEvent(params: TrackEventParams) {
   const { itemId, eventType, sessionId, metadata } = params;
   const userId = await getCurrentUserId();
 
-  console.log(await Event.find().sort({ timestamp: -1 }).limit(10));
+  if (!mongoose.Types.ObjectId.isValid(itemId)) {
+    throw new Error(`Invalid itemId: ${itemId}`);
+  }
 
   const scoreMap: Record<EventType, number> = {
     view: 1,
@@ -51,19 +64,13 @@ export async function trackEvent(params: TrackEventParams) {
 
 export async function getRecommendations(limit: number = 10) {
   await connection();
-  const userId = await getCurrentUserId();
+  const userId = toObjectIdOrRaw(await getCurrentUserId());
 
-  console.log(`[getRecommendations] userId: ${userId}`);
-
-  // 1. Count user interactions
+  // 1. Collect the user's interacted item ids
   const userInteractions = await Event.find({ userId }).select("itemId").lean();
-  const interactedIds = userInteractions.map((i) => i.itemId);
-  console.log(
-    `[getRecommendations] User has ${interactedIds.length} interactions`,
-  );
+  const interactedIds = userInteractions.map((i) => i.itemId).filter(Boolean);
 
   if (interactedIds.length === 0) {
-    console.log("[getRecommendations] No interactions, returning trending");
     return getTrendingItems(limit);
   }
 
@@ -98,19 +105,14 @@ export async function getRecommendations(limit: number = 10) {
       },
     },
     { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
-    { $match: { product: { $ne: null } } }, // Only keep products that exist
+    { $match: { product: { $ne: null }, "product.status": "active" } },
     { $replaceRoot: { newRoot: "$product" } },
   ]);
 
-  console.log(
-    `[getRecommendations] Found ${recommendations.length} recommendations`,
-  );
   return recommendations;
 }
 
 // ─── 3. Trending (fallback) ────────────────────────────
-
-// app/actions/events.ts – updated getTrendingItems
 
 export async function getTrendingItems(limit: number = 10) {
   await connection();
@@ -146,48 +148,65 @@ export async function getTrendingItems(limit: number = 10) {
       },
     },
     { $unwind: "$product" },
+    // Only surface active products
+    { $match: { "product.status": "active" } },
     { $replaceRoot: { newRoot: "$product" } },
   ]);
 
-  // 🔥 If no trending products, fallback to recently added products
+  // 🔥 If no trending products, fallback to recently added active products
   if (trending.length === 0) {
-    console.log(
-      "[getTrendingItems] No trending events, returning recent products",
-    );
-    return Product.find().sort({ createdAt: -1 }).limit(limit).lean();
+    return Product.find({ status: "active" })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
   }
 
   return trending;
 }
 
-// ─── 4. Recently viewed ─────────────────────────────────
+// ─── 4. Recently viewed (deduped by item, most recent first) ─────────
 
 export async function getRecentlyViewed(limit: number = 5) {
   await connection();
-  const userId = await getCurrentUserId();
+  const userId = toObjectIdOrRaw(await getCurrentUserId());
 
   return Event.aggregate([
     { $match: { userId, eventType: "view" } },
     { $sort: { timestamp: -1 } },
+    // Collapse repeated views of the same item so they don't consume slots.
+    {
+      $group: {
+        _id: "$itemId",
+        lastViewedAt: { $first: "$timestamp" },
+      },
+    },
+    { $sort: { lastViewedAt: -1 } },
     { $limit: limit },
     {
       $lookup: {
         from: "products",
-        localField: "itemId",
+        localField: "_id",
         foreignField: "_id",
         as: "product",
       },
     },
     { $unwind: "$product" },
+    { $match: { "product.status": "active" } },
     { $replaceRoot: { newRoot: "$product" } },
   ]);
 }
 
+// ─── 5. Merge guest events on login ────────────────────
+
 export async function mergeGuestEvents(guestId: string, newUserId: string) {
   await connection();
-  await Event.updateMany({ userId: guestId }, { $set: { userId: newUserId } });
-  // Optionally, you can also delete the guest events or leave them – your call.
+  await Event.updateMany(
+    { userId: toObjectIdOrRaw(guestId) },
+    { $set: { userId: toObjectIdOrRaw(newUserId) } },
+  );
 }
+
+// ─── 6. Related products (manual relations + fallback) ──
 
 export async function getRelatedProducts(
   productId: string,
@@ -203,34 +222,41 @@ export async function getRelatedProducts(
     .lean();
   if (!product) return [];
 
-  const normalizedProduct = {
-    ...product,
-    relatedProducts: product.relatedProducts ?? product.related_products ?? [],
-    categoryId: product.categoryId ?? product.category_id ?? null,
-    brand: product.brand ?? product.brand_id ?? null,
-  };
+  // Product.relatedProducts is IRelatedProduct[] = { product: ObjectId, relationshipType?: string }[]
+  // Extract only the ObjectId refs (with defensive fallbacks for legacy shapes).
+  const relatedRefs: any[] = Array.isArray(product.relatedProducts)
+    ? product.relatedProducts
+    : [];
 
-  let relatedIds = normalizedProduct.relatedProducts || [];
-
-  if (Array.isArray(relatedIds) && relatedIds.length > 0) {
-    if (typeof relatedIds[0] === "object" && relatedIds[0].id) {
-      relatedIds = relatedIds.map((r: any) => r.id);
-    }
-  }
+  const relatedIds: mongoose.Types.ObjectId[] = relatedRefs
+    .map((r: any) => {
+      if (!r) return null;
+      if (typeof r === "string") return r;
+      if (r.product) return r.product; // current schema shape
+      if (r.id) return r.id; // legacy
+      if (r._id) return r._id; // legacy
+      return null;
+    })
+    .filter((id: any) => id && mongoose.Types.ObjectId.isValid(id))
+    .map((id: any) => new mongoose.Types.ObjectId(id));
 
   let products: any[] = [];
 
-  // If manual relations exist, use them
+  // 1. Prefer manually configured relations
   if (relatedIds.length > 0) {
-    products = await Product.find({ _id: { $in: relatedIds } })
+    products = await Product.find({
+      _id: { $in: relatedIds },
+      status: "active",
+    })
       .limit(limit)
       .lean();
   }
 
-  // Fallback: if no related products, use same category or brand
+  // 2. Fallback: same category, then same brand
   if (products.length === 0) {
     const fallbackQuery: any = {
       _id: { $ne: new mongoose.Types.ObjectId(productId) },
+      status: "active",
     };
     if (product.categoryId) {
       fallbackQuery.categoryId = product.categoryId;

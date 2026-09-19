@@ -143,28 +143,30 @@ export async function getCollectionsWithProducts() {
           matchingItems = await (Model as any).find(query).limit(50).lean();
         }
       } else if (collection.type === "recommendation") {
-        // 👇 Dynamically resolve recommendation items
         const limit = collection.recommendationLimit || 10;
+        let raw: any[] = [];
         switch (collection.recommendationType) {
           case "trending":
-            matchingItems = await getTrendingItems(limit);
+            raw = await getTrendingItems(limit);
             break;
           case "personalized":
-            matchingItems = await getRecommendations(limit);
+            raw = await getRecommendations(limit);
             break;
           case "recentlyViewed":
-            matchingItems = await getRecentlyViewed(limit);
+            raw = await getRecentlyViewed(limit);
             break;
           default:
-            matchingItems = [];
+            raw = [];
         }
-        // Normalize for consistency (all recommendation functions return Product docs)
-        matchingItems = matchingItems.map((item: any) => ({
-          _id: item._id,
-          title: item.title || item.name || "Unnamed",
-          image: item.mainImage || item.image || item.imageUrl || null,
+        matchingItems = raw.map((item: any) => ({
+          _id: item._id.toString(),
+          name: item.name || item.title || "Unnamed",
+          image: Array.isArray(item.images)
+            ? item.images[0] || null
+            : item.mainImage || item.image || item.imageUrl || null,
+          price: item.price ?? null,
+          listPrice: item.listPrice ?? null,
           contentType: "Product",
-          // keep other product fields as needed
         }));
       } else if (collection.type === "related") {
         // Related collections require a product context and cannot be previewed globally.
