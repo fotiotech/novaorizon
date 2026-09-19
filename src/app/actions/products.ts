@@ -30,6 +30,15 @@ function toPlain(value: any): any {
   return value;
 }
 
+/** Convert a populated ref (doc or id) into `{ _id, name } | null`. */
+function toRef(value: any): { _id: string; name: string } | null {
+  if (!value) return null;
+  if (typeof value === "object" && value.name !== undefined) {
+    return { _id: String(value._id ?? ""), name: String(value.name ?? "") };
+  }
+  return null;
+}
+
 export async function findProductByCategory(
   id: string | string[],
 ): Promise<any> {
@@ -39,79 +48,32 @@ export async function findProductByCategory(
     const rawIds = Array.isArray(id) ? id : [id];
     const ids = rawIds.map((v) => String(v ?? "")).filter(Boolean);
 
-    if (ids.length === 0) {
-      console.log("[findProductByCategory] no ids provided");
-      return [];
-    }
+    if (ids.length === 0) return [];
 
     const objectIds = ids
       .filter((v) => mongoose.Types.ObjectId.isValid(v))
       .map((v) => new mongoose.Types.ObjectId(v));
 
-    // -------- Attempt 1: ObjectId match (normal case) --------
     let products: any[] = await Product.find({
       categoryId: { $in: objectIds },
     })
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log("[findProductByCategory] objectId query", {
-      requested: ids,
-      objectIds: objectIds.map(String),
-      matched: products.length,
-    });
-
-    // -------- Attempt 2: string-stored categoryId --------
     if (products.length === 0) {
       products = await Product.find({
         categoryId: { $in: ids as any },
       })
         .sort({ createdAt: -1 })
         .lean();
-
-      console.log("[findProductByCategory] string query", {
-        matched: products.length,
-      });
     }
 
-    // -------- Attempt 3: raw collection (bypass Mongoose casting) --------
     if (products.length === 0) {
       const raw = await Product.collection
         .find({ categoryId: { $in: ids } })
         .limit(200)
         .toArray();
       products = raw as any[];
-
-      console.log("[findProductByCategory] raw collection query", {
-        matched: products.length,
-      });
-    }
-
-    // -------- Diagnostics: what DOES exist in the DB? --------
-    if (products.length === 0) {
-      const totalProducts = await Product.estimatedDocumentCount();
-      const sample = await Product.find({}, "categoryId name").limit(5).lean();
-
-      // Show how many products reference each of the requested ids
-      const foundIds = new Set<string>();
-      const allCategoryRefs = await Product.distinct("categoryId");
-      for (const ref of allCategoryRefs) {
-        foundIds.add(String(ref));
-      }
-
-      console.log("[findProductByCategory] DIAGNOSTICS", {
-        totalProducts,
-        requested: ids,
-        requestedAreValidObjectIds: ids.map((v) =>
-          mongoose.Types.ObjectId.isValid(v),
-        ),
-        sampleOfProductsInDb: sample.map((p: any) => ({
-          name: p.name,
-          categoryId: String(p.categoryId),
-        })),
-        sampleOfCategoryIdsInDb: Array.from(foundIds).slice(0, 10),
-        requestedIdsPresentInDb: ids.filter((v) => foundIds.has(v)),
-      });
     }
 
     return toPlain(products);
@@ -128,35 +90,16 @@ export async function findProducts(id?: string): Promise<any> {
     await connection();
 
     if (id) {
-      const product = await Product.findById(id).lean().exec();
+      // Single product — populate refs in one round-trip.
+      const product: any = await Product.findById(id)
+        .populate("brand", "name")
+        .populate("categoryId", "name")
+        .lean()
+        .exec();
+
       if (!product) return { success: false, error: "Product not found" };
 
-      let brand: any = null;
-      if (product.brand) {
-        try {
-          const b: any = await Brand.findById(product.brand)
-            .select("name")
-            .lean()
-            .exec();
-          if (b) brand = { _id: b._id.toString(), name: b.name };
-        } catch {
-          /* ignore */
-        }
-      }
-
-      let category: any = null;
-      if (product.categoryId) {
-        try {
-          const c: any = await Category.findById(product.categoryId)
-            .select("name")
-            .lean()
-            .exec();
-          if (c) category = { _id: c._id.toString(), name: c.name };
-        } catch {
-          /* ignore */
-        }
-      }
-
+      // Related products — one batched lookup instead of N.
       let relatedProducts: any[] = [];
       if (
         Array.isArray(product.relatedProducts) &&
@@ -168,15 +111,18 @@ export async function findProducts(id?: string): Promise<any> {
             (rid: any) =>
               rid && mongoose.Types.ObjectId.isValid(rid.toString()),
           );
+
         if (ids.length > 0) {
           try {
             const relatedDocs = await Product.find({ _id: { $in: ids } })
               .select("name price images slug")
               .lean()
               .exec();
+
             const docMap = new Map(
               relatedDocs.map((d) => [d._id.toString(), d]),
             );
+
             relatedProducts = product.relatedProducts
               .map((rp: any) => {
                 const doc = rp.product
@@ -205,54 +151,30 @@ export async function findProducts(id?: string): Promise<any> {
       return toPlain({
         ...product,
         _id: product._id.toString(),
-        brand,
-        categoryId: category,
+        brand: toRef(product.brand),
+        categoryId: toRef(product.categoryId),
         relatedProducts,
       });
     }
 
-    // List
-    const products = await Product.find().sort({ createdAt: -1 }).lean().exec();
+    // List — same pattern, populate inline instead of per-row queries.
+    const products: any[] = await Product.find()
+      .sort({ createdAt: -1 })
+      .populate("brand", "name")
+      .populate("categoryId", "name")
+      .lean()
+      .exec();
+
     if (!products || products.length === 0) return [];
 
-    const results = await Promise.all(
-      products.map(async (p) => {
-        let brand: any = null;
-        let category: any = null;
-
-        if (p.brand) {
-          try {
-            const b: any = await Brand.findById(p.brand)
-              .select("name")
-              .lean()
-              .exec();
-            if (b) brand = { _id: b._id.toString(), name: b.name };
-          } catch {
-            /* ignore */
-          }
-        }
-        if (p.categoryId) {
-          try {
-            const c: any = await Category.findById(p.categoryId)
-              .select("name")
-              .lean()
-              .exec();
-            if (c) category = { _id: c._id.toString(), name: c.name };
-          } catch {
-            /* ignore */
-          }
-        }
-
-        return toPlain({
-          ...p,
-          _id: p._id.toString(),
-          brand,
-          categoryId: category,
-        });
+    return products.map((p) =>
+      toPlain({
+        ...p,
+        _id: p._id.toString(),
+        brand: toRef(p.brand),
+        categoryId: toRef(p.categoryId),
       }),
     );
-
-    return results;
   } catch (error: any) {
     console.error("[findProducts] Error:", error);
     return {
@@ -273,6 +195,19 @@ export async function findProductsForSitemap() {
 }
 
 export async function deleteProduct(id: string) {
-  await connection();
-  await Product.findByIdAndDelete(id);
+  try {
+    await connection();
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return { success: false, error: "Invalid product id" };
+    }
+    const removed = await Product.findByIdAndDelete(id);
+    if (!removed) return { success: false, error: "Product not found" };
+    return { success: true };
+  } catch (e: any) {
+    console.error("[deleteProduct] Error:", e);
+    return {
+      success: false,
+      error: e?.message || "Failed to delete product",
+    };
+  }
 }

@@ -97,6 +97,7 @@ interface MappedAttribute {
   type: string;
   options: string[];
   isRequired: boolean;
+  isHighlight: boolean;
   unitFamily: AttributeUnitFamily | null;
   sortOrder: number;
 }
@@ -115,18 +116,28 @@ interface AttributeSetResult {
   id: string;
   title: string;
   code: string;
+  sortOrder: number;
   groups: GroupNode[];
 }
 
 // ==================================================================
 // CORE BUILDER — same logic as admin, coercion-safe
+//
+// Each mapped attribute carries two flags:
+//   isRequired  — from the property editor
+//   isHighlight — from the property editor, drives Key Features on
+//                 the storefront (see ProductAttributes.tsx)
 // ==================================================================
 async function buildAttributeSetsFromMappings(
   mappings: {
     set: string;
     groups: {
       group: string;
-      attributes: { attribute: string; isRequired: boolean }[];
+      attributes: {
+        attribute: string;
+        isRequired?: boolean;
+        isHighlight?: boolean;
+      }[];
     }[];
   }[],
 ): Promise<AttributeSetResult[]> {
@@ -149,8 +160,9 @@ async function buildAttributeSetsFromMappings(
         ? await AttributeGroup.find({ _id: { $in: groupIds } }).lean()
         : [];
 
-    // ---- Collect attribute IDs from the mapping ----
+    // ---- Collect attribute IDs + flags from the mapping ----
     const attrRequiredMap = new Map<string, boolean>();
+    const attrHighlightMap = new Map<string, boolean>();
     const groupAttrIds = new Map<string, string[]>(); // groupId -> [attrId]
     const selectedGroupIds = new Set<string>();
 
@@ -164,6 +176,7 @@ async function buildAttributeSetsFromMappings(
         const attrId = coerceId((am as any).attribute);
         if (!isValidId(attrId)) continue;
         attrRequiredMap.set(attrId, !!(am as any).isRequired);
+        attrHighlightMap.set(attrId, !!(am as any).isHighlight);
         attrList.push(attrId);
       }
       groupAttrIds.set(groupId, attrList);
@@ -212,6 +225,7 @@ async function buildAttributeSetsFromMappings(
                   ? doc.option.map((o: any) => String(o))
                   : [],
                 isRequired: attrRequiredMap.get(attrId) ?? false,
+                isHighlight: attrHighlightMap.get(attrId) ?? false,
                 unitFamily: doc.unitFamily
                   ? {
                       id: coerceId(doc.unitFamily._id),
@@ -241,9 +255,14 @@ async function buildAttributeSetsFromMappings(
       id: coerceId(set._id),
       title: String(set.title ?? ""),
       code: String(set.code ?? ""),
+      sortOrder: typeof set.sortOrder === "number" ? set.sortOrder : 0,
       groups: buildTree(null),
     });
   }
+
+  // Sort ascending by the set's sortOrder. Sets without a value (or
+  // with 0) float to the top, matching the AttributeSet schema default.
+  result.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
   return result;
 }
@@ -291,12 +310,24 @@ async function collectAncestorProperties(categoryId: string): Promise<{
     _id: { $in: propertyIds },
   }).lean();
 
-  // Merge mappings from ancestors, child overrides parent
+  // Merge mappings from ancestors, child overrides parent.
+  // The attribute entry now carries both flags so `isHighlight` also
+  // inherits — a parent highlighting an attribute will highlight it
+  // in the child unless the child explicitly clears the flag.
   const combinedMap = new Map<
     string,
     {
       set: string;
-      groups: Map<string, { group: string; attributes: Map<string, boolean> }>;
+      groups: Map<
+        string,
+        {
+          group: string;
+          attributes: Map<
+            string,
+            { isRequired: boolean; isHighlight: boolean }
+          >;
+        }
+      >;
     }
   >();
 
@@ -322,7 +353,10 @@ async function collectAncestorProperties(categoryId: string): Promise<{
         for (const am of gm.attributes || []) {
           const attrKey = coerceId(am.attribute);
           if (!isValidId(attrKey)) continue;
-          groupData.attributes.set(attrKey, !!am.isRequired);
+          groupData.attributes.set(attrKey, {
+            isRequired: !!(am as any).isRequired,
+            isHighlight: !!(am as any).isHighlight,
+          });
         }
       }
     }
@@ -333,7 +367,11 @@ async function collectAncestorProperties(categoryId: string): Promise<{
     groups: Array.from(setData.groups.values()).map((groupData) => ({
       group: groupData.group,
       attributes: Array.from(groupData.attributes.entries()).map(
-        ([attr, isRequired]) => ({ attribute: attr, isRequired }),
+        ([attr, flags]) => ({
+          attribute: attr,
+          isRequired: flags.isRequired,
+          isHighlight: flags.isHighlight,
+        }),
       ),
     })),
   }));
@@ -368,37 +406,32 @@ async function ensureCategoryPropertyFromMappings(
   const propertyName = `${category.name} (Inherited)`;
   const propertyDescription = `Auto-generated inherited property for ${category.name}`;
 
+  // Both flags flow through to the persisted inherited property.
+  const preparedMappings = mappings.map((m) => ({
+    set: new mongoose.Types.ObjectId(m.set),
+    groups: m.groups.map((g: any) => ({
+      group: new mongoose.Types.ObjectId(g.group),
+      attributes: g.attributes.map((a: any) => ({
+        attribute: new mongoose.Types.ObjectId(a.attribute),
+        isRequired: !!a.isRequired,
+        isHighlight: !!a.isHighlight,
+      })),
+    })),
+  }));
+
   let property = await CategoryProperty.findOne({ code: baseCode });
 
   if (property) {
     property.name = propertyName;
     property.description = propertyDescription;
-    property.mappings = mappings.map((m) => ({
-      set: new mongoose.Types.ObjectId(m.set),
-      groups: m.groups.map((g: any) => ({
-        group: new mongoose.Types.ObjectId(g.group),
-        attributes: g.attributes.map((a: any) => ({
-          attribute: new mongoose.Types.ObjectId(a.attribute),
-          isRequired: a.isRequired,
-        })),
-      })),
-    }));
+    property.mappings = preparedMappings as any;
     await property.save();
   } else {
     property = new CategoryProperty({
       code: baseCode,
       name: propertyName,
       description: propertyDescription,
-      mappings: mappings.map((m) => ({
-        set: new mongoose.Types.ObjectId(m.set),
-        groups: m.groups.map((g: any) => ({
-          group: new mongoose.Types.ObjectId(g.group),
-          attributes: g.attributes.map((a: any) => ({
-            attribute: new mongoose.Types.ObjectId(a.attribute),
-            isRequired: a.isRequired,
-          })),
-        })),
-      })),
+      mappings: preparedMappings as any,
     });
     await property.save();
   }

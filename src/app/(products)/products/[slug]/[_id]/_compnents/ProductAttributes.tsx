@@ -73,48 +73,66 @@ export default function ProductAttributes({
   }, [categoryId]);
 
   const { keyFeatures, specifications } = useMemo(() => {
-    const kf: any[] = [];
+    const kf: { k: string; v: any }[] = [];
     const specs: any[] = [];
 
+    // Codes are camelCase in the DB — direct lookup, no conversion.
     const readValue = (code: string) => product?.[code];
 
-    const walk = (group: any): any => {
+    // ---- Specifications: attributes inside the `specifications` set.
+    //      Skips any attribute flagged `isHighlight` so it doesn't
+    //      duplicate into Specifications after appearing in Key Features.
+    const walkSpecs = (group: any): any => {
       const attrs: any[] = [];
       const children: any[] = [];
 
       (group.attributes || []).forEach((attr: any) => {
+        if (attr.isHighlight) return;
         const value = readValue(attr.code);
         if (value === undefined || value === null || value === "") return;
         attrs.push({ k: attr.name || attr.code, v: value });
       });
 
       (group.children || []).forEach((c: any) => {
-        const r = walk(c);
+        const r = walkSpecs(c);
         if (r.attributes.length || r.groups.length) children.push(r);
       });
 
       return { name: group.name, attributes: attrs, groups: children };
     };
 
-    for (const set of sets) {
-      const setCode = String(set.code || "");
+    // ---- Key Features: every attribute with `isHighlight: true`,
+    //      from any set / any group / any depth. Deduped by code.
+    const seenKeyFeatureCodes = new Set<string>();
 
-      if (setCode === "keyFeatures") {
+    const collectHighlighted = (group: any) => {
+      (group.attributes || []).forEach((attr: any) => {
+        if (!attr.isHighlight) return;
+        const code = String(attr.code || "");
+        if (!code || seenKeyFeatureCodes.has(code)) return;
+
+        const value = readValue(code);
+        if (value === undefined || value === null || value === "") return;
+
+        seenKeyFeatureCodes.add(code);
+        kf.push({ k: attr.name || code, v: value });
+      });
+      (group.children || []).forEach(collectHighlighted);
+    };
+
+    for (const set of sets) {
+      // Key features come from highlighted attributes across every set.
+      for (const group of set.groups || []) {
+        collectHighlighted(group);
+      }
+
+      // Specifications still come from the dedicated `specifications` set.
+      if (String(set.code || "") === "specifications") {
         for (const group of set.groups || []) {
-          const collect = (g: any) => {
-            (g.attributes || []).forEach((a: any) => {
-              const v = readValue(a.code);
-              if (v !== undefined && v !== null && v !== "")
-                kf.push({ k: a.name || a.code, v });
-            });
-            (g.children || []).forEach(collect);
-          };
-          collect(group);
-        }
-      } else if (setCode === "specifications") {
-        for (const group of set.groups || []) {
-          const built = walk(group);
-          if (built.attributes.length || built.groups.length) specs.push(built);
+          const built = walkSpecs(group);
+          if (built.attributes.length || built.groups.length) {
+            specs.push(built);
+          }
         }
       }
     }

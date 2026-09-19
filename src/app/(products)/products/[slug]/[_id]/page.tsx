@@ -120,15 +120,16 @@ const RESERVED_VARIANT_KEYS = new Set<string>([
   "__v",
 ]);
 
-const toCamel = (code: string): string =>
-  code.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-
+/**
+ * Theme keys come straight from `product.variantThemes`.
+ * Codes are camelCase in the DB — no conversion needed.
+ */
 function getThemeKeys(product: any, variant: any): string[] {
   const declared = Array.isArray(product?.variantThemes)
     ? product.variantThemes
     : [];
   if (declared.length > 0) {
-    return declared.map((c: string) => toCamel(String(c))).filter(Boolean);
+    return declared.map((c: any) => String(c)).filter(Boolean);
   }
   if (!variant || typeof variant !== "object") return [];
   return Object.keys(variant).filter((k) => !RESERVED_VARIANT_KEYS.has(k));
