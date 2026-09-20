@@ -236,11 +236,11 @@ export default function BrandStoreContent() {
       {/* Brand header */}
       <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="h-14 w-14 flex-none overflow-hidden rounded-full border border-border bg-background shadow-sm sm:h-16 sm:w-16">
+          <div className="h-14 w-14 aspect-square flex-none overflow-hidden rounded-full border border-border bg-background shadow-sm sm:h-16 sm:w-16">
             {loading.brand ? (
               <div className="h-full w-full animate-pulse bg-muted" />
             ) : brand?.logoUrl ? (
-              <ImageRenderer image={brand.logoUrl} />
+              <ImageRenderer image={brand.logoUrl} className="" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                 <Storefront fontSize="small" />
