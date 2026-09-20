@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Menu, Person, Search, ShoppingCart } from "@mui/icons-material";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Category } from "@/constant/types";
 import { useCart } from "@/app/context/CartContext";
 import { getCategory } from "@/app/actions/category";
@@ -18,22 +18,19 @@ import DesktopSearchBar from "./ui/DesktopSearchBar";
 
 // ---------- Logo sources ----------
 const LOGO_DARK = "/logoc1.png";
-const LOGO_LIGHT = "/logo2.png";
 
 // ---------- UserProfile ----------
-const UserProfile = React.memo(({ light = false }: { light?: boolean }) => {
+const UserProfile = React.memo(() => {
   const session = useSession();
   const unreadCount = useUnreadMessages();
   const user = session?.data?.user as any;
 
   if (!user) return <SignIn />;
 
-  const textClass = light ? "text-white drop-shadow" : "text-foreground";
-
   return (
     <Link
       href="/profile"
-      className={`flex items-center gap-1.5 rounded-md text-sm ${textClass} transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring`}
+      className="flex items-center gap-1.5 rounded-md text-sm text-foreground transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
       aria-label="Profile"
     >
       <span className="font-semibold hidden sm:inline">{user?.name}</span>
@@ -48,7 +45,7 @@ const UserProfile = React.memo(({ light = false }: { light?: boolean }) => {
         )}
         <Person
           style={{ fontSize: 28 }}
-          className={`${textClass} transition-transform hover:scale-110`}
+          className="text-foreground transition-transform hover:scale-110"
         />
       </div>
     </Link>
@@ -58,10 +55,9 @@ const UserProfile = React.memo(({ light = false }: { light?: boolean }) => {
 UserProfile.displayName = "UserProfile";
 
 // ---------- CartIcon ----------
-const CartIcon = React.memo(({ light = false }: { light?: boolean }) => {
+const CartIcon = React.memo(() => {
   const { items } = useCart();
   const itemCount = items?.length ?? 0;
-  const textClass = light ? "text-white drop-shadow" : "text-foreground";
 
   return (
     <div className="relative transition-transform hover:scale-110">
@@ -78,7 +74,7 @@ const CartIcon = React.memo(({ light = false }: { light?: boolean }) => {
         className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring"
         aria-label="Shopping cart"
       >
-        <ShoppingCart style={{ fontSize: 28 }} className={textClass} />
+        <ShoppingCart style={{ fontSize: 28 }} className="text-foreground" />
       </Link>
     </div>
   );
@@ -87,7 +83,7 @@ const CartIcon = React.memo(({ light = false }: { light?: boolean }) => {
 CartIcon.displayName = "CartIcon";
 
 // ---------- Logo ----------
-const Logo = React.memo(({ light = false }: { light?: boolean }) => (
+const Logo = React.memo(() => (
   <Link
     href="/"
     className="relative flex-shrink-0 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
@@ -99,20 +95,7 @@ const Logo = React.memo(({ light = false }: { light?: boolean }) => (
       height={100}
       alt="Novaorizon"
       priority
-      className={`h-auto w-auto transition-opacity duration-300 ${
-        light ? "opacity-0" : "opacity-100"
-      }`}
-    />
-    <Image
-      src={LOGO_LIGHT}
-      width={100}
-      height={100}
-      alt=""
-      aria-hidden="true"
-      priority
-      className={`absolute inset-0 h-auto w-auto transition-opacity duration-300 ${
-        light ? "opacity-100" : "opacity-0"
-      }`}
+      className="h-auto w-auto"
     />
   </Link>
 ));
@@ -132,7 +115,6 @@ function getItemHref(item: { _id: string; name: string; contentType: string }) {
 
 // ---------- Main Header ----------
 const Header = () => {
-  const router = useRouter();
   const pathname = usePathname();
   const [category, setCategory] = useState<Category[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -144,7 +126,6 @@ const Header = () => {
   const [isAtTop, setIsAtTop] = useState(true);
 
   const isHomePage = pathname === "/";
-  const isTransparent = isAtTop && isHomePage;
 
   // Fetch nav data
   useEffect(() => {
@@ -180,7 +161,7 @@ const Header = () => {
     fetchData();
   }, []);
 
-  // Scroll detection
+  // Scroll detection (used to toggle the navbar row on the home page)
   useEffect(() => {
     const onScroll = () => setIsAtTop(window.scrollY < 20);
     onScroll();
@@ -212,16 +193,14 @@ const Header = () => {
         <li key={item._id} className="inline-block">
           <Link
             href={href}
-            className={`block rounded-lg p-2 text-base font-medium transition-all duration-200 hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring ${
-              isTransparent ? "text-white drop-shadow" : "text-foreground"
-            }`}
+            className="block rounded-lg p-2 text-base font-medium text-foreground transition-all duration-200 hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {item.name}
           </Link>
         </li>
       );
     });
-  }, [navItems, category, isTransparent, isHomePage]);
+  }, [navItems, category, isHomePage]);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((p) => !p), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
@@ -232,37 +211,26 @@ const Header = () => {
     <>
       <header
         role="banner"
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isTransparent
-            ? "bg-black/40 backdrop-blur-md border-b border-white/10 shadow-none"
-            : "bg-white/95 border-b border-border shadow-sm backdrop-blur-md"
-        }`}
+        className="fixed top-0 left-0 right-0 z-50 bg-white/95 border-b border-border shadow-sm backdrop-blur-md"
       >
         <div className="mx-auto max-w-7xl px-2 md:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-3 py-2">
+          <div className="flex items-center justify-between gap-3 py-1">
             {/* Left: menu + logo */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={toggleSidebar}
                 aria-label="Toggle navigation menu"
-                className={`rounded-full p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
-                  isTransparent ? "hover:bg-white/15" : "hover:bg-muted"
-                }`}
+                className="rounded-full p-2 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <Menu
-                  style={{ fontSize: 28 }}
-                  className={
-                    isTransparent ? "text-white drop-shadow" : "text-foreground"
-                  }
-                />
+                <Menu style={{ fontSize: 28 }} className="text-foreground" />
               </button>
-              <Logo light={isTransparent} />
+              <Logo />
             </div>
 
             {/* Middle: desktop inline search (no modal) */}
             <div className="hidden lg:block flex-1 max-w-2xl mx-8">
-              <DesktopSearchBar isTransparent={isTransparent} />
+              <DesktopSearchBar isTransparent={false} />
             </div>
 
             {/* Spacer on mobile */}
@@ -274,26 +242,19 @@ const Header = () => {
                 type="button"
                 onClick={openSearch}
                 aria-label="Search"
-                className={`lg:hidden rounded-full p-2 transition-colors ${
-                  isTransparent ? "hover:bg-white/15" : "hover:bg-muted"
-                }`}
+                className="lg:hidden rounded-full p-2 transition-colors hover:bg-muted"
               >
-                <Search
-                  style={{ fontSize: 26 }}
-                  className={
-                    isTransparent ? "text-white drop-shadow" : "text-foreground"
-                  }
-                />
+                <Search style={{ fontSize: 26 }} className="text-foreground" />
               </button>
-              <UserProfile light={isTransparent} />
-              <CartIcon light={isTransparent} />
+              <UserProfile />
+              <CartIcon />
             </div>
           </div>
 
-          {/* Navbar row — visible only on home page after scrolling */}
+          {/* Navbar row — visible on home page only while at the top */}
           <div
             className={`w-full overflow-hidden transition-all duration-300 ${
-              isHomePage && !isAtTop
+              isHomePage && isAtTop
                 ? "max-h-16 opacity-100"
                 : "max-h-0 opacity-0"
             }`}
@@ -316,8 +277,7 @@ const Header = () => {
         sidebarMenus={sidebarMenus}
       />
 
-      {/* Search modal — mobile only. It can only be opened via the mobile
-          trigger, but we also guard by hiding it above lg just in case. */}
+      {/* Search modal — mobile only */}
       <div className="lg:hidden">
         <SearchModal isOpen={isSearchOpen} onClose={closeSearch} />
       </div>

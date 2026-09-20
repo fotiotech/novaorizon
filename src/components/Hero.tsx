@@ -70,7 +70,7 @@ const HeaderScroll: React.FC = () => {
   if (slides.length === 0) {
     return (
       <div className="w-full h-60 md:h-72 lg:h-[400px] bg-muted flex items-center justify-center rounded-xl mx-2 lg:mx-10 my-2">
-        <div className="text-muted-foreground">No hero content available</div>
+        <div className="text-muted-foreground"></div>
       </div>
     );
   }
