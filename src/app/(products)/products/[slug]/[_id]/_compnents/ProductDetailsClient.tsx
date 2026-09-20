@@ -649,7 +649,7 @@ export default function ProductDetailsClient({
               <>
                 {brand?.name && (
                   <Link
-                    href={`/brandStore?brandId=${_id}`}
+                    href={`/brandStore?brandId=${brand?._id}`}
                     className={`mb-2 inline-block ${TYPO.muted} hover:text-primary`}
                   >
                     Visit{" "}

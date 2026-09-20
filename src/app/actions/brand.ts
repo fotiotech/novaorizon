@@ -5,57 +5,64 @@ import Brand from "@/models/Brand";
 import Product from "@/models/Product";
 import slugify from "slugify";
 
-// Fetch all brands
+// Fetch all brands, or a single one by id
 export async function getBrands(brandId?: string) {
   await connection();
 
-  console.log("Fetching brands...", brandId);
-
   if (brandId) {
     const brand = await Brand.findOne({ _id: brandId });
+    if (!brand) return null;
     return {
-      ...brand?.toObject(),
-      _id: brand?._id?.toString(),
+      ...brand.toObject(),
+      _id: brand._id.toString(),
     };
   }
 
   const brands = await Brand.find().sort({ created_at: -1 });
   return brands.map((brand) => ({
-    ...brand?.toObject(),
-    _id: brand?._id?.toString(),
+    ...brand.toObject(),
+    _id: brand._id.toString(),
   }));
 }
 
-export async function findProductsByBrand(brandId: string) {
+export type BrandProductsResult =
+  | { ok: true; products: any[] }
+  | { ok: false; error: string };
+
+export async function findProductsByBrand(
+  brandId: string,
+): Promise<BrandProductsResult> {
   if (!brandId) {
-    console.error("[findProductsByBrand] Missing brandId");
-    return [];
+    return { ok: false, error: "Missing brandId" };
   }
 
   try {
     await connection();
 
-    const products = await Product.find({ brand: brandId });
+    const products = await Product.find({ brand: brandId })
+      .sort({ createdAt: -1 })
+      .lean();
 
-    if (!products || products.length === 0) {
-      return [];
-    }
+    console.log("products", products);
 
-    console.log({ products });
-
-    return products.map((product) => ({
-      ...product.toObject(),
-      _id: product._id?.toString() || "",
-      categoryId: product.categoryId?.toString() || "",
-    }));
-  } catch (error) {
+    return {
+      ok: true,
+      products: products.map((product: any) => ({
+        ...product,
+        _id: product._id.toString(),
+        categoryId: product.categoryId?.toString() || "",
+      })),
+    };
+  } catch (error: any) {
     console.error("[findProductsByBrand] Error:", error);
-    return [];
+    return {
+      ok: false,
+      error: error?.message || "Failed to load brand products",
+    };
   }
 }
 
 // Create a new brand
-
 function generateSlug(name: string, logoUrl: string) {
   return slugify(`${name}${logoUrl ? `-${logoUrl}` : ""}`, {
     lower: true,
@@ -69,13 +76,10 @@ export async function createBrand(data: {
 }) {
   await connection();
 
-  // Exclude `_id` from the data to let MongoDB generate it automatically
   if (data) {
     const { name, logoUrl, status } = data;
     const url_slug = generateSlug(name, logoUrl as string);
-
     const newBrand = new Brand({ url_slug, name, logoUrl, status });
-
     await newBrand.save();
   }
 }

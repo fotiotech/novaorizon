@@ -109,7 +109,7 @@ const Carousel = ({ items, showImages }: CarouselProps) => {
               {/* Whole card is a link */}
               <Link
                 href={getItemHref(item)}
-                className="group/card block bg-white rounded overflow-hidden hover:shadow-md transition-shadow"
+                className="group/card block bg-white rounded overflow-hidden"
                 title={item.name}
               >
                 {showImages && item.image && (
