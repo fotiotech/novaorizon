@@ -112,7 +112,7 @@ interface GroupNode {
   children: GroupNode[];
 }
 
-interface AttributeSetResult {
+export interface AttributeSetResult {
   id: string;
   title: string;
   code: string;
@@ -121,12 +121,7 @@ interface AttributeSetResult {
 }
 
 // ==================================================================
-// CORE BUILDER — same logic as admin, coercion-safe
-//
-// Each mapped attribute carries two flags:
-//   isRequired  — from the property editor
-//   isHighlight — from the property editor, drives Key Features on
-//                 the storefront (see ProductAttributes.tsx)
+// CORE BUILDER — coercion-safe
 // ==================================================================
 async function buildAttributeSetsFromMappings(
   mappings: {
@@ -155,15 +150,14 @@ async function buildAttributeSetsFromMappings(
       .filter(isValidId);
     if (groupIds.length === 0) continue;
 
-    const groups: any[] =
-      groupIds.length > 0
-        ? await AttributeGroup.find({ _id: { $in: groupIds } }).lean()
-        : [];
+    const groups: any[] = await AttributeGroup.find({
+      _id: { $in: groupIds },
+    }).lean();
 
     // ---- Collect attribute IDs + flags from the mapping ----
     const attrRequiredMap = new Map<string, boolean>();
     const attrHighlightMap = new Map<string, boolean>();
-    const groupAttrIds = new Map<string, string[]>(); // groupId -> [attrId]
+    const groupAttrIds = new Map<string, string[]>();
     const selectedGroupIds = new Set<string>();
 
     for (const gm of mapping.groups || []) {
@@ -260,191 +254,23 @@ async function buildAttributeSetsFromMappings(
     });
   }
 
-  // Sort ascending by the set's sortOrder. Sets without a value (or
-  // with 0) float to the top, matching the AttributeSet schema default.
   result.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
   return result;
 }
 
 // ==================================================================
-// ANCESTOR PROPERTY COLLECTION
-// ==================================================================
-async function collectAncestorProperties(categoryId: string): Promise<{
-  mappings: any[];
-  propertyIds: string[];
-}> {
-  const propertyIds: string[] = [];
-  let current: any = await Category.findById(categoryId)
-    .populate("property")
-    .lean();
-  let depth = 0;
-  const visited = new Set<string>();
-
-  while (current && depth < 20 && !visited.has(current._id?.toString())) {
-    visited.add(current._id.toString());
-
-    let propertyId: string | null = null;
-    if (current.property) {
-      if (typeof current.property === "object" && current.property !== null) {
-        const propObj = current.property;
-        propertyId = coerceId(propObj._id ?? propObj.id ?? propObj);
-      } else {
-        propertyId = coerceId(current.property);
-      }
-    }
-    if (propertyId && isValidId(propertyId)) propertyIds.push(propertyId);
-
-    const parentId = current.parentId ?? current.parent_id;
-    if (!parentId) break;
-
-    current = await Category.findById(parentId).populate("property").lean();
-    depth += 1;
-  }
-
-  if (propertyIds.length === 0) {
-    return { mappings: [], propertyIds: [] };
-  }
-
-  const properties = await CategoryProperty.find({
-    _id: { $in: propertyIds },
-  }).lean();
-
-  // Merge mappings from ancestors, child overrides parent.
-  // The attribute entry now carries both flags so `isHighlight` also
-  // inherits — a parent highlighting an attribute will highlight it
-  // in the child unless the child explicitly clears the flag.
-  const combinedMap = new Map<
-    string,
-    {
-      set: string;
-      groups: Map<
-        string,
-        {
-          group: string;
-          attributes: Map<
-            string,
-            { isRequired: boolean; isHighlight: boolean }
-          >;
-        }
-      >;
-    }
-  >();
-
-  for (const prop of properties.reverse()) {
-    if (!prop.mappings || !Array.isArray(prop.mappings)) continue;
-    for (const mapping of prop.mappings) {
-      const setKey = coerceId(mapping.set);
-      if (!isValidId(setKey)) continue;
-      if (!combinedMap.has(setKey)) {
-        combinedMap.set(setKey, { set: setKey, groups: new Map() });
-      }
-      const setData = combinedMap.get(setKey)!;
-      for (const gm of mapping.groups || []) {
-        const groupKey = coerceId(gm.group);
-        if (!isValidId(groupKey)) continue;
-        if (!setData.groups.has(groupKey)) {
-          setData.groups.set(groupKey, {
-            group: groupKey,
-            attributes: new Map(),
-          });
-        }
-        const groupData = setData.groups.get(groupKey)!;
-        for (const am of gm.attributes || []) {
-          const attrKey = coerceId(am.attribute);
-          if (!isValidId(attrKey)) continue;
-          groupData.attributes.set(attrKey, {
-            isRequired: !!(am as any).isRequired,
-            isHighlight: !!(am as any).isHighlight,
-          });
-        }
-      }
-    }
-  }
-
-  const mergedMappings = Array.from(combinedMap.values()).map((setData) => ({
-    set: setData.set,
-    groups: Array.from(setData.groups.values()).map((groupData) => ({
-      group: groupData.group,
-      attributes: Array.from(groupData.attributes.entries()).map(
-        ([attr, flags]) => ({
-          attribute: attr,
-          isRequired: flags.isRequired,
-          isHighlight: flags.isHighlight,
-        }),
-      ),
-    })),
-  }));
-
-  return { mappings: mergedMappings, propertyIds };
-}
-
-// ==================================================================
-// ENSURE INHERITED PROPERTY EXISTS
-// ==================================================================
-function generatePropertyCode(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .trim()
-    .replace(/\s+/g, "_");
-}
-
-async function ensureCategoryPropertyFromMappings(
-  categoryId: string,
-  mappings: any[],
-): Promise<string | null> {
-  const category = await Category.findById(categoryId).select("name");
-  if (!category) return null;
-
-  if (mappings.length === 0) {
-    await Category.findByIdAndUpdate(categoryId, { $set: { property: null } });
-    return null;
-  }
-
-  const baseCode = generatePropertyCode(category.name || "") + "_inherited";
-  const propertyName = `${category.name} (Inherited)`;
-  const propertyDescription = `Auto-generated inherited property for ${category.name}`;
-
-  // Both flags flow through to the persisted inherited property.
-  const preparedMappings = mappings.map((m) => ({
-    set: new mongoose.Types.ObjectId(m.set),
-    groups: m.groups.map((g: any) => ({
-      group: new mongoose.Types.ObjectId(g.group),
-      attributes: g.attributes.map((a: any) => ({
-        attribute: new mongoose.Types.ObjectId(a.attribute),
-        isRequired: !!a.isRequired,
-        isHighlight: !!a.isHighlight,
-      })),
-    })),
-  }));
-
-  let property = await CategoryProperty.findOne({ code: baseCode });
-
-  if (property) {
-    property.name = propertyName;
-    property.description = propertyDescription;
-    property.mappings = preparedMappings as any;
-    await property.save();
-  } else {
-    property = new CategoryProperty({
-      code: baseCode,
-      name: propertyName,
-      description: propertyDescription,
-      mappings: preparedMappings as any,
-    });
-    await property.save();
-  }
-
-  await Category.findByIdAndUpdate(categoryId, {
-    $set: { property: property._id },
-  });
-
-  return property._id.toString();
-}
-
-// ==================================================================
-// PUBLIC: getCategoryAttributeSets — inheritance-aware
+// PUBLIC: getCategoryAttributeSets — pure read
+//
+// Effective property resolution:
+//   inheritProperty on + inheritedProperty set → inheritedProperty
+//                                                 (admin-generated snapshot,
+//                                                  readOnly, already merged)
+//   otherwise                                  → property
+//
+// No live ancestor walk, no writes. The snapshot is the source of
+// truth for the inherited view; `property` is the source of truth
+// otherwise. Both are written exclusively by the admin side.
 // ==================================================================
 export async function getCategoryAttributeSets(
   categoryId: string,
@@ -456,39 +282,22 @@ export async function getCategoryAttributeSets(
   }
 
   const category: any = await Category.findById(categoryId)
-    .select("inheritProperty property")
+    .select("inheritProperty property inheritedProperty parentId")
     .lean();
+
   if (!category) return [];
 
-  // ---- Inheritance branch ----
-  if (category.inheritProperty === true) {
-    const { mappings } = await collectAncestorProperties(categoryId);
+  const isRoot = !category.parentId;
+  const wantsInheritance = category.inheritProperty === true && !isRoot;
 
-    if (mappings.length === 0) {
-      await Category.findByIdAndUpdate(categoryId, {
-        $set: { property: null },
-      });
-      return [];
-    }
+  const effectiveId =
+    wantsInheritance && category.inheritedProperty
+      ? category.inheritedProperty
+      : category.property;
 
-    const propId = await ensureCategoryPropertyFromMappings(
-      categoryId,
-      mappings,
-    );
-    if (!propId) return [];
+  if (!effectiveId) return [];
 
-    const property: any = await CategoryProperty.findById(propId).lean();
-    if (!property) return [];
-
-    return buildAttributeSetsFromMappings(property.mappings || []);
-  }
-
-  // ---- Direct property branch ----
-  if (!category.property) return [];
-
-  const property: any = await CategoryProperty.findById(
-    category.property,
-  ).lean();
+  const property: any = await CategoryProperty.findById(effectiveId).lean();
   if (!property) return [];
 
   return buildAttributeSetsFromMappings(property.mappings || []);
@@ -497,13 +306,21 @@ export async function getCategoryAttributeSets(
 // ==================================================================
 // OPTIONAL READS
 // ==================================================================
-export async function getCategoryProperty(id?: string): Promise<any> {
+
+// Read-only: by default the client doesn't need to see system-managed
+// inherited snapshots. Pass { includeReadOnly: true } if a caller
+// really needs them (e.g. an admin-only preview).
+export async function getCategoryProperty(
+  id?: string,
+  options?: { includeReadOnly?: boolean },
+): Promise<any> {
   await connection();
   if (id) {
     const property = await CategoryProperty.findById(id).lean();
     return property ? toPlain(property) : null;
   }
-  const properties = await CategoryProperty.find().lean();
+  const filter = options?.includeReadOnly ? {} : { readOnly: { $ne: true } };
+  const properties = await CategoryProperty.find(filter).lean();
   return toPlain(properties);
 }
 

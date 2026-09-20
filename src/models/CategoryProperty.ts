@@ -1,8 +1,14 @@
 import mongoose, { Schema, model, models, Document } from "mongoose";
 
 export interface ICategoryProperty extends Document {
+  code: string;
   name: string;
   description?: string;
+
+  // True for auto-generated inherited snapshots. Guards against edits
+  // and deletes via the admin API; hidden from the admin property list.
+  readOnly: boolean;
+
   mappings: {
     set: mongoose.Types.ObjectId;
     groups: {
@@ -10,17 +16,23 @@ export interface ICategoryProperty extends Document {
       attributes: {
         attribute: mongoose.Types.ObjectId;
         isRequired: boolean;
+        isHighlight: boolean;
       }[];
     }[];
   }[];
+
   createdAt: Date;
   updatedAt: Date;
 }
 
 const CategoryPropertySchema = new Schema<ICategoryProperty>(
   {
+    code: { type: String, required: true, unique: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
+
+    readOnly: { type: Boolean, default: false, index: true },
+
     mappings: [
       {
         set: {
@@ -43,6 +55,7 @@ const CategoryPropertySchema = new Schema<ICategoryProperty>(
                   required: true,
                 },
                 isRequired: { type: Boolean, default: false },
+                isHighlight: { type: Boolean, default: false },
               },
             ],
           },
