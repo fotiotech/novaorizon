@@ -560,7 +560,7 @@ const CheckoutPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
+      <div className="mx-auto max-w-6xl p-3 md:py-12">
         <h1 className="mb-8 text-2xl font-bold text-foreground md:text-3xl">
           Checkout
         </h1>

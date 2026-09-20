@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Menu, Person, Search, ShoppingCart } from "@mui/icons-material";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Category } from "@/constant/types";
 import { useCart } from "@/app/context/CartContext";
 import { getCategory } from "@/app/actions/category";
@@ -115,7 +114,6 @@ function getItemHref(item: { _id: string; name: string; contentType: string }) {
 
 // ---------- Main Header ----------
 const Header = () => {
-  const pathname = usePathname();
   const [category, setCategory] = useState<Category[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -123,9 +121,6 @@ const Header = () => {
     Array<{ _id: string; name: string; contentType: string }>
   >([]);
   const [sidebarMenus, setSidebarMenus] = useState<any[]>([]);
-  const [isAtTop, setIsAtTop] = useState(true);
-
-  const isHomePage = pathname === "/";
 
   // Fetch nav data
   useEffect(() => {
@@ -161,18 +156,7 @@ const Header = () => {
     fetchData();
   }, []);
 
-  // Scroll detection (used to toggle the navbar row on the home page)
-  useEffect(() => {
-    const onScroll = () => setIsAtTop(window.scrollY < 20);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   const navigationItems = useMemo(() => {
-    // Navbar is home-only; skip all work on every other route.
-    if (!isHomePage) return null;
-
     const itemsToRender =
       navItems.length > 0
         ? navItems
@@ -200,7 +184,7 @@ const Header = () => {
         </li>
       );
     });
-  }, [navItems, category, isHomePage]);
+  }, [navItems, category]);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((p) => !p), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
@@ -214,7 +198,7 @@ const Header = () => {
         className="fixed top-0 left-0 right-0 z-50 bg-white/95 border-b border-border shadow-sm backdrop-blur-md"
       >
         <div className="mx-auto max-w-7xl px-2 md:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-3 py-1">
+          <div className="flex items-center justify-between gap-3 py-2">
             {/* Left: menu + logo */}
             <div className="flex items-center gap-2">
               <button
@@ -251,14 +235,8 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Navbar row — visible on home page only while at the top */}
-          <div
-            className={`w-full overflow-hidden transition-all duration-300 ${
-              isHomePage && isAtTop
-                ? "max-h-16 opacity-100"
-                : "max-h-0 opacity-0"
-            }`}
-          >
+          {/* Navbar row — always visible on every page */}
+          <div className="w-full overflow-hidden">
             <div className="overflow-x-auto scrollbar-none pb-1">
               <nav aria-label="Main navigation">
                 <ul className="flex items-center gap-0.5 whitespace-nowrap">
