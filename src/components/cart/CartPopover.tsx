@@ -1,11 +1,19 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Close, ShoppingCart } from "@mui/icons-material";
 import { useCart } from "@/app/context/CartContext";
 import CheckoutButton from "@/components/CheckoutButton";
+
+/** Adjust to match your store's currency / locale. */
+const formatPrice = (value: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0);
 
 type NormalizedItem = {
   id: string;
@@ -16,10 +24,7 @@ type NormalizedItem = {
 };
 
 /**
- * Cart items can come in different shapes depending on how your
- * CartContext stores them (flat line items, { product, quantity }, …).
- * This normalizes them into one predictable shape for rendering.
- *
+ * Normalizes different cart item shapes into one predictable structure.
  * ⚠️ If your cart items use different field names, tweak this function only.
  */
 function normalizeItem(raw: any, index: number): NormalizedItem {
@@ -68,9 +73,17 @@ type CartPopoverProps = {
   anchorRef: React.RefObject<HTMLElement>;
 };
 
+/** Matches the Tailwind `duration-200` used below. */
+const ANIMATION_DURATION_MS = 200;
+
 const CartPopover = ({ open, onClose, anchorRef }: CartPopoverProps) => {
   const { items } = useCart();
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // `mounted` keeps the panel in the DOM during the exit animation.
+  // `visible` toggles the transition classes.
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(open);
 
   const normalized = useMemo(
     () => (items ?? []).map((item: any, i: number) => normalizeItem(item, i)),
@@ -81,6 +94,22 @@ const CartPopover = ({ open, onClose, anchorRef }: CartPopoverProps) => {
     () => normalized.reduce((sum, i) => sum + i.price * i.quantity, 0),
     [normalized],
   );
+
+  // Handle enter / exit animation lifecycle
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      // Next frame → apply "visible" so the browser animates from the
+      // initial (hidden) styles instead of jumping straight to the end.
+      const raf = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(raf);
+    }
+
+    // Closing: hide first, then unmount after the transition finishes.
+    setVisible(false);
+    const timer = setTimeout(() => setMounted(false), ANIMATION_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [open]);
 
   // Close on Escape
   useEffect(() => {
@@ -101,6 +130,7 @@ const CartPopover = ({ open, onClose, anchorRef }: CartPopoverProps) => {
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Node;
       if (anchorRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
       onClose();
     };
 
@@ -108,7 +138,7 @@ const CartPopover = ({ open, onClose, anchorRef }: CartPopoverProps) => {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open, onClose, anchorRef]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   return (
     <div
@@ -116,7 +146,18 @@ const CartPopover = ({ open, onClose, anchorRef }: CartPopoverProps) => {
       id="cart-popover-panel"
       role="dialog"
       aria-label="Cart preview"
-      className="absolute right-0 top-[calc(100%+10px)] z-[60] w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-xl"
+      aria-hidden={!visible}
+      className={[
+        "absolute right-0 top-[calc(100%+10px)] z-[60]",
+        "w-[min(22rem,calc(100vw-2rem))] overflow-hidden",
+        "rounded-xl border border-border bg-background text-foreground shadow-xl",
+        "origin-top-right",
+        "transition-all duration-200 ease-out",
+        "will-change-transform will-change-opacity",
+        visible
+          ? "opacity-100 translate-y-0 scale-100"
+          : "pointer-events-none opacity-0 -translate-y-1 scale-95",
+      ].join(" ")}
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
