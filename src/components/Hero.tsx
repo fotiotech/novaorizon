@@ -120,9 +120,9 @@ const HeaderScroll: React.FC = () => {
                           {title}
                         </h1>
 
-                        {hero.subtitle && (
+                        {hero.description && (
                           <p className="mt-3 text-sm sm:text-base lg:text-lg text-white/80 line-clamp-3">
-                            {hero.subtitle}
+                            {hero.description}
                           </p>
                         )}
 
