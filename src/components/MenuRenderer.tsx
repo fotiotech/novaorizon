@@ -262,7 +262,7 @@ function MenuNode({ menu, depth }: { menu: Menu; depth: number }) {
       case "Carousel":
         return (
           <Carousel
-            items={items.slice(0, 4).map((item) => ({
+            items={items.slice(0, 6).map((item) => ({
               _id: item._id,
               name: item.name,
               image: item.image,
