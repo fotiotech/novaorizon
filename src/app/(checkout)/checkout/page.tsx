@@ -27,9 +27,39 @@ export type CalcShippingPrice = {
   carrierName?: string;
 };
 
-// Helper to check if carrier serves an address
+type CarrierReason =
+  | "idle"
+  | "loading"
+  | "no-products"
+  | "no-common"
+  | "none-serve-region"
+  | "ok";
+
+// ---------- Carrier helpers ----------
+// Normalise a product's `carrier` field (array | object | string) into
+// an array of string IDs. Anything unparseable is dropped.
+function normalizeCarrierIds(raw: any): string[] {
+  if (!raw) return [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+  return arr
+    .map((c) => {
+      if (typeof c === "string") return c.trim();
+      if (c && typeof c === "object") {
+        if (c._id) return String(c._id);
+        if (c.id) return String(c.id);
+      }
+      return "";
+    })
+    .filter((s) => s.length > 0);
+}
+
+// Defensive: a carrier with no declared regions is treated as serving
+// everywhere (instead of the old behaviour which silently excluded it).
 function doesCarrierServeAddress(carrier: any, address: any): boolean {
+  const regions = carrier?.regionsServed;
+  if (!Array.isArray(regions) || regions.length === 0) return true;
   if (!address) return false;
+
   const addressStrings = [
     address.city,
     address.state,
@@ -37,10 +67,16 @@ function doesCarrierServeAddress(carrier: any, address: any): boolean {
     address.zipCode,
   ]
     .filter(Boolean)
-    .map((s) => s.toLowerCase().trim());
+    .map((s) => String(s).toLowerCase().trim())
+    .filter((s) => s.length > 0);
 
-  return carrier.regionsServed.some((regionObj: any) => {
-    const region = regionObj.region.toLowerCase().trim();
+  if (addressStrings.length === 0) return false;
+
+  return regions.some((regionObj: any) => {
+    const region = String(regionObj?.region ?? "")
+      .toLowerCase()
+      .trim();
+    if (!region) return false;
     return addressStrings.some(
       (addrStr) => addrStr.includes(region) || region.includes(addrStr),
     );
@@ -119,6 +155,7 @@ const CheckoutPage = () => {
   const [selectedCarrierId, setSelectedCarrierId] = useState<string>("");
   const [availableCarriers, setAvailableCarriers] = useState<any[]>([]);
   const [carrierLoading, setCarrierLoading] = useState<boolean>(false);
+  const [carrierReason, setCarrierReason] = useState<CarrierReason>("idle");
   const [shippingPrice, setShippingPrice] = useState<CalcShippingPrice | null>(
     null,
   );
@@ -169,7 +206,7 @@ const CheckoutPage = () => {
     setRoomId(newOrderNumber);
   }, []);
 
-  // Auto‑select default address
+  // Auto-select default address
   useEffect(() => {
     if (user && addresses.length > 0 && !selectedAddressId) {
       const defaultAddr: any = addresses.find((a) => a.isDefault);
@@ -196,7 +233,7 @@ const CheckoutPage = () => {
     }
   }, [user]);
 
-  // Auto‑select first payment method
+  // Auto-select first payment method
   useEffect(() => {
     if (paymentMethods.length > 0 && !selectedPaymentMethodId) {
       const firstPaymentMethod = paymentMethods[0] as IPaymentMethod & {
@@ -217,6 +254,7 @@ const CheckoutPage = () => {
       setCartProducts([]);
       setAvailableCarriers([]);
       setSelectedCarrierId("");
+      setCarrierReason("no-products");
       return;
     }
 
@@ -240,56 +278,93 @@ const CheckoutPage = () => {
     fetchProducts();
   }, [items]);
 
-  // Compute common carriers from cart products
+  // Compute available carriers — robust, with fallbacks.
   useEffect(() => {
     if (cartProducts.length === 0) {
       setAvailableCarriers([]);
       setSelectedCarrierId("");
+      setCarrierReason("no-products");
       return;
     }
 
-    const carrierSets = cartProducts
-      .map((p) => (p.carrier ? p.carrier : []))
-      .filter((arr) => arr.length > 0);
-
-    if (carrierSets.length === 0) {
-      setAvailableCarriers([]);
-      setSelectedCarrierId("");
-      return;
-    }
-
-    const commonCarrierIds = carrierSets.reduce((acc, arr) =>
-      acc.filter((id: string) => arr.includes(id)),
+    // Normalise each product's carrier field.
+    const carrierSets = cartProducts.map((p) =>
+      normalizeCarrierIds(p?.carrier),
     );
 
-    if (commonCarrierIds.length === 0) {
+    // Which products actually declare a carrier?
+    const productsWithCarriers = carrierSets.filter((a) => a.length > 0);
+
+    // If no product restricts carriers → allow all carriers.
+    const allowedIds: string[] | null =
+      productsWithCarriers.length === 0
+        ? null
+        : productsWithCarriers.reduce<string[]>(
+            (acc, arr) => acc.filter((id) => arr.includes(id)),
+            productsWithCarriers[0],
+          );
+
+    // Products DID declare carriers, but they don't overlap.
+    if (allowedIds && allowedIds.length === 0) {
       setAvailableCarriers([]);
       setSelectedCarrierId("");
-      toast.error("No common carrier available for all items.");
+      setCarrierReason("no-common");
       return;
     }
+
+    const selectedAddress = addresses.find(
+      (a: any) => a._id?.toString() === selectedAddressId,
+    );
 
     const fetchCarriers = async () => {
       setCarrierLoading(true);
+      setCarrierReason("loading");
       try {
         const allCarriers = await getCarriers();
-        const selectedAddress = addresses.find(
-          (a: any) => a._id?.toString() === selectedAddressId,
-        );
-        const filtered = allCarriers
-          .filter((c) => commonCarrierIds.includes(c._id))
-          .filter((c) => doesCarrierServeAddress(c, selectedAddress));
 
-        setAvailableCarriers(filtered);
-        if (filtered.length > 0) {
-          setSelectedCarrierId(filtered[0]._id);
+        // Step 1 — restrict by product carriers (if any product declared one).
+        let pool = allowedIds
+          ? allCarriers.filter((c) => allowedIds.includes(String(c._id)))
+          : allCarriers;
+
+        // Step 2 — restrict by region, but only if we have an address and
+        // that filter actually leaves something. The region matcher is a
+        // heuristic; if it excludes everything we fall back to the pool so
+        // the user isn't blocked by an over-strict match.
+        if (selectedAddress) {
+          const regional = pool.filter((c) =>
+            doesCarrierServeAddress(c, selectedAddress),
+          );
+          if (regional.length > 0) {
+            pool = regional;
+          } else if (pool.length > 0) {
+            // Region filter emptied the pool — keep the pool, but
+            // remember the reason so we can surface a soft warning.
+            setCarrierReason("none-serve-region");
+            setAvailableCarriers(pool);
+            setSelectedCarrierId(String(pool[0]._id));
+            return;
+          }
+        }
+
+        setAvailableCarriers(pool);
+        if (pool.length > 0) {
+          setSelectedCarrierId((prev) =>
+            pool.some((c) => String(c._id) === prev)
+              ? prev
+              : String(pool[0]._id),
+          );
+          setCarrierReason("ok");
         } else {
           setSelectedCarrierId("");
-          toast("No carrier serves your region for these products.");
+          setCarrierReason(allowedIds ? "no-common" : "none-serve-region");
         }
       } catch (err) {
         console.error("Failed to fetch carriers:", err);
         toast.error("Could not load carrier options.");
+        setAvailableCarriers([]);
+        setSelectedCarrierId("");
+        setCarrierReason("no-products");
       } finally {
         setCarrierLoading(false);
       }
@@ -708,7 +783,7 @@ const CheckoutPage = () => {
               title="Shipping"
               subtitle="Select your preferred carrier."
             >
-              {selectedAddress ? (
+              {selectedAddress || !user ? (
                 <div className="space-y-3">
                   {loadingProducts || carrierLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -716,10 +791,21 @@ const CheckoutPage = () => {
                       Loading carriers…
                     </div>
                   ) : availableCarriers.length === 0 ? (
-                    <p className="rounded-lg bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                      No carrier serves this region. Update your address or
-                      contact support.
-                    </p>
+                    <div className="rounded-lg bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                      {carrierReason === "no-products" ? (
+                        <>No products in the cart to ship.</>
+                      ) : carrierReason === "no-common" ? (
+                        <>
+                          The items in your cart don&apos;t share a common
+                          carrier. Remove an item or contact support.
+                        </>
+                      ) : (
+                        <>
+                          We couldn&apos;t find a carrier for your region.
+                          Update your address or contact support.
+                        </>
+                      )}
+                    </div>
                   ) : (
                     <>
                       <Field label="Carrier">
@@ -735,6 +821,15 @@ const CheckoutPage = () => {
                           ))}
                         </select>
                       </Field>
+
+                      {carrierReason === "none-serve-region" && (
+                        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                          We couldn&apos;t match your region to a carrier&apos;s
+                          service area. Showing all carriers — please verify the
+                          shipping price before placing the order.
+                        </p>
+                      )}
+
                       {shippingLoading ? (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Spinner size={16} />
@@ -778,7 +873,7 @@ const CheckoutPage = () => {
               ) : paymentMethods.length === 0 ? (
                 <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm">
                   <p className="text-muted-foreground">
-                    You don't have any saved payment methods yet.
+                    You don&apos;t have any saved payment methods yet.
                   </p>
                   <Link
                     href="/profile/payment"
@@ -928,7 +1023,9 @@ const CheckoutPage = () => {
                     !loadingProducts &&
                     !carrierLoading && (
                       <p className="text-destructive">
-                        No carrier available for your region.
+                        {carrierReason === "no-common"
+                          ? "Your cart has no common carrier for all items."
+                          : "No carrier available for your region."}
                       </p>
                     )}
                 </div>
