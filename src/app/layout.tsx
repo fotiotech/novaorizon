@@ -9,6 +9,8 @@ import { Suspense } from "react";
 import Loading from "./loading";
 import { cn } from "@/lib/utils";
 import { PageViewTracker } from "@/components/PageViewTracker";
+import { getSeoSetting } from "@/app/actions/seo";
+import { DEFAULT_SEO } from "@/app/lib/seo-defaults";
 
 // Use Geist as the default font (includes a CSS variable)
 const geist = Geist({
@@ -16,47 +18,88 @@ const geist = Geist({
   variable: "--font-sans", // makes the font available via CSS variable
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "dyfkCameroun.com - Your Trusted E-Commerce Platform in Cameroun",
-    template: "%s | dyfkCameroun.com",
-  },
-  description:
-    "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
-  metadataBase: new URL("https://dyfk-com.vercel.app"),
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: "https://dyfk-com.vercel.app",
-    siteName: "dyfkCameroun.com",
-    title: "dyfkCameroun.com - Your Trusted E-Commerce Platform in Cameroun",
-    description:
-      "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
-    images: [
-      {
-        url: "/logo.png",
-        width: 1200,
-        height: 630,
-        alt: "dyfkCameroun.com - Your Trusted E-Commerce Platform in Cameroun",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "@dyfkCameroun",
-    creator: "@dyfkCameroun",
-    title: "dyfkCameroun.com - Your Trusted E-Commerce Platform in Cameroun",
-    description:
-      "Discover the best products at unbeatable prices on dyfkCameroun.com. Shop now for a seamless online shopping experience.",
-    images: ["/logo.png"],
-  },
-  verification: {
-    google: "jGAR6wmWVPQe_fzOwoL1MqqKWSdN-Ty2dFf60Zu",
-  },
-};
+// Fallbacks specific to the root layout that aren't part of the SEO settings
+// form (site URL, social handles, verification tokens, image dimensions).
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://dyfk-com.vercel.app";
+const TWITTER_HANDLE = "@dyfkCameroun";
+const GOOGLE_VERIFICATION = "jGAR6wmWVPQe_fzOwoL1MqqKWSdN-Ty2dFf60Zu";
+
+export async function generateMetadata(): Promise<Metadata> {
+  // If the DB read fails for any reason, fall back to defaults so the app
+  // still ships valid metadata instead of a 500 from the root layout.
+  let seo = DEFAULT_SEO;
+  try {
+    seo = await getSeoSetting();
+  } catch (err) {
+    console.error("[layout] Failed to load SEO settings:", err);
+  }
+
+  const {
+    siteName,
+    title,
+    description,
+    keywords,
+    canonicalUrl,
+    ogImage,
+    robots,
+  } = seo;
+
+  const robotsValue =
+    robots === "noindex,nofollow"
+      ? { index: false, follow: false }
+      : { index: true, follow: true };
+
+  return {
+    // The root "default" title is used when a page doesn't set its own.
+    // The template is applied to child pages that do set one.
+    title: {
+      default: title,
+      template: `%s | ${siteName}`,
+    },
+    description,
+    keywords: keywords
+      ? keywords
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean)
+      : undefined,
+    metadataBase: new URL(SITE_URL),
+    alternates: {
+      canonical: canonicalUrl || "/",
+    },
+    robots: robotsValue,
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      url: canonicalUrl || SITE_URL,
+      siteName,
+      title,
+      description,
+      images: ogImage
+        ? [
+            {
+              url: ogImage,
+              width: 1200,
+              height: 630,
+              alt: title,
+            },
+          ]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: TWITTER_HANDLE,
+      creator: TWITTER_HANDLE,
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+    verification: {
+      google: GOOGLE_VERIFICATION,
+    },
+  };
+}
 
 export const viewport = "width=device-width, initial-scale=1";
 
@@ -66,7 +109,6 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Removed unused "theme" class – only keep font variable and font-sans utility
     <html lang="en" className={cn(geist.variable, "font-sans")}>
       <head>
         {/* Google Tag Manager */}
@@ -89,10 +131,6 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
       </head>
-      {/* 
-        The body will get its background from globals.css (via @layer base).
-        We also keep the font variable for consistency.
-      */}
       <body className={geist.variable}>
         {/* Google Tag Manager (noscript) */}
         <noscript>

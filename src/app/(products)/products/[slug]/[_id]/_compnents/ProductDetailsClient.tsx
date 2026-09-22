@@ -36,6 +36,8 @@ interface Carrier {
 
 interface ProductDetailsClientProps {
   productId: string;
+  /** Product fetched on the server; when provided, the client skips its initial fetch. */
+  initialProduct?: any;
   relatedSlot?: React.ReactNode;
 }
 
@@ -415,10 +417,11 @@ const VariantSelector: React.FC<VariantSelectorProps> = ({
 // ---------- Main Client Component ----------
 export default function ProductDetailsClient({
   productId,
+  initialProduct,
   relatedSlot,
 }: ProductDetailsClientProps) {
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [product, setProduct] = useState<any>(initialProduct ?? null);
+  const [loading, setLoading] = useState<boolean>(!initialProduct);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedValues, setSelectedValues] = useState<Record<string, string>>(
@@ -430,13 +433,22 @@ export default function ProductDetailsClient({
   const isMobile = useIsMobile();
   const { addresses: userAddresses } = useUserData();
 
-  // Fetch product
+  // Fetch product — skipped when the server already provided it.
   useEffect(() => {
     if (!productId) {
       setError("No product ID provided");
       setLoading(false);
       return;
     }
+
+    if (initialProduct) {
+      // Server-rendered payload for this id; no need to refetch.
+      setProduct(initialProduct);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     findProducts(productId)
       .then((result) => {
@@ -456,7 +468,7 @@ export default function ProductDetailsClient({
         setError(err.message || "Failed to load product");
       })
       .finally(() => setLoading(false));
-  }, [productId]);
+  }, [productId, initialProduct]);
 
   useEffect(() => {
     initialLoadComplete.current = false;
@@ -638,7 +650,7 @@ export default function ProductDetailsClient({
   );
 
   return (
-    <div className="w-full border-b-2 border-border bg-background px-3 py-2 md:px-8 md:py-6">
+    <div className="w-full border-b-2 border-border bg-background px-3 py-2 md:px-8 md:py-4">
       <ProductViewAnalytics productId={productId} />
       <div className="mx-auto max-w-6xl">
         {/* Top: images + info */}
@@ -670,7 +682,7 @@ export default function ProductDetailsClient({
           </div>
 
           {/* Right column */}
-          <div className="text-foreground md:w-1/2">
+          <div className="text-foreground md:w-1/2 lg:pt-6">
             <h1 className={`${TYPO.pageTitle} mb-2`}>{name}</h1>
 
             <div className="mb-2 flex items-baseline gap-3">
