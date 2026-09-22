@@ -16,6 +16,7 @@ import { getCarriers, calculateShippingPrice } from "@/app/actions/carrier";
 import { findProducts } from "@/app/actions/products";
 import Spinner from "@/components/Spinner";
 import PaymentModal from "./component/PaymentModal";
+import { notifyAdminsAboutNewOrder } from "@/app/actions/notifications";
 
 // ---------- Types ----------
 export type CalcShippingPrice = {
@@ -563,6 +564,17 @@ const CheckoutPage = () => {
         throw new Error(result.error || "Failed to create order");
       }
 
+      // 🔔 Tell every admin a new order just came in.
+      void notifyAdminsAboutNewOrder({
+        orderNumber: finalOrderNumber,
+        customerName:
+          user?.firstName ||
+          user?.fullName?.split(" ")[0] ||
+          guestForm.firstName ||
+          "",
+        total: orderData.total,
+      });
+
       openPaymentModal(selectedPaymentMethod.methodType, finalOrderNumber);
     } catch (error: any) {
       console.error("Pay Now error:", error.message || error);
@@ -612,6 +624,17 @@ const CheckoutPage = () => {
       if (!result.success) {
         throw new Error(result.error || "Failed to create order");
       }
+
+      // 🔔 Tell every admin a new order just came in.
+      void notifyAdminsAboutNewOrder({
+        orderNumber: finalOrderNumber,
+        customerName:
+          user?.firstName ||
+          user?.fullName?.split(" ")[0] ||
+          guestForm.firstName ||
+          "",
+        total: orderData.total,
+      });
 
       openPaymentModal("CashOnDelivery", finalOrderNumber);
     } catch (error: any) {

@@ -9,6 +9,7 @@ import { CartItem } from "@/app/reducer/cartReducer";
 import { calculateShippingPrice } from "@/app/actions/carrier";
 import { CalcShippingPrice } from "../../page";
 import { generateOrderPDF } from "@/app/actions/generatePDF";
+import { notifyAdminsAboutPaymentSuccess } from "@/app/actions/notifications";
 
 const DEFAULT_CARRIER_ID = "675eeda75a81d16c81aca736";
 
@@ -19,6 +20,7 @@ export default function PaymentSuccess() {
   const [isProcessing, setIsProcessing] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const orderSummaryRef = useRef<HTMLDivElement>(null);
+  const paymentNotifiedRef = useRef(false);
 
   const transaction_id = params.get("transaction_id");
   const payment_ref = params.get("payment_ref");
@@ -93,11 +95,10 @@ export default function PaymentSuccess() {
           throw new Error("Order not found. Please contact support.");
         }
 
-        // Prepare update payload (exclude _id to avoid conflicts)
         const { _id, ...orderData } = order;
         const updatedOrder = await createOrUpdateOrder(payment_ref, {
           ...orderData,
-          paymentStatus: status, // "paid" or "failed"
+          paymentStatus: status,
           transaction_id: transaction_id,
           paymentMethod: order.paymentMethod || "Unknown",
         });
@@ -109,7 +110,20 @@ export default function PaymentSuccess() {
         setOrder(updatedOrder.order);
 
         if (status === "paid") {
-          // Clear cart on backend via context method
+          // 🔔 Payment received — notify admins (once per page load)
+          if (!paymentNotifiedRef.current) {
+            paymentNotifiedRef.current = true;
+            void notifyAdminsAboutPaymentSuccess({
+              orderNumber: payment_ref,
+              customerName:
+                `${order?.firstName ?? firstName ?? ""} ${
+                  order?.lastName ?? lastName ?? ""
+                }`.trim() || undefined,
+              total: order?.total,
+              transactionId: transaction_id,
+            });
+          }
+
           await clearCart();
           toast.success("Payment successful! Thank you for your purchase.");
         } else {
@@ -126,7 +140,6 @@ export default function PaymentSuccess() {
       }
     }
 
-    // Only run after order is fetched and if not already processed
     if (order !== null && isProcessing) {
       updatePaymentInfos();
     }

@@ -4,7 +4,6 @@ import React, { FC, ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { useCart } from "@/app/context/CartContext";
-import { triggerNotification } from "@/app/actions/notifications";
 
 interface Product {
   _id: string;
@@ -52,12 +51,6 @@ const CheckoutButton: FC<CheckoutProps> = ({
       } finally {
         setAdding(false);
       }
-    }
-
-    if (user?.id) {
-      triggerNotification(user.id, `${user.name} is checking out!`).catch(
-        console.error,
-      );
     }
 
     setProcessing(true);

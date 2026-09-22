@@ -6,159 +6,267 @@ import { Types } from "mongoose";
 import { auth } from "@/app/auth";
 import { cookies } from "next/headers";
 
-// Import your models and connection utility
-import { connection } from "@/utils/connection"; // Adjust path to your DB connection
+import { connection } from "@/utils/connection";
 import Address from "@/models/Address";
 import {
   PaymentMethod,
   CreditCardPaymentMethod,
   MobileMoneyPaymentMethod,
+  PayPalPaymentMethod,
+  MOBILE_MONEY_PROVIDERS,
 } from "@/models/PaymentMethod";
 
-// ------------------ Authentication Helper ------------------
-// Replace this with your actual auth logic (NextAuth, Clerk, etc.)
+// ------------------ Auth helper ------------------
 async function getAuthenticatedUser() {
-  // Example placeholder:
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
   return session.user.id;
 }
 
-// ------------------ Validation Schemas (Zod) ------------------
+// ------------------ Helpers ------------------
 
-// Payment Method Base Schema (Discriminated Union)
+function detectCardType(digits: string): string {
+  if (/^4/.test(digits)) return "Visa";
+  if (/^(5[1-5]|2[2-7])/.test(digits)) return "Mastercard";
+  if (/^3[47]/.test(digits)) return "Amex";
+  if (/^6(?:011|5)/.test(digits)) return "Discover";
+  return "Unknown";
+}
+
+function parseExpiry(
+  expiryDate: string,
+): { expiryMonth: string; expiryYear: string } | null {
+  const match = expiryDate
+    .trim()
+    .match(/^(0[1-9]|1[0-2])\s*\/\s*(\d{2}|\d{4})$/);
+  if (!match) return null;
+  const expiryMonth = match[1];
+  const expiryYear = match[2].length === 2 ? `20${match[2]}` : match[2];
+  return { expiryMonth, expiryYear };
+}
+
+// ------------------ Zod schema (discriminated union) ------------------
 const paymentMethodSchema = z.discriminatedUnion("methodType", [
-  // Credit Card
   z.object({
     methodType: z.literal("CreditCard"),
     details: z.object({
-      cardNumber: z.string().min(1, "Card number is required"),
-      expiryDate: z.string().min(1, "Expiry date is required"),
-      cardholderName: z.string().min(1, "Cardholder name is required"),
+      cardNumber: z
+        .string()
+        .transform((v) => v.replace(/\D/g, ""))
+        .refine((v) => v.length >= 13 && v.length <= 19, {
+          message: "Card number must be 13–19 digits",
+        }),
+      expiryDate: z
+        .string()
+        .regex(/^(0[1-9]|1[0-2])\s*\/\s*(\d{2}|\d{4})$/, "Use MM/YY"),
+      cardholderName: z.string().trim().min(1, "Cardholder name is required"),
       billingAddressId: z.string().min(1, "Billing address is required"),
     }),
   }),
-  // Mobile Money (Cameroon)
   z.object({
     methodType: z.literal("MobileMoney"),
     details: z.object({
       phoneNumber: z
         .string()
-        .min(9, "Phone number must be at least 9 digits")
-        .max(13, "Phone number is too long"),
-      provider: z.enum(["MTN", "Orange", "Camtel"]),
-      reference: z.string().optional(),
+        .trim()
+        .regex(
+          /^(?:\+?237)?6\d{8}$/,
+          "Enter a valid Cameroon mobile number (e.g. 699999999)",
+        ),
+      provider: z.enum(MOBILE_MONEY_PROVIDERS),
+      reference: z.string().trim().optional().or(z.literal("")),
     }),
   }),
-  // PayPal
   z.object({
     methodType: z.literal("PayPal"),
     details: z.object({
-      email: z.string().email("Invalid email address"),
+      email: z.string().trim().email("Invalid email address"),
     }),
   }),
 ]);
 
-// ------------------ 2. PAYMENT METHOD ACTIONS ------------------
+// ------------------ Result type ------------------
+export type CreatePaymentMethodResult =
+  | { success: true; paymentMethod: Record<string, unknown> }
+  | {
+      success: false;
+      error: string;
+      fieldErrors?: Record<string, string>;
+    };
+
+// ------------------ Actions ------------------
 
 /**
  * Create a new payment method (Credit Card, Mobile Money, or PayPal).
- * Validates that the billingAddressId belongs to the user (for Credit Cards).
+ * Returns a structured result so validation messages reach the client.
  */
 export async function createPaymentMethod(
-  data: z.infer<typeof paymentMethodSchema>,
+  data: unknown,
   guestId?: string,
-) {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const cookieStore = await cookies();
-  const resolvedGuestId = guestId || cookieStore.get("guestId")?.value;
-  await connection();
+): Promise<CreatePaymentMethodResult> {
+  try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    const cookieStore = await cookies();
+    const resolvedGuestId = guestId || cookieStore.get("guestId")?.value;
 
-  if (!userId && !resolvedGuestId) {
-    throw new Error("Unauthorized or guest reference missing");
-  }
-
-  const validated = paymentMethodSchema.parse(data);
-
-  // --- Extra security & validation for Credit Cards ---
-  if (validated.methodType === "CreditCard") {
-    const { billingAddressId } = validated.details;
-
-    // Verify the address exists and belongs to the active user or guest session
-    const address = userId
-      ? await Address.findOne({
-          _id: billingAddressId,
-          userId: new Types.ObjectId(userId),
-        })
-      : await Address.findOne({
-          _id: billingAddressId,
-          guestId: resolvedGuestId,
-        });
-
-    if (!address) {
-      throw new Error("Invalid billing address provided");
+    if (!userId && !resolvedGuestId) {
+      return {
+        success: false,
+        error: "Unauthorized or guest reference missing",
+      };
     }
 
-    // Create the Credit Card using the specific discriminator model
-    const card = new CreditCardPaymentMethod({
-      ...(userId
-        ? { userId: new Types.ObjectId(userId) }
-        : { guestId: resolvedGuestId }),
-      methodType: "CreditCard",
-      details: {
-        ...validated.details,
-        billingAddressId: new Types.ObjectId(billingAddressId),
-      },
-    });
+    await connection();
 
-    await card.save();
+    // --- Validate ---
+    const parsed = paymentMethodSchema.safeParse(data);
+    if (!parsed.success) {
+      const fieldErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path.join(".") || "_";
+        if (!fieldErrors[key]) fieldErrors[key] = issue.message;
+      }
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? "Invalid payment method data",
+        fieldErrors,
+      };
+    }
 
-    revalidatePath("/profile/payment-methods");
-    return { success: true, paymentMethod: JSON.parse(JSON.stringify(card)) };
+    const validated = parsed.data;
+    const owner = userId
+      ? { userId: new Types.ObjectId(userId) }
+      : { guestId: resolvedGuestId as string };
+
+    // --- Credit Card ---
+    if (validated.methodType === "CreditCard") {
+      const { billingAddressId, cardNumber, cardholderName, expiryDate } =
+        validated.details;
+
+      if (!Types.ObjectId.isValid(billingAddressId)) {
+        return { success: false, error: "Invalid billing address provided" };
+      }
+
+      // Verify the address belongs to the active user or guest session
+      const address = userId
+        ? await Address.findOne({
+            _id: billingAddressId,
+            userId: new Types.ObjectId(userId),
+          })
+        : await Address.findOne({
+            _id: billingAddressId,
+            guestId: resolvedGuestId,
+          });
+
+      if (!address) {
+        return { success: false, error: "Invalid billing address provided" };
+      }
+
+      const expiry = parseExpiry(expiryDate);
+      if (!expiry) {
+        return { success: false, error: "Expiry date must be in MM/YY format" };
+      }
+
+      // Reject expired cards
+      const now = new Date();
+      const expMonth = Number(expiry.expiryMonth);
+      const expYear = Number(expiry.expiryYear);
+      if (
+        expYear < now.getFullYear() ||
+        (expYear === now.getFullYear() && expMonth < now.getMonth() + 1)
+      ) {
+        return { success: false, error: "This card has already expired" };
+      }
+
+      const last4 = cardNumber.slice(-4);
+      const cardType = detectCardType(cardNumber);
+
+      const card = new CreditCardPaymentMethod({
+        ...owner,
+        methodType: "CreditCard",
+        details: {
+          cardNumber,
+          last4,
+          cardType,
+          expiryMonth: expiry.expiryMonth,
+          expiryYear: expiry.expiryYear,
+          expiryDate: `${expiry.expiryMonth}/${expiry.expiryYear.slice(-2)}`,
+          cardholderName,
+          billingAddressId: new Types.ObjectId(billingAddressId),
+        },
+      });
+
+      await card.save();
+
+      revalidatePath("/profile/payment-methods");
+      revalidatePath("/profile/payment");
+
+      return {
+        success: true,
+        paymentMethod: JSON.parse(JSON.stringify(card)),
+      };
+    }
+
+    // --- Mobile Money ---
+    if (validated.methodType === "MobileMoney") {
+      const { phoneNumber, provider, reference } = validated.details;
+
+      const mobile = new MobileMoneyPaymentMethod({
+        ...owner,
+        methodType: "MobileMoney",
+        details: {
+          phoneNumber,
+          provider,
+          ...(reference ? { reference } : {}),
+        },
+      });
+
+      await mobile.save();
+
+      revalidatePath("/profile/payment-methods");
+      revalidatePath("/profile/payment");
+
+      return {
+        success: true,
+        paymentMethod: JSON.parse(JSON.stringify(mobile)),
+      };
+    }
+
+    // --- PayPal ---
+    if (validated.methodType === "PayPal") {
+      const paypal = new PayPalPaymentMethod({
+        ...owner,
+        methodType: "PayPal",
+        details: { email: validated.details.email },
+      });
+
+      await paypal.save();
+
+      revalidatePath("/profile/payment-methods");
+      revalidatePath("/profile/payment");
+
+      return {
+        success: true,
+        paymentMethod: JSON.parse(JSON.stringify(paypal)),
+      };
+    }
+
+    return { success: false, error: "Unsupported payment method" };
+  } catch (err) {
+    console.error("[createPaymentMethod] failed:", err);
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred while saving the payment method.",
+    };
   }
-
-  // --- Mobile Money (Cameroon) ---
-  if (validated.methodType === "MobileMoney") {
-    const mobile = new MobileMoneyPaymentMethod({
-      ...(userId
-        ? { userId: new Types.ObjectId(userId) }
-        : { guestId: resolvedGuestId }),
-      methodType: "MobileMoney",
-      details: validated.details, // phone, provider, optional reference
-    });
-
-    await mobile.save();
-
-    revalidatePath("/profile/payment-methods");
-    return { success: true, paymentMethod: JSON.parse(JSON.stringify(mobile)) };
-  }
-
-  // --- PayPal ---
-  if (validated.methodType === "PayPal") {
-    // Use the base PaymentMethod model or create a specific discriminator if needed.
-    // Since we don't have a PayPal discriminator model variable exported yet,
-    // we can use the base model with the discriminator key.
-    const paypal = new PaymentMethod({
-      ...(userId
-        ? { userId: new Types.ObjectId(userId) }
-        : { guestId: resolvedGuestId }),
-      methodType: "PayPal",
-      details: validated.details, // { email }
-    });
-
-    await paypal.save();
-
-    revalidatePath("/profile/payment-methods");
-    return { success: true, paymentMethod: JSON.parse(JSON.stringify(paypal)) };
-  }
-
-  throw new Error("Unsupported payment method");
 }
 
 /**
- * Get all payment methods for the authenticated user.
- * For Credit Cards, it populates the billingAddressId field.
+ * Merge guest payment methods into an authenticated user's account.
  */
 export async function mergeGuestPaymentMethods({
   guestId,
@@ -169,51 +277,45 @@ export async function mergeGuestPaymentMethods({
 }) {
   await connection();
 
-  const guestIds = guestId ? [guestId] : [];
-  if (!guestIds.length) {
+  if (!guestId) {
     return { success: true, merged: false };
   }
 
   const targetUserId = new Types.ObjectId(userId);
-  const guestMethods = await PaymentMethod.find({
-    guestId: { $in: guestIds },
-  }).lean();
+
+  const guestMethods = await PaymentMethod.find({ guestId }).lean();
 
   for (const guestMethod of guestMethods) {
-    const guestMethodAny = guestMethod as any;
+    const gm = guestMethod as any;
+
     const duplicate = await PaymentMethod.findOne({
       userId: targetUserId,
-      methodType: guestMethodAny.methodType,
+      methodType: gm.methodType,
       $or: [
-        {
-          "details.email": guestMethodAny.details?.email,
-        },
-        {
-          "details.phoneNumber": guestMethodAny.details?.phoneNumber,
-        },
-        {
-          "details.cardNumber": guestMethodAny.details?.cardNumber,
-        },
+        { "details.email": gm.details?.email },
+        { "details.phoneNumber": gm.details?.phoneNumber },
+        { "details.cardNumber": gm.details?.cardNumber },
       ],
     });
 
     if (!duplicate) {
       await PaymentMethod.updateOne(
-        { _id: guestMethod._id },
-        {
-          $set: { userId: targetUserId, guestId: null },
-          $unset: { guestId: 1 },
-        },
+        { _id: gm._id },
+        { $set: { userId: targetUserId }, $unset: { guestId: 1 } },
       );
     } else {
-      await PaymentMethod.deleteOne({ _id: guestMethod._id });
+      await PaymentMethod.deleteOne({ _id: gm._id });
     }
   }
 
+  revalidatePath("/profile/payment-methods");
   revalidatePath("/profile/payment");
   return { success: true, merged: true };
 }
 
+/**
+ * Get all payment methods for the authenticated user.
+ */
 export async function getUserPaymentMethods() {
   const userId = await getAuthenticatedUser();
   await connection();
@@ -222,7 +324,7 @@ export async function getUserPaymentMethods() {
     userId: new Types.ObjectId(userId),
   })
     .populate({
-      path: "details.billingAddressId", // Populate the referenced Address
+      path: "details.billingAddressId",
       model: "Address",
     })
     .sort({ createdAt: -1 })
@@ -248,14 +350,13 @@ export async function deletePaymentMethod(paymentMethodId: string) {
   }
 
   revalidatePath("/profile/payment-methods");
+  revalidatePath("/profile/payment");
 
   return { success: true, message: "Payment method deleted successfully" };
 }
 
 /**
- * Update an existing Credit Card (e.g., update expiry date, cardholder name, or billing address).
- * Note: Card number updates usually require PCI compliance, so handle with care.
- * We'll allow updating non-sensitive fields safely.
+ * Update a credit card's non-sensitive fields.
  */
 export async function updateCreditCard(
   paymentMethodId: string,
@@ -268,8 +369,10 @@ export async function updateCreditCard(
   const userId = await getAuthenticatedUser();
   await connection();
 
-  // If they want to update the billing address, verify it belongs to the user
   if (updates.billingAddressId) {
+    if (!Types.ObjectId.isValid(updates.billingAddressId)) {
+      throw new Error("Invalid billing address provided");
+    }
     const address = await Address.findOne({
       _id: updates.billingAddressId,
       userId: new Types.ObjectId(userId),
@@ -279,21 +382,38 @@ export async function updateCreditCard(
     }
   }
 
+  const $set: Record<string, unknown> = {};
+
+  if (updates.expiryDate !== undefined) {
+    const expiry = parseExpiry(updates.expiryDate);
+    if (!expiry) throw new Error("Expiry date must be in MM/YY format");
+    $set["details.expiryDate"] =
+      `${expiry.expiryMonth}/${expiry.expiryYear.slice(-2)}`;
+    $set["details.expiryMonth"] = expiry.expiryMonth;
+    $set["details.expiryYear"] = expiry.expiryYear;
+  }
+
+  if (updates.cardholderName !== undefined) {
+    $set["details.cardholderName"] = updates.cardholderName;
+  }
+
+  if (updates.billingAddressId !== undefined) {
+    $set["details.billingAddressId"] = new Types.ObjectId(
+      updates.billingAddressId,
+    );
+  }
+
+  if (Object.keys($set).length === 0) {
+    throw new Error("No updates provided");
+  }
+
   const updatedCard = await CreditCardPaymentMethod.findOneAndUpdate(
     {
       _id: paymentMethodId,
       userId: new Types.ObjectId(userId),
-      methodType: "CreditCard", // Ensure it's a credit card
+      methodType: "CreditCard",
     },
-    {
-      $set: {
-        "details.expiryDate": updates.expiryDate,
-        "details.cardholderName": updates.cardholderName,
-        "details.billingAddressId": updates.billingAddressId
-          ? new Types.ObjectId(updates.billingAddressId)
-          : undefined,
-      },
-    },
+    { $set },
     { new: true, runValidators: true },
   ).populate("details.billingAddressId");
 
@@ -302,6 +422,7 @@ export async function updateCreditCard(
   }
 
   revalidatePath("/profile/payment-methods");
+  revalidatePath("/profile/payment");
 
   return {
     success: true,

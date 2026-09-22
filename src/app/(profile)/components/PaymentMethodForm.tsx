@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPaymentMethod } from "@/app/actions/payment";
-import { IAddress } from "@/models/Address";
+import type { IAddress } from "@/models/Address";
 
 interface PaymentMethodFormProps {
   addresses: IAddress[];
@@ -26,6 +26,16 @@ const METHOD_OPTIONS: { value: MethodType; label: string; hint: string }[] = [
   { value: "PayPal", label: "PayPal", hint: "Pay with your PayPal account" },
 ];
 
+/**
+ * IMPORTANT: these values must match MOBILE_MONEY_PROVIDERS
+ * in `@/models/PaymentMethod` and the Zod enum in `@/app/actions/payment`.
+ */
+const MOBILE_MONEY_OPTIONS = [
+  { value: "CM_MTNMOBILEMONEY", label: "MTN Mobile Money" },
+  { value: "CM_ORANGEMONEY", label: "Orange Money" },
+  { value: "CM_EUMM", label: "Express Union Mobile Money" },
+] as const;
+
 const inputClass =
   "block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring";
 
@@ -36,6 +46,8 @@ interface FieldProps {
   type?: string;
   placeholder?: string;
   hint?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  autoComplete?: string;
 }
 
 const Field: React.FC<FieldProps> = ({
@@ -45,6 +57,8 @@ const Field: React.FC<FieldProps> = ({
   type = "text",
   placeholder,
   hint,
+  inputMode,
+  autoComplete,
 }) => (
   <div>
     <label
@@ -60,6 +74,8 @@ const Field: React.FC<FieldProps> = ({
       name={name}
       required={required}
       placeholder={placeholder}
+      inputMode={inputMode}
+      autoComplete={autoComplete}
       className={inputClass}
     />
     {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
@@ -83,37 +99,52 @@ export default function PaymentMethodForm({
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    const payload: any = { methodType };
-
-    if (methodType === "CreditCard") {
-      payload.details = {
-        cardNumber: formData.get("cardNumber") as string,
-        expiryDate: formData.get("expiryDate") as string,
-        cardholderName: formData.get("cardholderName") as string,
-        billingAddressId: formData.get("billingAddressId") as string,
-      };
-    } else if (methodType === "MobileMoney") {
-      payload.details = {
-        phoneNumber: formData.get("phoneNumber") as string,
-        provider: formData.get("provider") as string,
-        reference: (formData.get("reference") as string) || undefined,
-      };
-    } else {
-      payload.details = {
-        email: formData.get("email") as string,
-      };
-    }
+    const payload =
+      methodType === "CreditCard"
+        ? {
+            methodType: "CreditCard" as const,
+            details: {
+              cardNumber: (formData.get("cardNumber") as string) ?? "",
+              expiryDate: (formData.get("expiryDate") as string) ?? "",
+              cardholderName: (formData.get("cardholderName") as string) ?? "",
+              billingAddressId:
+                (formData.get("billingAddressId") as string) ?? "",
+            },
+          }
+        : methodType === "MobileMoney"
+          ? {
+              methodType: "MobileMoney" as const,
+              details: {
+                phoneNumber: (formData.get("phoneNumber") as string) ?? "",
+                provider: (formData.get("provider") as string) ?? "",
+                reference: (formData.get("reference") as string) || undefined,
+              },
+            }
+          : {
+              methodType: "PayPal" as const,
+              details: {
+                email: (formData.get("email") as string) ?? "",
+              },
+            };
 
     try {
       const result = await createPaymentMethod(payload);
+
       if (result.success) {
         form.reset();
         onSuccess?.();
       } else {
-        setError("Failed to add payment method.");
+        const firstFieldError = result.fieldErrors
+          ? Object.values(result.fieldErrors)[0]
+          : undefined;
+        setError(
+          firstFieldError ?? result.error ?? "Failed to add payment method.",
+        );
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred.",
+      );
     } finally {
       setLoading(false);
     }
@@ -121,10 +152,18 @@ export default function PaymentMethodForm({
 
   const cardBlocked = methodType === "CreditCard" && addresses.length === 0;
 
+  const handleMethodChange = (next: MethodType) => {
+    setMethodType(next);
+    setError(null);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+        >
           {error}
         </div>
       )}
@@ -141,7 +180,7 @@ export default function PaymentMethodForm({
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setMethodType(opt.value)}
+                onClick={() => handleMethodChange(opt.value)}
                 className={`rounded-lg border p-3 text-left transition-all ${
                   selected
                     ? "border-primary bg-primary/5 ring-1 ring-primary"
@@ -160,7 +199,7 @@ export default function PaymentMethodForm({
         </div>
       </div>
 
-      {/* Hidden input so FormData has the method type too */}
+      {/* Hidden input so FormData always carries the method type */}
       <input type="hidden" name="methodType" value={methodType} />
 
       {/* Dynamic fields */}
@@ -171,6 +210,9 @@ export default function PaymentMethodForm({
             name="cardNumber"
             required
             placeholder="4111 1111 1111 1111"
+            inputMode="numeric"
+            autoComplete="cc-number"
+            hint="Digits only – spaces are ignored."
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
@@ -178,12 +220,15 @@ export default function PaymentMethodForm({
               name="expiryDate"
               required
               placeholder="MM/YY"
+              inputMode="numeric"
+              autoComplete="cc-exp"
             />
             <Field
               label="Cardholder name"
               name="cardholderName"
               required
               placeholder="John Doe"
+              autoComplete="cc-name"
             />
           </div>
           <div>
@@ -223,6 +268,8 @@ export default function PaymentMethodForm({
             type="tel"
             required
             placeholder="699999999"
+            inputMode="tel"
+            autoComplete="tel"
             hint="Cameroon format, e.g. 699999999"
           />
           <div>
@@ -239,9 +286,11 @@ export default function PaymentMethodForm({
               className={inputClass}
             >
               <option value="">Select operator</option>
-              <option value="CM_MTNMOBILEMONEY">MTN</option>
-              <option value="CM_ORANGEMONEY">Orange</option>
-              <option value="CM_EUMM">Express Union</option>
+              {MOBILE_MONEY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
           <Field
@@ -259,6 +308,7 @@ export default function PaymentMethodForm({
           type="email"
           required
           placeholder="user@example.com"
+          autoComplete="email"
         />
       )}
 

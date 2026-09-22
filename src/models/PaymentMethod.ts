@@ -1,5 +1,14 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+// ------------------ Shared constants (single source of truth) ------------------
+export const MOBILE_MONEY_PROVIDERS = [
+  "CM_MTNMOBILEMONEY",
+  "CM_ORANGEMONEY",
+  "CM_EUMM",
+] as const;
+
+export type MobileMoneyProvider = (typeof MOBILE_MONEY_PROVIDERS)[number];
+
 // ------------------ Base Interface ------------------
 interface IPaymentMethodBase extends Document {
   userId?: mongoose.Types.ObjectId | null;
@@ -13,12 +22,12 @@ interface IPaymentMethodBase extends Document {
 interface ICreditCardPaymentMethod extends IPaymentMethodBase {
   methodType: "CreditCard";
   details: {
-    cardNumber: string; // we'll store full but we can mask
-    last4: string; // added
-    cardType: string; // added: Visa, Mastercard, etc.
-    expiryMonth: string; // added
-    expiryYear: string; // added
-    expiryDate: string; // keep for legacy or convenience
+    cardNumber: string; // stored in full for now (see PCI note)
+    last4: string;
+    cardType: string; // Visa, Mastercard, Amex, ...
+    expiryMonth: string; // "01".."12"
+    expiryYear: string; // "2027"
+    expiryDate: string; // "MM/YY" convenience / legacy
     cardholderName: string;
     billingAddressId: mongoose.Types.ObjectId;
   };
@@ -29,7 +38,7 @@ interface IMobileMoneyPaymentMethod extends IPaymentMethodBase {
   methodType: "MobileMoney";
   details: {
     phoneNumber: string;
-    provider: "MTN" | "Orange" | "Camtel";
+    provider: MobileMoneyProvider;
     reference?: string;
   };
 }
@@ -81,7 +90,7 @@ const CreditCardSchema = new Schema<ICreditCardPaymentMethod>({
     cardType: { type: String, required: true },
     expiryMonth: { type: String, required: true },
     expiryYear: { type: String, required: true },
-    expiryDate: { type: String, required: true }, // e.g., "12/25"
+    expiryDate: { type: String, required: true }, // e.g. "12/25"
     cardholderName: { type: String, required: true },
     billingAddressId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -98,7 +107,7 @@ const MobileMoneySchema = new Schema<IMobileMoneyPaymentMethod>({
     provider: {
       type: String,
       required: true,
-      enum: ["MTN", "Orange", "Camtel"],
+      enum: [...MOBILE_MONEY_PROVIDERS],
     },
     reference: { type: String },
   },
@@ -112,12 +121,10 @@ const PayPalSchema = new Schema<IPayPalPaymentMethod>({
 });
 
 // ------------------ Model Creation with Safe Discriminators ------------------
-// Use existing model if compiled, else create it
 const PaymentMethodModel =
   (mongoose.models.PaymentMethod as Model<IPaymentMethodBase>) ||
   mongoose.model<IPaymentMethodBase>("PaymentMethod", BasePaymentMethodSchema);
 
-// Register discriminators and store them in variables
 let CreditCardModel: Model<ICreditCardPaymentMethod>;
 let MobileMoneyModel: Model<IMobileMoneyPaymentMethod>;
 let PayPalModel: Model<IPayPalPaymentMethod>;

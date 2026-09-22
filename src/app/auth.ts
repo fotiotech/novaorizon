@@ -1,3 +1,4 @@
+// auth.ts  (front app)
 import { connection } from "@/utils/connection";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import client from "./lib/db";
@@ -52,11 +53,11 @@ const providers: Provider[] = [
     clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     async profile(profile) {
       return {
-        id: profile.sub,
+        // NOTE: `id` intentionally omitted — MongoDBAdapter assigns the _id
         name: profile.name,
         email: profile.email,
         image: profile.picture,
-        role: "user", // Default role for OAuth users
+        role: "user",
       };
     },
   }),
@@ -65,11 +66,11 @@ const providers: Provider[] = [
     clientSecret: process.env.AUTH_GITHUB_SECRET!,
     async profile(profile) {
       return {
-        id: profile.id.toString(),
+        // NOTE: `id` intentionally omitted — MongoDBAdapter assigns the _id
         name: profile.name || profile.login,
         email: profile.email,
         image: profile.avatar_url,
-        role: "user", // Default role for OAuth users
+        role: "user",
       };
     },
   }),
@@ -92,23 +93,26 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/auth/login",
     error: "/auth/error",
-    newUser: "/auth/sign_up", // Consider adding this
+    newUser: "/auth/sign_up",
   },
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  // No custom `cookies` block needed here — the admin app already
+  // uses `admin.*` names, so this app can keep the NextAuth defaults.
   callbacks: {
     async jwt({ token, user, trigger, session }: any) {
-      // Add user info to token on sign in
       if (user) {
         token.id = user.id;
         token.role = user.role;
       }
 
-      // Update token with session data if needed
+      // ✅ Whitelist: only allow name/image to be updated by the client
       if (trigger === "update" && session) {
-        token = { ...token, ...session };
+        token.name = session.user?.name ?? token.name;
+        token.image = session.user?.image ?? token.image;
+        // never copy `role` or `id` from the client
       }
 
       return token;
@@ -121,13 +125,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
       if (url.startsWith("/")) return `${baseUrl}${url}`;
-      // Allows callback URLs on the same origin
       else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET, // Use NEXTAUTH_SECRET instead
-  trustHost: true, // Required for Vercel deployments
+  secret: process.env.NEXTAUTH_SECRET, // ← must be DIFFERENT from admin app
+  trustHost: true,
 } satisfies NextAuthConfig);
