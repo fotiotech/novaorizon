@@ -6,8 +6,8 @@ import { revalidatePath } from "next/cache";
 import mongoose from "mongoose";
 import { connection } from "@/utils/connection";
 import NewsletterSubscriber from "@/models/NewsletterSubscriber";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import User from "@/models/User";
+import { EMAIL_REGEX } from "@/app/lib/definitions";
 
 function makeToken() {
   return crypto.randomBytes(24).toString("hex");
@@ -36,6 +36,11 @@ export async function subscribeToNewsletter(payload: {
 
     if (existing) {
       if (existing.status === "subscribed") {
+        // Still backfill userId if we now know who they are.
+        if (!existing.userId && payload.userId) {
+          existing.userId = payload.userId as any;
+          await existing.save();
+        }
         return {
           success: true,
           message: "You're already subscribed. Thanks for being with us!",
@@ -48,6 +53,9 @@ export async function subscribeToNewsletter(payload: {
       if (!existing.unsubscribeToken) {
         existing.unsubscribeToken = makeToken();
       }
+      if (!existing.userId && payload.userId) {
+        existing.userId = payload.userId as any;
+      }
       await existing.save();
       return {
         success: true,
@@ -55,10 +63,17 @@ export async function subscribeToNewsletter(payload: {
       };
     }
 
+    // No subscriber row yet — try to link to an existing user by email.
+    let userId = payload.userId ?? null;
+    if (!userId) {
+      const user: any = await User.findOne({ email }).select("_id").lean();
+      if (user) userId = String(user._id);
+    }
+
     await NewsletterSubscriber.create({
       email,
       source: payload.source || "footer",
-      userId: payload.userId || null,
+      userId: userId || null,
       unsubscribeToken: makeToken(),
       status: "subscribed",
       subscribedAt: new Date(),
@@ -100,6 +115,18 @@ export async function unsubscribeFromNewsletter(
     sub.status = "unsubscribed";
     sub.unsubscribedAt = new Date();
     await sub.save();
+
+    // ── Reverse sync: keep the user's marketing preference aligned ──
+    if (sub.userId) {
+      try {
+        await User.updateOne(
+          { _id: sub.userId },
+          { $set: { "preferences.marketing.email": false } },
+        );
+      } catch (err) {
+        console.error("[unsubscribeFromNewsletter] user sync failed:", err);
+      }
+    }
 
     return { success: true, message: "You've been unsubscribed." };
   } catch (error: any) {

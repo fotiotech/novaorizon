@@ -21,9 +21,10 @@ const LANGUAGES = [
 
 const Profile = () => {
   const { data: session, status } = useSession();
-  const unreadCount = useUnreadMessages();
+
   const user: any = session?.user;
   const router = useRouter();
+  const unreadCount = useUnreadMessages();
 
   const {
     profile,

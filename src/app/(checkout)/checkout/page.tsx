@@ -17,6 +17,13 @@ import { findProducts } from "@/app/actions/products";
 import Spinner from "@/components/Spinner";
 import PaymentModal from "./component/PaymentModal";
 import { notifyAdminsAboutNewOrder } from "@/app/actions/notifications";
+import {
+  previewCartDiscounts,
+  validatePromotionCode,
+  type DiscountResult,
+  type Cart as ServerCart,
+  type CustomerContext,
+} from "@/app/actions/promotions";
 
 // ---------- Types ----------
 export type CalcShippingPrice = {
@@ -37,8 +44,6 @@ type CarrierReason =
   | "ok";
 
 // ---------- Carrier helpers ----------
-// Normalise a product's `carrier` field (array | object | string) into
-// an array of string IDs. Anything unparseable is dropped.
 function normalizeCarrierIds(raw: any): string[] {
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw : [raw];
@@ -54,8 +59,6 @@ function normalizeCarrierIds(raw: any): string[] {
     .filter((s) => s.length > 0);
 }
 
-// Defensive: a carrier with no declared regions is treated as serving
-// everywhere (instead of the old behaviour which silently excluded it).
 function doesCarrierServeAddress(carrier: any, address: any): boolean {
   const regions = carrier?.regionsServed;
   if (!Array.isArray(regions) || regions.length === 0) return true;
@@ -136,6 +139,15 @@ const CheckoutPage = () => {
   const { items, subtotal, tax, discount } = useCart();
   const router = useRouter();
 
+  // ---------- Promotion state ----------
+  const [promoInput, setPromoInput] = useState<string>("");
+  const [appliedCodes, setAppliedCodes] = useState<string[]>([]);
+  const [discountResult, setDiscountResult] = useState<DiscountResult | null>(
+    null,
+  );
+  const [promoLoading, setPromoLoading] = useState<boolean>(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+
   // ---------- Base state ----------
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] =
@@ -162,16 +174,11 @@ const CheckoutPage = () => {
   );
   const [shippingLoading, setShippingLoading] = useState<boolean>(false);
 
-  const getGuestIdentity = () => {
-    if (typeof window === "undefined") return "";
-    const guestId = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("guestId="))
-      ?.split("=")[1];
-    const sessionId = localStorage.getItem("sessionId") || "";
-    return guestId || sessionId;
-  };
+  // ---------- Product fetching ----------
+  const [cartProducts, setCartProducts] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
 
+  // ---------- Guest form ----------
   const [guestForm, setGuestForm] = useState({
     firstName: "",
     lastName: "",
@@ -182,12 +189,92 @@ const CheckoutPage = () => {
     country: "",
   });
 
-  // ---------- Product fetching ----------
-  const [cartProducts, setCartProducts] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
-
   // ---------- Ref for synchronous processing lock ----------
   const processingRef = useRef(false);
+
+  // Build the server-side cart payload from local state.
+  const buildServerCart = (): ServerCart => {
+    const productMap = new Map<string, any>(
+      cartProducts.map((p) => [String(p?._id ?? p?.id ?? ""), p]),
+    );
+
+    return {
+      items: items.map((item) => {
+        const p: any = productMap.get(String(item.productId));
+        const rawCategories =
+          p?.categories ?? p?.categoryIds ?? p?.category ?? [];
+        const categoryIds: string[] = (
+          Array.isArray(rawCategories) ? rawCategories : [rawCategories]
+        )
+          .map((c: any) => (typeof c === "object" ? c?._id : c))
+          .filter(Boolean)
+          .map(String);
+
+        const rawBrand = p?.brand ?? p?.brandId;
+        const brandId = rawBrand
+          ? String(typeof rawBrand === "object" ? rawBrand._id : rawBrand)
+          : undefined;
+
+        return {
+          productId: String(item.productId),
+          quantity: item.quantity,
+          unitPrice: item.price,
+          categoryIds,
+          brandId,
+        };
+      }),
+      subtotal,
+      shippingCost: shippingPrice?.shippingPrice || 0,
+    };
+  };
+
+  const customerCtx: CustomerContext = {
+    customerId: (user as any)?.id ?? null,
+    customerGroupIds: ((user as any)?.customerGroupIds ?? []).map(String),
+  };
+
+  const getGuestIdentity = () => {
+    if (typeof window === "undefined") return "";
+    const guestId = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("guestId="))
+      ?.split("=")[1];
+    const sessionId = localStorage.getItem("sessionId") || "";
+    return guestId || sessionId;
+  };
+
+  // Recompute server-authoritative discounts whenever the cart, shipping,
+  // applied codes, or user change.
+  useEffect(() => {
+    if (items.length === 0) {
+      setDiscountResult(null);
+      return;
+    }
+    if (cartProducts.length === 0) return;
+
+    let cancelled = false;
+
+    previewCartDiscounts(buildServerCart(), customerCtx, appliedCodes)
+      .then((result) => {
+        if (!cancelled) setDiscountResult(result);
+      })
+      .catch((err) => {
+        console.error("Failed to compute discounts:", err);
+        if (!cancelled) setDiscountResult(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    items,
+    subtotal,
+    shippingPrice?.shippingPrice,
+    appliedCodes,
+    (user as any)?.id,
+    cartProducts,
+  ]);
 
   // Generate order number and room ID
   useEffect(() => {
@@ -279,7 +366,7 @@ const CheckoutPage = () => {
     fetchProducts();
   }, [items]);
 
-  // Compute available carriers — robust, with fallbacks.
+  // Compute available carriers
   useEffect(() => {
     if (cartProducts.length === 0) {
       setAvailableCarriers([]);
@@ -288,15 +375,12 @@ const CheckoutPage = () => {
       return;
     }
 
-    // Normalise each product's carrier field.
     const carrierSets = cartProducts.map((p) =>
       normalizeCarrierIds(p?.carrier),
     );
 
-    // Which products actually declare a carrier?
     const productsWithCarriers = carrierSets.filter((a) => a.length > 0);
 
-    // If no product restricts carriers → allow all carriers.
     const allowedIds: string[] | null =
       productsWithCarriers.length === 0
         ? null
@@ -305,7 +389,6 @@ const CheckoutPage = () => {
             productsWithCarriers[0],
           );
 
-    // Products DID declare carriers, but they don't overlap.
     if (allowedIds && allowedIds.length === 0) {
       setAvailableCarriers([]);
       setSelectedCarrierId("");
@@ -323,15 +406,10 @@ const CheckoutPage = () => {
       try {
         const allCarriers = await getCarriers();
 
-        // Step 1 — restrict by product carriers (if any product declared one).
         let pool = allowedIds
           ? allCarriers.filter((c) => allowedIds.includes(String(c._id)))
           : allCarriers;
 
-        // Step 2 — restrict by region, but only if we have an address and
-        // that filter actually leaves something. The region matcher is a
-        // heuristic; if it excludes everything we fall back to the pool so
-        // the user isn't blocked by an over-strict match.
         if (selectedAddress) {
           const regional = pool.filter((c) =>
             doesCarrierServeAddress(c, selectedAddress),
@@ -339,8 +417,6 @@ const CheckoutPage = () => {
           if (regional.length > 0) {
             pool = regional;
           } else if (pool.length > 0) {
-            // Region filter emptied the pool — keep the pool, but
-            // remember the reason so we can surface a soft warning.
             setCarrierReason("none-serve-region");
             setAvailableCarriers(pool);
             setSelectedCarrierId(String(pool[0]._id));
@@ -443,7 +519,11 @@ const CheckoutPage = () => {
     paymentMethodId?: string,
   ): any => {
     const shippingCost = shippingPrice?.shippingPrice || 0;
-    const total = subtotal + tax - discount + shippingCost;
+    const effectiveDiscount = discountResult?.totalDiscount ?? discount;
+    const total = Math.max(
+      0,
+      subtotal + tax - effectiveDiscount + shippingCost,
+    );
 
     const products = items.map((item) => ({
       productId: item.productId,
@@ -454,26 +534,26 @@ const CheckoutPage = () => {
     }));
 
     return {
-      userId: user?.id || null,
+      userId: (user as any)?.id || null,
       email: user?.email || guestForm.email || "",
       firstName:
         user?.firstName ||
-        user?.name?.split(" ")[0] ||
+        (user as any)?.name?.split(" ")[0] ||
         guestForm.firstName ||
         "",
       lastName:
         user?.lastName ||
-        user?.name?.split(" ").slice(1).join(" ") ||
+        (user as any)?.name?.split(" ").slice(1).join(" ") ||
         guestForm.lastName ||
         "",
       products,
       subtotal,
       tax,
-      discount,
+      discount: effectiveDiscount,
       shippingCost,
       total,
       paymentStatus: "pending",
-      paymentMethod: paymentMethod,
+      paymentMethod,
       paymentMethodId: paymentMethodId || null,
       billingAddressId: selectedAddressId || null,
       billingAddress: {
@@ -493,6 +573,12 @@ const CheckoutPage = () => {
       },
       carrierId: selectedCarrierId,
       orderStatus: "pending",
+      appliedPromotions: (discountResult?.applied ?? []).map((a) => ({
+        promotionId: a._id,
+        name: a.name,
+        code: a.code,
+        discount: a.discount,
+      })),
     };
   };
 
@@ -510,7 +596,40 @@ const CheckoutPage = () => {
     setPaymentModalOpen(false);
   };
 
-  // Handlers
+  // ---------- Promo handlers ----------
+  const handleApplyCode = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+
+    setPromoLoading(true);
+    setPromoError(null);
+    try {
+      const res = await validatePromotionCode(
+        code,
+        buildServerCart(),
+        customerCtx,
+      );
+      if (res.ok) {
+        const upper = code.toUpperCase();
+        setAppliedCodes((prev) =>
+          prev.includes(upper) ? prev : [...prev, upper],
+        );
+        setPromoInput("");
+      } else {
+        setPromoError(res.reason);
+      }
+    } catch (err: any) {
+      setPromoError(err?.message ?? "Could not apply code");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemoveCode = (code: string) => {
+    setAppliedCodes((prev) => prev.filter((c) => c !== code));
+  };
+
+  // ---------- Checkout handlers ----------
   const handlePayNow = async () => {
     if (processingRef.current) return;
     processingRef.current = true;
@@ -564,7 +683,6 @@ const CheckoutPage = () => {
         throw new Error(result.error || "Failed to create order");
       }
 
-      // 🔔 Tell every admin a new order just came in.
       void notifyAdminsAboutNewOrder({
         orderNumber: finalOrderNumber,
         customerName:
@@ -625,7 +743,6 @@ const CheckoutPage = () => {
         throw new Error(result.error || "Failed to create order");
       }
 
-      // 🔔 Tell every admin a new order just came in.
       void notifyAdminsAboutNewOrder({
         orderNumber: finalOrderNumber,
         customerName:
@@ -939,6 +1056,110 @@ const CheckoutPage = () => {
                 </div>
               )}
             </Section>
+
+            {/* Promo code */}
+            <Section
+              step={4}
+              title="Promo code"
+              subtitle="Have a code? Apply it here."
+            >
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    value={promoInput}
+                    onChange={(e) => {
+                      setPromoInput(e.target.value.toUpperCase());
+                      if (promoError) setPromoError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleApplyCode();
+                      }
+                    }}
+                    placeholder="e.g., WELCOME10"
+                    className={`${inputClass} font-mono tracking-wide`}
+                    disabled={promoLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleApplyCode()}
+                    disabled={promoLoading || !promoInput.trim()}
+                    className="shrink-0 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {promoLoading ? "Checking…" : "Apply"}
+                  </button>
+                </div>
+
+                {promoError && (
+                  <p className="text-xs text-destructive">{promoError}</p>
+                )}
+
+                {appliedCodes.length > 0 && (
+                  <ul className="space-y-1.5">
+                    {appliedCodes.map((code) => {
+                      const entry = discountResult?.applied.find(
+                        (a) => a.code === code,
+                      );
+                      return (
+                        <li
+                          key={code}
+                          className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="font-mono font-medium text-foreground">
+                              {code}
+                            </span>
+                            {entry ? (
+                              <span className="truncate text-xs text-emerald-600">
+                                {entry.label} · −{entry.discount}
+                              </span>
+                            ) : (
+                              <span className="truncate text-xs text-muted-foreground">
+                                Not applicable to this cart
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCode(code)}
+                            className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground"
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {discountResult &&
+                  discountResult.applied.filter((a) => !a.code).length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Applied automatically
+                      </p>
+                      <ul className="space-y-1.5">
+                        {discountResult.applied
+                          .filter((a) => !a.code)
+                          .map((a) => (
+                            <li
+                              key={a._id}
+                              className="flex items-center justify-between rounded-lg bg-emerald-500/5 px-3 py-2 text-sm"
+                            >
+                              <span className="truncate text-foreground">
+                                {a.name}
+                              </span>
+                              <span className="shrink-0 text-xs text-emerald-600">
+                                {a.label} · −{a.discount}
+                              </span>
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  )}
+              </div>
+            </Section>
           </div>
 
           {/* Right column — order summary + actions */}
@@ -954,7 +1175,11 @@ const CheckoutPage = () => {
                     Calculating totals…
                   </div>
                 ) : (
-                  <OrderSummary shippingPrice={shippingPrice} />
+                  <OrderSummary
+                    shippingPrice={shippingPrice}
+                    discount={discountResult?.totalDiscount ?? discount}
+                    appliedPromotions={discountResult?.applied ?? []}
+                  />
                 )}
               </div>
 
@@ -971,6 +1196,7 @@ const CheckoutPage = () => {
                       (!selectedAddressId && !guestAddressValid) ||
                       items.length === 0 ||
                       shippingLoading ||
+                      promoLoading ||
                       processing ||
                       availableCarriers.length === 0
                     }
@@ -994,6 +1220,7 @@ const CheckoutPage = () => {
                         !selectedPaymentMethodId ||
                         items.length === 0 ||
                         shippingLoading ||
+                        promoLoading ||
                         processing ||
                         availableCarriers.length === 0
                       }
@@ -1015,6 +1242,7 @@ const CheckoutPage = () => {
                         !selectedAddressId ||
                         items.length === 0 ||
                         shippingLoading ||
+                        promoLoading ||
                         processing ||
                         availableCarriers.length === 0
                       }

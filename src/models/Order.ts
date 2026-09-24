@@ -1,3 +1,4 @@
+// models/Order.ts
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 interface Product {
@@ -5,6 +6,14 @@ interface Product {
   name: string;
   quantity: number;
   price: number;
+}
+
+interface AppliedPromotion {
+  promotionId: mongoose.Types.ObjectId;
+  /** Snapshots — survive rename/delete of the promotion document. */
+  name?: string;
+  code?: string;
+  discount: number;
 }
 
 export interface OrderDocument extends Document {
@@ -48,9 +57,9 @@ export interface OrderDocument extends Document {
     region: string;
     address: string;
     country: string;
-    carrier?: string; // kept for display/history, but now we also store carrierId
+    carrier?: string;
   };
-  carrierId?: mongoose.Types.ObjectId; // 👈 new field referencing Carrier model
+  carrierId?: mongoose.Types.ObjectId;
   shippingStatus: "pending" | "shipped" | "delivered";
   shippingDate?: Date;
   deliveryDate?: Date;
@@ -68,6 +77,8 @@ export interface OrderDocument extends Document {
   notes?: string;
   couponCode?: string;
   discount: number;
+  /** Snapshot of every promotion applied to this order, taken at create time. */
+  appliedPromotions?: AppliedPromotion[];
 }
 
 const OrderSchema = new mongoose.Schema<OrderDocument>(
@@ -79,6 +90,7 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
       ref: "User",
       required: false,
       default: null,
+      index: true,
     },
     guestId: {
       type: String,
@@ -139,11 +151,10 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
       region: { type: String, required: true },
       city: { type: String, required: true },
       address: { type: String, required: true },
-      carrier: { type: String }, // display name or ID (kept for compatibility)
+      carrier: { type: String },
       country: { type: String, required: true },
     },
     carrierId: {
-      // 👈 new field
       type: mongoose.Schema.Types.ObjectId,
       ref: "Carrier",
       required: false,
@@ -176,9 +187,35 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
     notes: { type: String },
     couponCode: { type: String },
     discount: { type: Number, default: 0 },
+
+    // Snapshot of what the customer saw at checkout. Written once on
+    // order creation; the paid-transition webhook reads it to record
+    // redemptions against usage limits. `_id: false` keeps the subdocs
+    // lean — we don't need per-row identity, only the values.
+    appliedPromotions: [
+      {
+        _id: false,
+        promotionId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Promotion",
+          required: true,
+        },
+        name: { type: String, trim: true },
+        code: { type: String, trim: true, uppercase: true },
+        discount: { type: Number, required: true, min: 0 },
+      },
+    ],
   },
   { timestamps: true },
 );
+
+// Customer's own order list — filters by userId and sorts by createdAt.
+OrderSchema.index({ userId: 1, createdAt: -1 });
+
+// Guest order lookup / admin dashboards.
+OrderSchema.index({ email: 1 });
+OrderSchema.index({ paymentStatus: 1, createdAt: -1 });
+OrderSchema.index({ orderStatus: 1, createdAt: -1 });
 
 const Order: Model<OrderDocument> =
   mongoose.models.Order || mongoose.model<OrderDocument>("Order", OrderSchema);

@@ -3,10 +3,15 @@
 
 import React, { useState } from "react";
 import { subscribeToNewsletter } from "@/app/actions/newsletter";
+import { useUserDataOptional } from "@/app/context/UserDataContext";
 
 type State = "idle" | "submitting" | "success" | "error";
 
 const NewsletterForm = () => {
+  // Safe: returns null when the footer renders outside UserDataProvider
+  // (e.g. on public marketing pages that don't wrap with the provider).
+  const userData = useUserDataOptional();
+
   const [email, setEmail] = useState("");
   const [state, setState] = useState<State>("idle");
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -21,18 +26,50 @@ const NewsletterForm = () => {
     const result = await subscribeToNewsletter({
       email,
       source: "footer",
+      userId: userData?.user?.id ?? null,
     });
 
     if (result.success) {
       setState("success");
       setFeedback(result.message || "Thanks for subscribing!");
       setEmail("");
+      // Refresh so `preferences.marketing.email` reflects the change
+      // (server action also sets it when a userId is present).
+      userData?.refetch?.();
     } else {
       setState("error");
       setFeedback(result.error || "Something went wrong.");
     }
   };
 
+  /* ── Loading: don't flash the form while we're checking the session ── */
+  if (userData?.loading) {
+    return <div className="w-full max-w-xs min-h-[80px]" aria-hidden />;
+  }
+
+  /* ── Logged in and already subscribed: show confirmation ── */
+  const isSubscribed = Boolean(
+    userData?.user && userData?.preferences?.marketing?.email,
+  );
+
+  if (isSubscribed) {
+    return (
+      <div className="w-full max-w-xs">
+        <p className="font-medium text-sm mb-1 text-foreground">
+          You&apos;re subscribed ✓
+        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          We&apos;ll send updates to{" "}
+          <span className="text-foreground">
+            {userData?.profile?.email ?? userData?.user?.email}
+          </span>
+          . You can manage this from your profile.
+        </p>
+      </div>
+    );
+  }
+
+  /* ── Logged out, or logged in without marketing consent: show form ── */
   return (
     <div className="w-full max-w-xs">
       <p className="font-medium text-sm mb-2 text-foreground">

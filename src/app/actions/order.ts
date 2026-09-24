@@ -9,6 +9,7 @@ import Shipping from "@/models/Shipping";
 import Transaction from "@/models/Transaction";
 import "@/models/Address";
 import "@/models/PaymentMethod";
+import { recordPromotionUsage } from "./promotions";
 
 export async function findOrders(options?: {
   orderNumber?: string;
@@ -373,6 +374,7 @@ export async function createOrUpdateOrder(
     orderStatus = "processing",
     discount = 0,
     guestId = null,
+    appliedPromotions, // ← NEW: optional, only set on create/update from checkout
     shippingAddress = {
       street: "",
       city: "",
@@ -422,6 +424,19 @@ export async function createOrUpdateOrder(
     paymentMethodId: paymentMethodId || null,
   };
 
+  // Only set appliedPromotions when the caller actually provided it.
+  // A later call (e.g. a payment webhook) omits it, and `findOneAndUpdate`
+  // is a $set under the hood — so the existing snapshot on the order is
+  // preserved without us having to re-send it.
+  if (appliedPromotions !== undefined) {
+    payload.appliedPromotions = appliedPromotions.map((a: any) => ({
+      promotionId: a.promotionId ?? a._id,
+      name: a.name,
+      code: a.code,
+      discount: Math.max(0, Number(a.discount) || 0),
+    }));
+  }
+
   try {
     const existingOrder = await Order.findOne({
       orderNumber: payment_ref,
@@ -438,11 +453,39 @@ export async function createOrUpdateOrder(
       },
     );
 
-    if (
+    const isPaidTransition =
       payload.paymentStatus === "paid" &&
-      (!existingOrder || existingOrder.paymentStatus !== "paid")
-    ) {
+      (!existingOrder || existingOrder.paymentStatus !== "paid");
+
+    if (isPaidTransition) {
       await syncInventoryFromOrder(savedOrder.toObject(), "deduct");
+
+      // Record redemption so per-customer / total usage limits advance.
+      // Idempotent per (promotion, order) thanks to a unique index on
+      // PromotionUsage — safe if this runs twice for the same order.
+      try {
+        const applied: any[] = (savedOrder as any).appliedPromotions ?? [];
+        if (applied.length > 0) {
+          await recordPromotionUsage(
+            savedOrder._id.toString(),
+            applied.map((a: any) => ({
+              _id: a.promotionId.toString(),
+              discount: a.discount,
+              code: a.code,
+            })),
+            // Only logged-in users count against `perCustomer`. Guests
+            // pass null and only the `totalUses` limit applies to them.
+            savedOrder.userId?.toString?.() ?? null,
+          );
+        }
+      } catch (usageError) {
+        // Do not fail the order because usage tracking hiccupped. The
+        // order is already saved; log and move on.
+        console.error(
+          "[createOrUpdateOrder] Failed to record promotion usage:",
+          usageError,
+        );
+      }
 
       // Create invoice for the newly paid order
       try {

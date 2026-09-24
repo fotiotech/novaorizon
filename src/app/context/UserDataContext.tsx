@@ -31,6 +31,7 @@ export interface IPreferences {
   timezone?: string;
   country?: string | null;
 
+  /** Service notifications — order/account messages. */
   notifications?: {
     email?: boolean;
     sms?: boolean;
@@ -38,6 +39,7 @@ export interface IPreferences {
     whatsapp?: boolean;
   };
 
+  /** Marketing consent. `email` is the canonical newsletter opt-in. */
   marketing?: {
     email?: boolean;
     sms?: boolean;
@@ -46,15 +48,16 @@ export interface IPreferences {
     productRecommendations?: boolean;
   };
 
-  orderUpdates?: boolean;
   priceDropAlerts?: boolean;
   backInStockAlerts?: boolean;
-  newsletter?: boolean;
+
+  /** Consent audit trail. */
+  consentedAt?: string | null;
+  unsubscribedAt?: string | null;
 }
 
 export interface IUserProfile {
   _id?: string;
-  // `name` removed — User model now only has `fullName`
   fullName?: string | null;
   email?: string;
   image?: string | null;
@@ -108,7 +111,7 @@ function calculateCompletion(profile: IUserProfile | null): ProfileCompletion {
     };
   }
 
-  // Only `fullName` now — plus the first+last rule for consistency
+  // Only `fullName` — plus the first+last rule for consistency
   // with the server-side validation.
   const parts = (profile.fullName ?? "").trim().split(/\s+/).filter(Boolean);
   const hasName = parts.length >= 2;
@@ -216,10 +219,22 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Standard hook — throws if used outside a UserDataProvider.
+ * Use this in authenticated surfaces (profile, dashboard, etc.).
+ */
 export function useUserData() {
   const context = useContext(UserDataContext);
   if (context === undefined) {
     throw new Error("useUserData must be used within a UserDataProvider");
   }
   return context;
+}
+
+/**
+ * Non-throwing variant — returns null if no provider is mounted.
+ * Use this in shared UI (footer, header) that may render on public routes.
+ */
+export function useUserDataOptional(): UserDataContextValue | null {
+  return useContext(UserDataContext) ?? null;
 }
