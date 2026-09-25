@@ -14,6 +14,10 @@ interface AppliedPromotion {
   name?: string;
   code?: string;
   discount: number;
+  /** Which calculator produced this discount. Lets the order view split
+   *  free-shipping promos from item-level ones without re-fetching the
+   *  (possibly deleted) promotion. */
+  calculationType?: string;
 }
 
 export interface OrderDocument extends Document {
@@ -196,13 +200,16 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
       {
         _id: false,
         promotionId: {
-          type: mongoose.Schema.Types.ObjectId,
+          type: Schema.Types.ObjectId,
           ref: "Promotion",
           required: true,
         },
         name: { type: String, trim: true },
         code: { type: String, trim: true, uppercase: true },
         discount: { type: Number, required: true, min: 0 },
+        // Free-form string rather than an enum: if a new calculator type
+        // is added, existing order snapshots shouldn't fail to save.
+        calculationType: { type: String, trim: true },
       },
     ],
   },

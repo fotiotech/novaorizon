@@ -26,6 +26,30 @@ import CartPopover from "./cart/CartPopover";
 // ---------- Logo sources ----------
 const LOGO_DARK = "/logoc1.png";
 
+// ---------- Nav skeleton ----------
+const NAV_SKELETON_WIDTHS = [
+  "w-16",
+  "w-20",
+  "w-24",
+  "w-14",
+  "w-20",
+  "w-[72px]",
+  "w-16",
+  "w-20",
+];
+
+const NavSkeleton = React.memo(() => (
+  <ul className="flex items-center gap-1 whitespace-nowrap" aria-hidden="true">
+    {NAV_SKELETON_WIDTHS.map((width, i) => (
+      <li key={i} className="inline-block">
+        <div className={`h-9 ${width} rounded-lg bg-muted animate-pulse`} />
+      </li>
+    ))}
+  </ul>
+));
+
+NavSkeleton.displayName = "NavSkeleton";
+
 // ---------- UserProfile with Popover ----------
 const UserProfile = React.memo(() => {
   const session = useSession();
@@ -181,15 +205,20 @@ const Header = () => {
     Array<{ _id: string; name: string; contentType: string }>
   >([]);
   const [sidebarMenus, setSidebarMenus] = useState<any[]>([]);
+  const [isNavLoading, setIsNavLoading] = useState(true);
 
   // Fetch nav data
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchData() {
       try {
         const categoriesRes = await getCategory();
+        if (cancelled) return;
         setCategory(categoriesRes);
 
         const navBarMenusRes = await getMenusByLocation("NavBar");
+        if (cancelled) return;
         if (navBarMenusRes.success && navBarMenusRes.data.length > 0) {
           const firstMenu = navBarMenusRes.data[0];
 
@@ -205,15 +234,22 @@ const Header = () => {
         }
 
         const sideBarMenusRes = await getMenusByLocation("SideBar");
+        if (cancelled) return;
         if (sideBarMenusRes.success && sideBarMenusRes.data.length > 0) {
           setSidebarMenus(sideBarMenusRes.data);
         }
       } catch (error) {
         console.error("Error fetching navigation data:", error);
+      } finally {
+        if (!cancelled) setIsNavLoading(false);
       }
     }
 
     fetchData();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const navigationItems = useMemo(() => {
@@ -298,10 +334,14 @@ const Header = () => {
           {/* Navbar row */}
           <div className="w-full overflow-hidden">
             <div className="overflow-x-auto scrollbar-none pb-1">
-              <nav aria-label="Main navigation">
-                <ul className="flex items-center gap-0.5 whitespace-nowrap">
-                  {navigationItems}
-                </ul>
+              <nav aria-label="Main navigation" aria-busy={isNavLoading}>
+                {isNavLoading ? (
+                  <NavSkeleton />
+                ) : (
+                  <ul className="flex items-center gap-0.5 whitespace-nowrap">
+                    {navigationItems}
+                  </ul>
+                )}
               </nav>
             </div>
           </div>
@@ -314,11 +354,6 @@ const Header = () => {
         categories={category}
         sidebarMenus={sidebarMenus}
       />
-
-      {/* Search modal — mobile only */}
-      <div className="lg:hidden">
-        <SearchModal isOpen={isSearchOpen} onClose={closeSearch} />
-      </div>
     </>
   );
 };

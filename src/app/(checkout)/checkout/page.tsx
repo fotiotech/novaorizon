@@ -201,11 +201,18 @@ const CheckoutPage = () => {
     return {
       items: items.map((item) => {
         const p: any = productMap.get(String(item.productId));
+
+        // Product model stores a single `categoryId` (ObjectId, or
+        // `{ _id, name }` after findProducts populates it). Wrap it in
+        // an array so the storefront evaluator gets a consistent shape.
+        // Fall back to the older multi-category keys defensively in
+        // case the model changes later.
         const rawCategories =
-          p?.categories ?? p?.categoryIds ?? p?.category ?? [];
+          p?.categoryId ?? p?.categories ?? p?.categoryIds ?? [];
         const categoryIds: string[] = (
           Array.isArray(rawCategories) ? rawCategories : [rawCategories]
         )
+          .filter(Boolean)
           .map((c: any) => (typeof c === "object" ? c?._id : c))
           .filter(Boolean)
           .map(String);
@@ -578,6 +585,7 @@ const CheckoutPage = () => {
         name: a.name,
         code: a.code,
         discount: a.discount,
+        calculationType: a.calculationType,
       })),
     };
   };
@@ -775,8 +783,8 @@ const CheckoutPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-6xl p-3 md:py-12">
-        <h1 className="mb-8 text-2xl font-bold text-foreground md:text-3xl">
+      <div className="mx-auto max-w-6xl p-3 md:py-8">
+        <h1 className="mb-6 text-2xl font-bold text-foreground md:text-3xl">
           Checkout
         </h1>
 

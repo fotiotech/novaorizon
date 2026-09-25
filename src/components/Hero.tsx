@@ -69,9 +69,38 @@ const HeaderScroll: React.FC = () => {
 
   if (slides.length === 0) {
     return (
-      <div className="w-full h-60 md:h-72 lg:h-[400px] bg-muted flex items-center justify-center rounded-xl mx-2 lg:mx-10 my-2">
-        <div className="text-muted-foreground"></div>
-      </div>
+      <section
+        aria-label="Hero carousel loading"
+        className="relative overflow-hidden bg-black"
+      >
+        <div className="relative grid grid-cols-1 lg:grid-cols-2 items-stretch min-h-[440px] lg:min-h-[460px]">
+          {/* Text panel skeleton */}
+          <div className="order-2 lg:order-1 relative flex items-center justify-center px-6 py-8 lg:px-12 lg:py-14 bg-black">
+            <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
+
+            <div className="relative z-10 w-full max-w-xl space-y-4 text-center lg:text-left">
+              {/* Title placeholder */}
+              <div className="h-7 sm:h-9 lg:h-10 xl:h-12 w-3/4 mx-auto lg:mx-0 rounded-md bg-white/10 animate-pulse" />
+              {/* Description placeholder */}
+              <div className="space-y-2">
+                <div className="h-3 sm:h-4 w-full rounded bg-white/10 animate-pulse" />
+                <div className="h-3 sm:h-4 w-5/6 mx-auto lg:mx-0 rounded bg-white/10 animate-pulse" />
+              </div>
+              {/* CTA placeholder */}
+              <div className="mt-6 h-9 w-32 mx-auto lg:mx-0 rounded-full bg-white/10 animate-pulse" />
+            </div>
+          </div>
+
+          {/* Image panel skeleton */}
+          <div className="order-1 lg:order-2 relative h-56 sm:h-72 lg:h-auto bg-neutral-900">
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 animate-pulse" />
+            {/* Overlays matching the real slide */}
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="lg:hidden absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/70 to-transparent" />
+            <div className="hidden lg:block absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black via-black/70 to-transparent" />
+          </div>
+        </div>
+      </section>
     );
   }
 

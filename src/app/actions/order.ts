@@ -1,3 +1,4 @@
+// app/actions/order.ts
 "use server";
 import mongoose from "mongoose";
 import { connection } from "@/utils/connection";
@@ -18,10 +19,10 @@ export async function findOrders(options?: {
   limit?: number;
   orderStatus?: string;
   paymentStatus?: string;
-  search?: string; // will search in orderNumber, email, firstName, lastName
+  search?: string;
   dateFrom?: Date;
   dateTo?: Date;
-  carrier?: string; // NEW: filter by carrier name
+  carrier?: string;
 }) {
   await connection();
 
@@ -35,23 +36,20 @@ export async function findOrders(options?: {
     search,
     dateFrom,
     dateTo,
-    carrier, // destructure carrier
+    carrier,
   } = options || {};
 
   try {
     let query: any = {};
 
-    // Exact orderNumber match (if provided)
     if (orderNumber) {
       query.orderNumber = new RegExp(orderNumber, "i");
     }
 
-    // User filter
     if (userId) {
       query.userId = userId;
     }
 
-    // Status filters
     if (orderStatus) {
       query.orderStatus = orderStatus;
     }
@@ -59,14 +57,12 @@ export async function findOrders(options?: {
       query.paymentStatus = paymentStatus;
     }
 
-    // Date range
     if (dateFrom || dateTo) {
       query.createdAt = {};
       if (dateFrom) query.createdAt.$gte = dateFrom;
       if (dateTo) query.createdAt.$lte = dateTo;
     }
 
-    // Search across orderNumber, email, firstName, lastName
     if (search) {
       const searchRegex = new RegExp(search, "i");
       query.$or = [
@@ -77,7 +73,6 @@ export async function findOrders(options?: {
       ];
     }
 
-    // Carrier filter: match shippingAddress.carrier
     if (carrier) {
       query["shippingAddress.carrier"] = carrier;
     }
@@ -146,17 +141,24 @@ export async function updateOrderStatus(
   }
 
   try {
-    // Build update object
+    // Fetch first so we can detect the *transition* (unpaid → paid).
+    const existing: any = await Order.findOne({ orderNumber }).lean();
+    if (!existing) {
+      return {
+        success: false,
+        error: `Order with number ${orderNumber} not found`,
+      };
+    }
+
     const updateFields: any = {};
     if (updates.paymentStatus)
       updateFields.paymentStatus = updates.paymentStatus;
     if (updates.orderStatus) updateFields.orderStatus = updates.orderStatus;
 
-    // Use findOneAndUpdate with $set and skip validation (safe for status updates)
     const order = await Order.findOneAndUpdate(
       { orderNumber },
       { $set: updateFields },
-      { new: true, runValidators: false }, // ⬅️ Skip validation to avoid missing billingAddress error
+      { new: true, runValidators: false },
     );
 
     if (!order) {
@@ -166,9 +168,50 @@ export async function updateOrderStatus(
       };
     }
 
-    // If paymentStatus becomes "refunded", create a refund transaction
-    // If paymentStatus becomes "paid", create an invoice
-    if (updates.paymentStatus === "paid") {
+    const wasUnpaid = existing.paymentStatus !== "paid";
+    const isNowPaid = updates.paymentStatus === "paid";
+    const isPaidTransition = isNowPaid && wasUnpaid;
+
+    // Mirror the createOrUpdateOrder flow: on the pending→paid
+    // transition, deduct inventory, advance promotion usage, and
+    // issue an invoice. Each step is wrapped so a failure in one
+    // doesn't take down the whole status update.
+    if (isPaidTransition) {
+      // 1. Deduct inventory.
+      try {
+        await syncInventoryFromOrder(order.toObject(), "deduct");
+      } catch (invErr: any) {
+        console.error(
+          "[updateOrderStatus] syncInventoryFromOrder failed:",
+          invErr?.message ?? invErr,
+        );
+      }
+
+      // 2. Record promotion redemption. Idempotent per (promotion,
+      //    order) thanks to the unique index on PromotionUsage, so
+      //    re-running this on an already-paid order is safe — but we
+      //    only call it on the transition to avoid unnecessary reads.
+      try {
+        const applied: any[] = (order as any).appliedPromotions ?? [];
+        if (applied.length > 0) {
+          await recordPromotionUsage(
+            order._id.toString(),
+            applied.map((a: any) => ({
+              _id: a.promotionId?.toString?.() ?? String(a.promotionId),
+              discount: a.discount,
+              code: a.code,
+            })),
+            order.userId?.toString?.() ?? null,
+          );
+        }
+      } catch (usageErr: any) {
+        console.error(
+          "[updateOrderStatus] recordPromotionUsage failed:",
+          usageErr?.message ?? usageErr,
+        );
+      }
+
+      // 3. Issue invoice if one doesn't exist yet.
       try {
         const existingInvoice = await Invoice.findOne({
           orderNumber: order.orderNumber,
@@ -203,10 +246,10 @@ export async function updateOrderStatus(
             paidAt: new Date(),
           });
         }
-      } catch (invoiceError) {
+      } catch (invoiceError: any) {
         console.error(
           "[updateOrderStatus] Error creating invoice:",
-          invoiceError,
+          invoiceError?.message ?? invoiceError,
         );
       }
     }
@@ -224,18 +267,16 @@ export async function updateOrderStatus(
           date: new Date(),
         });
         await refundTransaction.save();
-      } catch (refundError) {
+      } catch (refundError: any) {
         console.error(
           "[updateOrderStatus] Error creating refund transaction:",
-          refundError,
+          refundError?.message ?? refundError,
         );
       }
     }
 
-    // Revalidate relevant paths
     revalidatePath("/profile/myorders");
-    // Optionally revalidate carrier detail pages (if we know the carrier, but it's not in scope)
-    // The client will refresh via router.refresh()
+    revalidatePath("/sales/orders");
 
     return { success: true, order: order.toObject() };
   } catch (error: any) {
@@ -269,7 +310,7 @@ async function syncInventoryFromOrder(
     if (action === "deduct") {
       if (requestedQty > currentQty) {
         throw new Error(
-          `Insufficient stock for ${product.title || "one of the items"}. Only ${currentQty} available.`,
+          `Insufficient stock for ${product.name || "one of the items"}. Only ${currentQty} available.`,
         );
       }
 
@@ -374,7 +415,7 @@ export async function createOrUpdateOrder(
     orderStatus = "processing",
     discount = 0,
     guestId = null,
-    appliedPromotions, // ← NEW: optional, only set on create/update from checkout
+    appliedPromotions,
     shippingAddress = {
       street: "",
       city: "",
@@ -425,7 +466,7 @@ export async function createOrUpdateOrder(
   };
 
   // Only set appliedPromotions when the caller actually provided it.
-  // A later call (e.g. a payment webhook) omits it, and `findOneAndUpdate`
+  // A later call (e.g. a payment webhook) omits it, and findOneAndUpdate
   // is a $set under the hood — so the existing snapshot on the order is
   // preserved without us having to re-send it.
   if (appliedPromotions !== undefined) {
@@ -469,25 +510,20 @@ export async function createOrUpdateOrder(
           await recordPromotionUsage(
             savedOrder._id.toString(),
             applied.map((a: any) => ({
-              _id: a.promotionId.toString(),
+              _id: a.promotionId?.toString?.() ?? String(a.promotionId),
               discount: a.discount,
               code: a.code,
             })),
-            // Only logged-in users count against `perCustomer`. Guests
-            // pass null and only the `totalUses` limit applies to them.
             savedOrder.userId?.toString?.() ?? null,
           );
         }
       } catch (usageError) {
-        // Do not fail the order because usage tracking hiccupped. The
-        // order is already saved; log and move on.
         console.error(
           "[createOrUpdateOrder] Failed to record promotion usage:",
           usageError,
         );
       }
 
-      // Create invoice for the newly paid order
       try {
         const year = new Date().getFullYear();
         const random = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -547,7 +583,6 @@ export async function deleteOrder(orderNumber: string) {
     }
 
     console.log(`Order with order number ${orderNumber} deleted successfully`);
-    // ✅ Fixed revalidation path to match the actual route
     revalidatePath("/sales/orders");
     return deletedOrder;
   } catch (error: any) {

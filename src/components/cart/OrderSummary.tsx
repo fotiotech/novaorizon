@@ -11,6 +11,7 @@ interface AppliedPromotion {
   code?: string;
   label: string;
   discount: number;
+  calculationType?: string;
 }
 
 interface OrderSummaryProps {
@@ -31,11 +32,30 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   const subtotal = cart.subtotal ?? 0;
   const tax = cart.tax ?? 0;
 
-  const shippingCost = shippingPrice?.shippingPrice ?? 0;
-  // Server value wins when provided; otherwise fall back to the cart context.
-  const effectiveDiscount = discount ?? cart.discount ?? 0;
+  const baseShippingCost = shippingPrice?.shippingPrice ?? 0;
 
-  const total = Math.max(0, subtotal + tax - effectiveDiscount + shippingCost);
+  // Split free_shipping promotions out so their discount reduces the
+  // shipping line directly, instead of appearing as a separate negative.
+  const shippingPromos = appliedPromotions.filter(
+    (p) => p.calculationType === "free_shipping",
+  );
+  const itemPromos = appliedPromotions.filter(
+    (p) => p.calculationType !== "free_shipping",
+  );
+  const shippingDiscount = shippingPromos.reduce((s, p) => s + p.discount, 0);
+  const effectiveShipping = Math.max(0, baseShippingCost - shippingDiscount);
+
+  // Item-level discounts — used both for rendering the lines and for
+  // computing the total when appliedPromotions isn't provided.
+  const itemDiscountFromPromos = itemPromos.reduce((s, p) => s + p.discount, 0);
+  const fallbackDiscount = discount ?? cart.discount ?? 0;
+  const effectiveItemDiscount =
+    appliedPromotions.length > 0 ? itemDiscountFromPromos : fallbackDiscount;
+
+  const total = Math.max(
+    0,
+    subtotal + tax - effectiveItemDiscount + effectiveShipping,
+  );
 
   if (items.length === 0) {
     return (
@@ -83,9 +103,9 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
           </div>
         )}
 
-        {/* Per-promotion discount lines when we have them */}
-        {appliedPromotions.length > 0 ? (
-          appliedPromotions.map((p) => (
+        {/* Item-level discount lines only */}
+        {itemPromos.length > 0 ? (
+          itemPromos.map((p) => (
             <div key={p._id} className="flex justify-between text-emerald-600">
               <span className="min-w-0 truncate">
                 {p.name}
@@ -100,21 +120,39 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
               </span>
             </div>
           ))
-        ) : effectiveDiscount > 0 ? (
+        ) : effectiveItemDiscount > 0 && appliedPromotions.length === 0 ? (
+          // Fallback path — no promotion list, just a number from context.
           <div className="flex justify-between text-emerald-600">
             <span>Discount</span>
             <span>
-              −<Prices amount={effectiveDiscount} />
+              −<Prices amount={effectiveItemDiscount} />
             </span>
           </div>
         ) : null}
 
+        {/* Shipping — reflects free_shipping promos inline */}
         <div className="flex justify-between">
           <span className="text-muted-foreground">Shipping</span>
-          <span className="font-semibold text-foreground">
-            {shippingCost > 0 ? `${shippingCost} CFA` : "Free"}
-          </span>
+          {baseShippingCost <= 0 ? (
+            <span className="text-muted-foreground">Free</span>
+          ) : effectiveShipping <= 0 ? (
+            <span className="flex items-center gap-2">
+              <span className="text-muted-foreground line-through">
+                <Prices amount={baseShippingCost} />
+              </span>
+              <span className="font-semibold text-emerald-600">Free</span>
+            </span>
+          ) : (
+            <Prices amount={effectiveShipping} />
+          )}
         </div>
+
+        {/* Note which promotion made shipping free */}
+        {shippingPromos.length > 0 && baseShippingCost > 0 && (
+          <p className="pl-1 text-[11px] text-emerald-600">
+            {shippingPromos.map((p) => p.name).join(", ")} applied
+          </p>
+        )}
 
         <div className="flex justify-between border-t border-border pt-3 text-base font-bold">
           <span className="text-foreground">Total</span>
