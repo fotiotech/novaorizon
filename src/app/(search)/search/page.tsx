@@ -381,17 +381,20 @@ const Search = () => {
 
   return (
     <div className="flex flex-col lg:flex-row w-full min-h-screen bg-background p-2 lg:px-8 lg:py-4">
-      <ListFilter
-        openClose={openClose}
-        setOpenClose={setOpenClose}
-        filters={{
-          categories: filtersData.categories,
-          brands: filtersData.brands,
-          priceRange: filtersData.priceRange,
-          attributes: attributeFilters,
-        }}
-        handleFilterClick={handleFilterClick}
-      />
+      {/* Filter rail — sticky on desktop, untouched on mobile */}
+      <div className="contents lg:block lg:sticky lg:top-20 lg:self-start lg:shrink-0 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2">
+        <ListFilter
+          openClose={openClose}
+          setOpenClose={setOpenClose}
+          filters={{
+            categories: filtersData.categories,
+            brands: filtersData.brands,
+            priceRange: filtersData.priceRange,
+            attributes: attributeFilters,
+          }}
+          handleFilterClick={handleFilterClick}
+        />
+      </div>
 
       <div className="flex-1 p-2 lg:py-4 max-w-7xl mx-auto">
         {/* Header */}

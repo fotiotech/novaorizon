@@ -39,7 +39,10 @@ const NAV_SKELETON_WIDTHS = [
 ];
 
 const NavSkeleton = React.memo(() => (
-  <ul className="flex items-center gap-1 whitespace-nowrap" aria-hidden="true">
+  <ul
+    className="flex items-center gap-0.5 whitespace-nowrap"
+    aria-hidden="true"
+  >
     {NAV_SKELETON_WIDTHS.map((width, i) => (
       <li key={i} className="inline-block">
         <div className={`h-9 ${width} rounded-lg bg-muted animate-pulse`} />
@@ -354,6 +357,11 @@ const Header = () => {
         categories={category}
         sidebarMenus={sidebarMenus}
       />
+
+      {/* Search modal — mobile only */}
+      <div className="lg:hidden">
+        <SearchModal isOpen={isSearchOpen} onClose={closeSearch} />
+      </div>
     </>
   );
 };
