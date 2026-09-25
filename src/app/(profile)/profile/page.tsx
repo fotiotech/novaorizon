@@ -35,6 +35,7 @@ const Profile = () => {
   } = useUserData();
 
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [permsOpen, setPermsOpen] = useState(false);
 
   if (status === "loading") {
     return (
@@ -49,7 +50,7 @@ const Profile = () => {
     return null;
   }
 
-  const displayName = profile?.fullName || user.name || user.email;
+  const displayName = (profile as any)?.name || user.name || user.email;
 
   const displayPhone =
     phone?.e164 ||
@@ -240,6 +241,50 @@ const Profile = () => {
                 </svg>
               </button>
 
+              {/* Notifications & Permissions — opens modal */}
+              <button
+                type="button"
+                onClick={() => setPermsOpen(true)}
+                className="w-full flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group text-left"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <span className="text-gray-700 group-hover:text-blue-600 block">
+                    Notifications & Permissions
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    Order updates, marketing & alerts
+                  </span>
+                </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-gray-400 group-hover:text-blue-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+
               {/* My Orders */}
               <Link
                 href="/profile/myorders"
@@ -263,37 +308,6 @@ const Profile = () => {
                   My Orders
                 </span>
               </Link>
-
-              {/* Chats */}
-              {/* <Link
-                href={`/checkout/chat`}
-                className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
-              >
-                <div className="relative">
-                  {unreadCount > 0 && (
-                    <p className="absolute right-0 -top-2 bg-red-500 text-xs rounded-full px-1 min-w-[18px] text-center text-white">
-                      {unreadCount}
-                    </p>
-                  )}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                </div>
-                <span className="text-gray-700 group-hover:text-blue-600">
-                  Chats
-                </span>
-              </Link> */}
 
               {/* Addresses */}
               <Link
@@ -448,6 +462,36 @@ const Profile = () => {
           onClose={() => setPrefsOpen(false)}
         />
       )}
+
+      {/* Notifications & Permissions modal */}
+      {permsOpen && (
+        <PermissionsModal
+          initialNotifications={
+            (preferences as any)?.notifications ?? {
+              email: true,
+              sms: false,
+              push: true,
+              whatsapp: false,
+            }
+          }
+          initialMarketing={
+            (preferences as any)?.marketing ?? {
+              email: false,
+              sms: false,
+              push: false,
+              whatsapp: false,
+              productRecommendations: false,
+            }
+          }
+          initialPriceDropAlerts={
+            (preferences as any)?.priceDropAlerts ?? false
+          }
+          initialBackInStockAlerts={
+            (preferences as any)?.backInStockAlerts ?? false
+          }
+          onClose={() => setPermsOpen(false)}
+        />
+      )}
     </div>
   );
 };
@@ -594,6 +638,321 @@ function PreferencesModal({
               })}
             </div>
           </div>
+
+          {error && (
+            <div className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 text-sm rounded-lg">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center"
+          >
+            {saving ? (
+              <>
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                Saving...
+              </>
+            ) : (
+              "Save changes"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                        Notifications & Permissions Modal                   */
+/* -------------------------------------------------------------------------- */
+
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+        checked ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+          {label}
+        </p>
+        {description && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {description}
+          </p>
+        )}
+      </div>
+      <Toggle checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
+function PermissionsModal({
+  initialNotifications,
+  initialMarketing,
+  initialPriceDropAlerts,
+  initialBackInStockAlerts,
+  onClose,
+}: {
+  initialNotifications: {
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+    whatsapp: boolean;
+  };
+  initialMarketing: {
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+    whatsapp: boolean;
+    productRecommendations: boolean;
+  };
+  initialPriceDropAlerts: boolean;
+  initialBackInStockAlerts: boolean;
+  onClose: () => void;
+}) {
+  const { refetch } = useUserData();
+
+  const [notifications, setNotifications] = useState(initialNotifications);
+  const [marketing, setMarketing] = useState(initialMarketing);
+  const [priceDropAlerts, setPriceDropAlerts] = useState(
+    initialPriceDropAlerts,
+  );
+  const [backInStockAlerts, setBackInStockAlerts] = useState(
+    initialBackInStockAlerts,
+  );
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res: any = await updateUserProfile({
+        preferences: {
+          notifications,
+          marketing,
+          priceDropAlerts,
+          backInStockAlerts,
+        },
+      });
+      if (res?.error) {
+        setError(res.error);
+        setSaving(false);
+        return;
+      }
+      await refetch();
+      setSaving(false);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to save");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="font-semibold text-gray-800 dark:text-white">
+            Notifications & Permissions
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+            aria-label="Close"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-4 overflow-y-auto space-y-5">
+          {/* Service notifications */}
+          <section>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              Order & account updates
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+              We'll use these channels for order confirmations, shipping and
+              security alerts.
+            </p>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              <ToggleRow
+                label="Email"
+                checked={notifications.email}
+                onChange={(v) => setNotifications((p) => ({ ...p, email: v }))}
+              />
+              <ToggleRow
+                label="Push"
+                checked={notifications.push}
+                onChange={(v) => setNotifications((p) => ({ ...p, push: v }))}
+              />
+              <ToggleRow
+                label="SMS"
+                checked={notifications.sms}
+                onChange={(v) => setNotifications((p) => ({ ...p, sms: v }))}
+              />
+              <ToggleRow
+                label="WhatsApp"
+                checked={notifications.whatsapp}
+                onChange={(v) =>
+                  setNotifications((p) => ({ ...p, whatsapp: v }))
+                }
+              />
+            </div>
+          </section>
+
+          {/* Marketing */}
+          <section className="pt-3 border-t border-gray-100 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              Marketing
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+              Promotions, offers and product recommendations. You can opt out
+              anytime.
+            </p>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              <ToggleRow
+                label="Email"
+                checked={marketing.email}
+                onChange={(v) => setMarketing((p) => ({ ...p, email: v }))}
+              />
+              <ToggleRow
+                label="Push"
+                checked={marketing.push}
+                onChange={(v) => setMarketing((p) => ({ ...p, push: v }))}
+              />
+              <ToggleRow
+                label="SMS"
+                checked={marketing.sms}
+                onChange={(v) => setMarketing((p) => ({ ...p, sms: v }))}
+              />
+              <ToggleRow
+                label="WhatsApp"
+                checked={marketing.whatsapp}
+                onChange={(v) => setMarketing((p) => ({ ...p, whatsapp: v }))}
+              />
+              <ToggleRow
+                label="Product recommendations"
+                description="Personalised suggestions based on your activity."
+                checked={marketing.productRecommendations}
+                onChange={(v) =>
+                  setMarketing((p) => ({ ...p, productRecommendations: v }))
+                }
+              />
+            </div>
+          </section>
+
+          {/* Wishlist alerts */}
+          <section className="pt-3 border-t border-gray-100 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              Wishlist alerts
+            </h3>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              <ToggleRow
+                label="Price drop alerts"
+                checked={priceDropAlerts}
+                onChange={setPriceDropAlerts}
+              />
+              <ToggleRow
+                label="Back-in-stock alerts"
+                checked={backInStockAlerts}
+                onChange={setBackInStockAlerts}
+              />
+            </div>
+          </section>
 
           {error && (
             <div className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 text-sm rounded-lg">

@@ -56,12 +56,17 @@ export interface IPreferences {
   unsubscribedAt?: string | null;
 }
 
+export type Gender = "male" | "female" | "other" | "prefer_not_to_say" | null;
+
 export interface IUserProfile {
   _id?: string;
-  fullName?: string | null;
+  name?: string | null;
   email?: string;
   image?: string | null;
+  dateOfBirth?: string | null;
+  gender?: Gender;
   phone?: IPhone;
+  phoneVerified?: boolean;
   preferences?: IPreferences;
   profileCompleted?: boolean;
   onboardingCompleted?: boolean;
@@ -111,9 +116,8 @@ function calculateCompletion(profile: IUserProfile | null): ProfileCompletion {
     };
   }
 
-  // Only `fullName` — plus the first+last rule for consistency
-  // with the server-side validation.
-  const parts = (profile.fullName ?? "").trim().split(/\s+/).filter(Boolean);
+  // First + last name rule, consistent with the server-side validation.
+  const parts = (profile.name ?? "").trim().split(/\s+/).filter(Boolean);
   const hasName = parts.length >= 2;
 
   const hasPhone = Boolean(profile.phone?.number?.trim?.());

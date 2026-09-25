@@ -37,7 +37,7 @@ const providers: Provider[] = [
 
         return {
           id: user._id.toString(),
-          name: user.fullName || user.name,
+          name: user.name,
           email: user.email,
           role: user.role,
           image: user.image,

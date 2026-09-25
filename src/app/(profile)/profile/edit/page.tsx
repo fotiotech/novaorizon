@@ -75,7 +75,7 @@ export default function EditProfilePage() {
     avatarLoading || progressValues.some((p) => p !== undefined && p < 100);
 
   /* ------------------------------- Form state ------------------------------ */
-  const [fullName, setFullName] = useState("");
+  const [name, setName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [gender, setGender] = useState<Gender>("");
   const [countryCode, setCountryCode] = useState("+237");
@@ -89,19 +89,28 @@ export default function EditProfilePage() {
   /* ----------------------------- Hydrate from ctx -------------------------- */
   useEffect(() => {
     if (profileLoading) return;
-    setFullName(profile?.fullName ?? "");
-    setGender(((profile as any)?.gender ?? "") as Gender);
 
-    const dob = (profile as any)?.dateOfBirth;
+    setName(profile?.name ?? "");
+    setGender(((profile?.gender ?? "") as Gender) || "");
+
+    const dob = profile?.dateOfBirth;
     if (dob) {
       const d = new Date(dob);
-      if (!isNaN(d.getTime())) setDateOfBirth(d.toISOString().slice(0, 10));
+      setDateOfBirth(!isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : "");
+    } else {
+      setDateOfBirth("");
     }
 
     setCountryCode(phone?.countryCode ?? "+237");
     setPhoneNumber(phone?.number ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileLoading, profile?.fullName, phone?.number]);
+  }, [
+    profileLoading,
+    profile?.name,
+    profile?.dateOfBirth,
+    profile?.gender,
+    phone?.number,
+  ]);
 
   /* --------------------------------- Guards -------------------------------- */
   if (status === "loading" || profileLoading) {
@@ -156,9 +165,9 @@ export default function EditProfilePage() {
   const validate = () => {
     const errs: Record<string, string> = {};
 
-    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length < 2) {
-      errs.fullName = "Please enter both your first and last name.";
+      errs.name = "Please enter both your first and last name.";
     }
 
     if (phoneNumber.trim()) {
@@ -187,7 +196,7 @@ export default function EditProfilePage() {
     setSaving(true);
     try {
       const res: any = await updateUserProfile({
-        fullName: fullName.trim(),
+        name: name.trim(),
         image: currentAvatar, // ← URL (or null to clear)
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         gender: gender === "" ? null : (gender as Exclude<Gender, "">),
@@ -330,43 +339,42 @@ export default function EditProfilePage() {
             Personal Information
           </h2>
 
-          {/* Full name */}
+          {/* Name */}
           <div>
             <label
-              htmlFor="fullName"
+              htmlFor="name"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
               Full Name
             </label>
             <input
-              id="fullName"
+              id="name"
+              name="name"
               type="text"
               autoComplete="name"
-              value={fullName}
+              value={name}
               onChange={(e) => {
-                setFullName(e.target.value);
-                if (fieldErrors.fullName) {
+                setName(e.target.value);
+                if (fieldErrors.name) {
                   setFieldErrors((p) => {
                     const n = { ...p };
-                    delete n.fullName;
+                    delete n.name;
                     return n;
                   });
                 }
               }}
               placeholder="Jane Doe"
               className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:outline-none bg-white text-gray-900 ${
-                fieldErrors.fullName
+                fieldErrors.name
                   ? "border-red-500 focus:ring-red-200"
                   : "border-gray-300 focus:ring-blue-200"
               }`}
             />
-            {fieldErrors.fullName ? (
-              <p className="mt-1 text-sm text-red-600">
-                {fieldErrors.fullName}
-              </p>
+            {fieldErrors.name ? (
+              <p className="mt-1 text-sm text-red-600">{fieldErrors.name}</p>
             ) : (
               <p className="mt-1 text-xs text-gray-500">
-                First and last name, e.g. "Jane Doe".
+                First and last name, e.g. &quot;Jane Doe&quot;.
               </p>
             )}
           </div>
@@ -419,7 +427,7 @@ export default function EditProfilePage() {
             <h2 className="text-sm font-semibold text-gray-700">
               Contact Information
             </h2>
-            {(profile as any)?.phoneVerified ? (
+            {profile?.phoneVerified ? (
               <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                 Verified
               </span>
@@ -495,7 +503,7 @@ export default function EditProfilePage() {
               className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Email can't be changed here.
+              Email can&apos;t be changed here.
             </p>
           </div>
         </section>
