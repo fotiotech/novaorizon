@@ -4,37 +4,65 @@ import { connection } from "@/utils/connection";
 import { Event, IEvent } from "@/models/Event";
 import { getCurrentUserId } from "@/app/lib/getUserId";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import mongoose, { Types } from "mongoose";
 import Product from "@/models/Product";
+import { isBot, detectDevice } from "../lib/events/botDetection";
+import Pusher from "pusher"; // optional — remove if not using Pusher
 
 type EventType = IEvent["eventType"];
 
 interface TrackEventParams {
-  itemId: string;
+  itemId?: string;
   eventType: EventType;
   sessionId?: string;
   metadata?: Record<string, any>;
+  idempotencyKey?: string;
 }
 
-// ─── Helper: normalize a userId to an ObjectId when possible ──
-// Aggregations do NOT auto-cast, so we must cast explicitly.
-function toObjectIdOrRaw(value: any): any {
-  if (value === null || value === undefined) return value;
-  if (value instanceof mongoose.Types.ObjectId) return value;
-  if (typeof value === "string" && mongoose.Types.ObjectId.isValid(value)) {
-    return new mongoose.Types.ObjectId(value);
+// ─── Optional Pusher publisher ────────────────────────────
+const pusher =
+  process.env.PUSHER_APP_ID &&
+  process.env.PUSHER_KEY &&
+  process.env.PUSHER_SECRET &&
+  process.env.PUSHER_CLUSTER
+    ? new Pusher({
+        appId: process.env.PUSHER_APP_ID,
+        key: process.env.PUSHER_KEY,
+        secret: process.env.PUSHER_SECRET,
+        cluster: process.env.PUSHER_CLUSTER,
+        useTLS: true,
+      })
+    : null;
+
+async function publishEvent(payload: Record<string, any>) {
+  if (!pusher) return;
+  try {
+    await pusher.trigger("analytics", "event", payload);
+  } catch (err) {
+    console.error("[events] pusher publish failed", err);
   }
-  return value;
 }
 
-// ─── 1. Track any event (userId resolved server-side) ──
-
+// ─── 1. Track ─────────────────────────────────────────────
 export async function trackEvent(params: TrackEventParams) {
   await connection();
-  const { itemId, eventType, sessionId, metadata } = params;
+  const { itemId, eventType, sessionId, metadata, idempotencyKey } = params;
   const userId = await getCurrentUserId();
 
-  if (!mongoose.Types.ObjectId.isValid(itemId)) {
+  const h = await headers();
+  const ua = h.get("user-agent") ?? "";
+
+  if (isBot(ua)) return { ok: true, skipped: "bot" } as const;
+
+  if (idempotencyKey) {
+    const existing = await Event.findOne({ idempotencyKey })
+      .select("_id")
+      .lean();
+    if (existing) return { ok: true, skipped: "duplicate" } as const;
+  }
+
+  if (itemId && !mongoose.Types.ObjectId.isValid(itemId)) {
     throw new Error(`Invalid itemId: ${itemId}`);
   }
 
@@ -48,35 +76,84 @@ export async function trackEvent(params: TrackEventParams) {
 
   const event = new Event({
     userId,
-    itemId: new Types.ObjectId(itemId),
+    itemId: itemId ? new Types.ObjectId(itemId) : undefined,
     eventType,
-    score: scoreMap[eventType] || 1,
+    score: scoreMap[eventType] ?? 1,
     sessionId,
     metadata,
+    isBot: false,
+    idempotencyKey,
+    context: {
+      userAgent: ua,
+      referrer: h.get("referer") ?? undefined,
+      country:
+        h.get("x-vercel-ip-country") ?? h.get("cf-ipcountry") ?? undefined,
+      device: detectDevice(ua),
+      locale: h.get("accept-language")?.split(",")[0],
+    },
     timestamp: new Date(),
   });
 
-  await event.save();
-  revalidatePath("/");
+  try {
+    await event.save();
+  } catch (err: any) {
+    if (err?.code === 11000) {
+      return { ok: true, skipped: "duplicate" } as const;
+    }
+    throw err;
+  }
+
+  void publishEvent({
+    _id: String(event._id),
+    userId,
+    itemId: itemId ?? null,
+    eventType,
+    score: event.score,
+    metadata: metadata ?? {},
+    timestamp: event.timestamp,
+  });
+
+  if (eventType === "purchase" || eventType === "like") {
+    revalidatePath("/");
+  }
+
+  return { ok: true, id: String(event._id) } as const;
 }
 
-// ─── 2. Get personalized recommendations ──────────────
+// ─── 2. Incremental fetch ─────────────────────────────────
+export async function getEventsSince(since: number, limit = 50) {
+  await connection();
+  return Event.find({
+    isBot: false,
+    timestamp: { $gt: new Date(since) },
+  })
+    .sort({ timestamp: 1 })
+    .limit(limit)
+    .lean();
+}
 
+// ─── 3. Recommendations ───────────────────────────────────
 export async function getRecommendations(limit: number = 10) {
   await connection();
-  const userId = toObjectIdOrRaw(await getCurrentUserId());
+  const userId = await getCurrentUserId();
 
-  // 1. Collect the user's interacted item ids
-  const userInteractions = await Event.find({ userId }).select("itemId").lean();
+  const userInteractions = await Event.find({ userId, isBot: false })
+    .select("itemId")
+    .lean();
   const interactedIds = userInteractions.map((i) => i.itemId).filter(Boolean);
 
   if (interactedIds.length === 0) {
     return getTrendingItems(limit);
   }
 
-  // 2. Collaborative filtering pipeline
-  const recommendations = await Event.aggregate([
-    { $match: { itemId: { $in: interactedIds }, userId: { $ne: userId } } },
+  return Event.aggregate([
+    {
+      $match: {
+        isBot: false,
+        itemId: { $in: interactedIds },
+        userId: { $ne: userId },
+      },
+    },
     {
       $group: {
         _id: "$userId",
@@ -108,25 +185,25 @@ export async function getRecommendations(limit: number = 10) {
     { $match: { product: { $ne: null }, "product.status": "active" } },
     { $replaceRoot: { newRoot: "$product" } },
   ]);
-
-  return recommendations;
 }
 
-// ─── 3. Trending (fallback) ────────────────────────────
-
+// ─── 4. Trending (fallback) ───────────────────────────────
 export async function getTrendingItems(limit: number = 10) {
   await connection();
 
   const trending = await Event.aggregate([
     {
       $match: {
+        isBot: false,
         timestamp: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       },
     },
     {
       $group: {
         _id: "$itemId",
-        viewCount: { $sum: { $cond: [{ $eq: ["$eventType", "view"] }, 1, 0] } },
+        viewCount: {
+          $sum: { $cond: [{ $eq: ["$eventType", "view"] }, 1, 0] },
+        },
         purchaseCount: {
           $sum: { $cond: [{ $eq: ["$eventType", "purchase"] }, 1, 0] },
         },
@@ -148,32 +225,27 @@ export async function getTrendingItems(limit: number = 10) {
       },
     },
     { $unwind: "$product" },
-    // Only surface active products
     { $match: { "product.status": "active" } },
     { $replaceRoot: { newRoot: "$product" } },
   ]);
 
-  // 🔥 If no trending products, fallback to recently added active products
   if (trending.length === 0) {
     return Product.find({ status: "active" })
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
   }
-
   return trending;
 }
 
-// ─── 4. Recently viewed (deduped by item, most recent first) ─────────
-
+// ─── 5. Recently viewed ───────────────────────────────────
 export async function getRecentlyViewed(limit: number = 5) {
   await connection();
-  const userId = toObjectIdOrRaw(await getCurrentUserId());
+  const userId = await getCurrentUserId();
 
   return Event.aggregate([
-    { $match: { userId, eventType: "view" } },
+    { $match: { userId, isBot: false, eventType: "view" } },
     { $sort: { timestamp: -1 } },
-    // Collapse repeated views of the same item so they don't consume slots.
     {
       $group: {
         _id: "$itemId",
@@ -196,34 +268,25 @@ export async function getRecentlyViewed(limit: number = 5) {
   ]);
 }
 
-// ─── 5. Merge guest events on login ────────────────────
-
+// ─── 6. Merge guest events ────────────────────────────────
 export async function mergeGuestEvents(guestId: string, newUserId: string) {
   await connection();
-  await Event.updateMany(
-    { userId: toObjectIdOrRaw(guestId) },
-    { $set: { userId: toObjectIdOrRaw(newUserId) } },
-  );
+  await Event.updateMany({ userId: guestId }, { $set: { userId: newUserId } });
 }
 
-// ─── 6. Related products (manual relations + fallback) ──
-
+// ─── 7. Related products ──────────────────────────────────
 export async function getRelatedProducts(
   productId: string,
   limit: number = 10,
 ) {
   await connection();
-  if (!mongoose.Types.ObjectId.isValid(productId)) {
-    return [];
-  }
+  if (!mongoose.Types.ObjectId.isValid(productId)) return [];
 
   const product: any = await Product.findById(productId)
     .select("relatedProducts categoryId brand")
     .lean();
   if (!product) return [];
 
-  // Product.relatedProducts is IRelatedProduct[] = { product: ObjectId, relationshipType?: string }[]
-  // Extract only the ObjectId refs (with defensive fallbacks for legacy shapes).
   const relatedRefs: any[] = Array.isArray(product.relatedProducts)
     ? product.relatedProducts
     : [];
@@ -232,9 +295,9 @@ export async function getRelatedProducts(
     .map((r: any) => {
       if (!r) return null;
       if (typeof r === "string") return r;
-      if (r.product) return r.product; // current schema shape
-      if (r.id) return r.id; // legacy
-      if (r._id) return r._id; // legacy
+      if (r.product) return r.product;
+      if (r.id) return r.id;
+      if (r._id) return r._id;
       return null;
     })
     .filter((id: any) => id && mongoose.Types.ObjectId.isValid(id))
@@ -242,7 +305,6 @@ export async function getRelatedProducts(
 
   let products: any[] = [];
 
-  // 1. Prefer manually configured relations
   if (relatedIds.length > 0) {
     products = await Product.find({
       _id: { $in: relatedIds },
@@ -252,19 +314,40 @@ export async function getRelatedProducts(
       .lean();
   }
 
-  // 2. Fallback: same category, then same brand
   if (products.length === 0) {
     const fallbackQuery: any = {
       _id: { $ne: new mongoose.Types.ObjectId(productId) },
       status: "active",
     };
-    if (product.categoryId) {
-      fallbackQuery.categoryId = product.categoryId;
-    } else if (product.brand) {
-      fallbackQuery.brand = product.brand;
-    }
+    if (product.categoryId) fallbackQuery.categoryId = product.categoryId;
+    else if (product.brand) fallbackQuery.brand = product.brand;
     products = await Product.find(fallbackQuery).limit(limit).lean();
   }
 
   return products;
+}
+
+// ─── 8. Rollup-backed fast trending (over 7d) ─────────────
+import { EventRollup } from "@/models/EventRollup";
+
+export async function getTrendingItemsFast(days = 7, limit = 10) {
+  await connection();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  return EventRollup.aggregate([
+    { $match: { bucket: { $gte: since }, itemId: { $ne: null } } },
+    { $group: { _id: "$itemId", score: { $sum: "$totalScore" } } },
+    { $sort: { score: -1 } },
+    { $limit: limit },
+    {
+      $lookup: {
+        from: "products",
+        localField: "_id",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+    { $unwind: "$product" },
+    { $match: { "product.status": "active" } },
+    { $replaceRoot: { newRoot: "$product" } },
+  ]);
 }

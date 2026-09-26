@@ -1,4 +1,3 @@
-// app/layout.tsx
 "use client";
 
 import { EventTracker } from "@/components/EventTracker";
@@ -14,7 +13,6 @@ export function PageViewTracker() {
     <EventTracker
       eventType="page_view"
       metadata={{ path: fullPath }}
-      // Re‑track when path changes (trackOnChange = true)
       trackOnChange
       dependencies={[pathname, searchParams?.toString()]}
     />
