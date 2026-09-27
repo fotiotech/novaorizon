@@ -35,6 +35,12 @@ const pusher =
       })
     : null;
 
+// helper at module scope
+function formatDay(d: Date): string {
+  // UTC day key — "2026-09-27"
+  return d.toISOString().slice(0, 10);
+}
+
 async function publishEvent(payload: Record<string, any>) {
   if (!pusher) return;
   try {
@@ -96,6 +102,47 @@ export async function trackEvent(params: TrackEventParams) {
 
   try {
     await event.save();
+
+    const day = formatDay(event.timestamp as Date);
+
+    const [visitorResult, priorVisit] = await Promise.all([
+      VisitorDay.updateOne(
+        { day, userId },
+        { $setOnInsert: { day, userId, firstSeenAt: event.timestamp } },
+        { upsert: true },
+      ),
+      // Check if this user has been seen on any earlier day
+      VisitorDay.findOne({ userId, day: { $lt: day } })
+        .select("_id")
+        .lean(),
+    ]);
+
+    const isFirstToday = visitorResult.upsertedCount > 0;
+    const isReturning = !!priorVisit;
+
+    const inc: Record<string, number> = {
+      events: 1,
+      [`eventCounts.${eventType}`]: 1,
+    };
+    if (isFirstToday) {
+      inc.visitors = 1;
+      if (isReturning) inc.returningVisitors = 1;
+      else inc.newVisitors = 1;
+    }
+    if (eventType === "purchase" && metadata?.total) {
+      const total = Number(metadata.total);
+      if (Number.isFinite(total)) inc.revenue = total;
+    }
+
+    await DailyStats.updateOne(
+      { day },
+      {
+        $inc: inc,
+        $set: { updatedAt: new Date() },
+        $setOnInsert: { day },
+      },
+      { upsert: true },
+    );
   } catch (err: any) {
     if (err?.code === 11000) {
       return { ok: true, skipped: "duplicate" } as const;
@@ -329,6 +376,8 @@ export async function getRelatedProducts(
 
 // ─── 8. Rollup-backed fast trending (over 7d) ─────────────
 import { EventRollup } from "@/models/EventRollup";
+import { DailyStats } from "@/models/DailyStats";
+import { VisitorDay } from "@/models/VisitorDay";
 
 export async function getTrendingItemsFast(days = 7, limit = 10) {
   await connection();
