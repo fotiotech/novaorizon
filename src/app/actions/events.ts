@@ -124,7 +124,7 @@ export async function trackEvent(params: TrackEventParams) {
 export async function getEventsSince(since: number, limit = 50) {
   await connection();
   return Event.find({
-    isBot: false,
+    isBot: { $ne: true },
     timestamp: { $gt: new Date(since) },
   })
     .sort({ timestamp: 1 })
@@ -149,7 +149,7 @@ export async function getRecommendations(limit: number = 10) {
   return Event.aggregate([
     {
       $match: {
-        isBot: false,
+        isBot: { $ne: true },
         itemId: { $in: interactedIds },
         userId: { $ne: userId },
       },
@@ -194,7 +194,7 @@ export async function getTrendingItems(limit: number = 10) {
   const trending = await Event.aggregate([
     {
       $match: {
-        isBot: false,
+        isBot: { $ne: true },
         timestamp: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       },
     },
@@ -244,7 +244,7 @@ export async function getRecentlyViewed(limit: number = 5) {
   const userId = await getCurrentUserId();
 
   return Event.aggregate([
-    { $match: { userId, isBot: false, eventType: "view" } },
+    { $match: { userId, isBot: { $ne: true }, eventType: "view" } },
     { $sort: { timestamp: -1 } },
     {
       $group: {
