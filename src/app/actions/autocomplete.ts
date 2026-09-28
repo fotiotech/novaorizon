@@ -1,4 +1,4 @@
-"use server";
+// app/actions/autocomplete.ts
 
 import { connection } from "@/utils/connection";
 import Product from "@/models/Product";
@@ -6,9 +6,8 @@ import Product from "@/models/Product";
 export async function autocompleteProducts(query: string, limit = 8) {
   await connection();
 
-  if (!query || query.trim().length < 2) {
-    return [];
-  }
+  const q = query?.trim() ?? "";
+  if (q.length < 2) return [];
 
   const results = await Product.aggregate([
     {
@@ -18,20 +17,20 @@ export async function autocompleteProducts(query: string, limit = 8) {
           should: [
             {
               autocomplete: {
-                query: query,
-                path: "name.autocomplete",
+                query: q,
+                path: "name_autocomplete", // ← changed
                 score: { boost: { value: 2 } },
               },
             },
             {
-              text: {
-                query: query,
-                path: "name",
-                fuzzy: { maxEdits: 2 },
+              autocomplete: {
+                query: q,
+                path: "tags_autocomplete", // ← changed
                 score: { boost: { value: 1 } },
               },
             },
           ],
+          minimumShouldMatch: 1,
         },
       },
     },

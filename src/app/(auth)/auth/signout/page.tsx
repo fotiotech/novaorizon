@@ -1,5 +1,5 @@
-import { SignOut } from "@/app/(auth)/components/auth/SignInButton";
 import React from "react";
+import { SignOut } from "../../components/auth/SignInButton";
 
 const page = () => {
   return (

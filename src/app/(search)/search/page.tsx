@@ -9,8 +9,8 @@ import Spinner from "@/components/Spinner";
 import { searchProducts } from "@/app/actions/search";
 import { getCategoryAttributeSets } from "@/app/actions/category";
 import { Prices } from "@/components/cart/Prices";
-import ListFilter from "@/components/ListFilter";
 import { debounce } from "./_component/debounce";
+import ListFilter from "./_component/ListFilter";
 
 const ALLOWED_ATTRIBUTE_SETS = new Set<string>([
   "keyFeatures",
@@ -27,7 +27,6 @@ type AttributeDef = {
 };
 
 // ---------- Helpers ----------
-/** Format a flat attribute value to a display string. */
 const formatAttributeValue = (value: any): string => {
   if (value === undefined || value === null) return "";
   if (Array.isArray(value)) return value.map(String).join(", ");
@@ -44,14 +43,9 @@ const formatAttributeValue = (value: any): string => {
   return String(value);
 };
 
-/** Reject values that are obviously URLs or binary blobs. */
 const looksLikeUrl = (s: string): boolean =>
   /^https?:\/\//i.test(s) || s.startsWith("data:") || s.length > 200;
 
-/**
- * Return the first positive, finite numeric candidate.
- * Makes `listPrice` reachable when `price` is 0/missing.
- */
 function pickPrice(...candidates: any[]): number {
   for (const c of candidates) {
     if (c === undefined || c === null || c === "") continue;
@@ -60,6 +54,8 @@ function pickPrice(...candidates: any[]): number {
   }
   return 0;
 }
+
+const OBJECT_ID_RE = /^[0-9a-fA-F]{24}$/;
 
 const Search = () => {
   const searchParams = useSearchParams();
@@ -96,7 +92,7 @@ const Search = () => {
     return typeof raw === "object" ? String(raw._id ?? raw) : String(raw);
   }, [category, data]);
 
-  // ----- Fetch attribute definitions (keyFeatures + specifications only) -----
+  // ----- Fetch attribute definitions -----
   useEffect(() => {
     if (!derivedCategoryId) {
       setAttributeDefs([]);
@@ -111,7 +107,6 @@ const Search = () => {
         const walk = (group: any) => {
           group.attributes?.forEach((a: any) => {
             if (!a.code) return;
-            // Skip file/image attributes — their values are URLs.
             if (EXCLUDED_ATTRIBUTE_TYPES.has(String(a.type || ""))) return;
 
             if (!defMap.has(a.code)) {
@@ -137,7 +132,6 @@ const Search = () => {
           group.children?.forEach(walk);
         };
 
-        // Only walk sets whose code is keyFeatures or specifications.
         sets.forEach((set: any) => {
           const setCode = String(set.code || "");
           if (!ALLOWED_ATTRIBUTE_SETS.has(setCode)) return;
@@ -155,13 +149,6 @@ const Search = () => {
   }, [derivedCategoryId]);
 
   // ----- Filter predicates -----
-  //
-  // `hasNonQueryFilters` — anything that isn't the search term. Controls
-  // whether the "Clear filters" button is visible; the button should never
-  // appear when the only URL param is `query`, because clearing would be a
-  // no-op (same URL, no navigation).
-  //
-  // `shouldSearch` — the search term OR any filter. Gates the fetch effect.
   const hasNonQueryFilters = useMemo(() => {
     if (category || brand || priceMin || priceMax) return true;
     const params = new URLSearchParams(searchParams.toString());
@@ -208,23 +195,22 @@ const Search = () => {
     [page],
   );
 
-  // Build filters from URL params
   const buildFilters = useCallback(() => {
     const filters: any[] = [];
 
-    if (category) filters.push({ term: { categoryId: category } });
-    if (brand) filters.push({ term: { brand: brand } });
+    if (category && OBJECT_ID_RE.test(category)) {
+      filters.push({ term: { categoryId: category } });
+    }
+    if (brand && OBJECT_ID_RE.test(brand)) {
+      filters.push({ term: { brand: brand } });
+    }
     if (priceMin || priceMax) {
       const range: any = {};
       if (priceMin) range.gte = Number(priceMin);
       if (priceMax) range.lte = Number(priceMax);
-      // Use `price` (the selling price), matching what's displayed in the
-      // grid. `listPrice` is the MSRP / compare-at price and would filter
-      // on a different value than what the user sees.
       filters.push({ range: { price: range } });
     }
 
-    // Attribute filters — URL key format: `attr_<attributeCode>`
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of params.entries()) {
       if (key.startsWith("attr_")) {
@@ -260,7 +246,13 @@ const Search = () => {
   const handleFilterClick = useCallback(
     (key: string, value: string): void => {
       const params = new URLSearchParams(searchParams.toString());
-      if (value) params.set(key, value);
+      // Attribute values are stored lowercased on the product document, so
+      // the URL carries the lowercased form too. This is what makes
+      // clicking "Green" and "green" resolve to the same filter.
+      const normalised = key.startsWith("attr_")
+        ? value.trim().toLowerCase()
+        : value;
+      if (normalised) params.set(key, normalised);
       else params.delete(key);
       params.delete("page");
       router.push(`/search?${params.toString()}`);
@@ -268,9 +260,6 @@ const Search = () => {
     [searchParams, router],
   );
 
-  // Clear every filter EXCEPT the search query. Always produces a URL that
-  // differs from the current one whenever the button is visible, so
-  // router.push reliably triggers navigation.
   const clearFilters = useCallback(() => {
     const params = new URLSearchParams();
     if (query) params.set("query", query);
@@ -282,7 +271,6 @@ const Search = () => {
   const attributeFilters = useMemo(() => {
     if (attributeDefs.length === 0) return [];
 
-    // Count value occurrences across the current page of results.
     const counts: Record<string, Record<string, number>> = {};
     data.forEach((product) => {
       attributeDefs.forEach((def) => {
@@ -332,8 +320,6 @@ const Search = () => {
       const title = item.name || item.title;
       const currency = "F";
 
-      // Fall back to listPrice when price is 0/missing — matches the
-      // behaviour of the product detail page.
       const displayPrice = pickPrice(item.price, item.listPrice);
       const numericListPrice = Number(item.listPrice) || 0;
       const showListPrice = numericListPrice > displayPrice && displayPrice > 0;
@@ -381,7 +367,6 @@ const Search = () => {
 
   return (
     <div className="flex flex-col lg:flex-row w-full min-h-screen bg-background p-2 lg:px-8 lg:py-4">
-      {/* Filter rail — sticky on desktop, untouched on mobile */}
       <div className="contents lg:block lg:sticky lg:top-20 lg:self-start lg:shrink-0 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2">
         <ListFilter
           openClose={openClose}
@@ -397,7 +382,6 @@ const Search = () => {
       </div>
 
       <div className="flex-1 p-2 lg:py-4 max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h2 className="text-sm font-semibold text-foreground">
             {query ? (
@@ -433,7 +417,6 @@ const Search = () => {
           </div>
         </div>
 
-        {/* Error / Loading / Empty states */}
         {error ? (
           <div className="flex flex-col items-center justify-center h-60 text-destructive">
             <p className="text-lg">{error}</p>

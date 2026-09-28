@@ -5,13 +5,10 @@ import { connection } from "@/utils/connection";
 import Product from "@/models/Product";
 import { Types } from "mongoose";
 
-const toObjectId = (id: string) => {
-  try {
-    return new Types.ObjectId(id);
-  } catch {
-    return null;
-  }
-};
+const SEARCH_INDEX = "default";
+
+// Fields the index actually has — keep this in sync with the Atlas mapping.
+const TEXT_PATHS = ["name", "description", "shortDescription", "tags"];
 
 export async function searchProducts(
   query: string,
@@ -22,43 +19,38 @@ export async function searchProducts(
   await connection();
 
   // ----- 1. Build the $search stage -----
-  const searchStage: any = {
-    index: "default",
-  };
+  const searchStage: any = { index: SEARCH_INDEX };
 
   const textClause: any = {};
   if (query && query.trim() !== "") {
     textClause.text = {
-      query: query,
-      // Explicit paths are supported by every Atlas Search version and
-      // don't depend on the index being rebuilt with `dynamic: true`.
-      // Once you confirm the index is active with wildcard support, you
-      // can swap this back to `path: { wildcard: "*" }`.
-      path: ["name", "description", "shortDescription", "tags"],
-      fuzzy: {
-        maxEdits: 2,
-        prefixLength: 1,
-      },
+      query,
+      path: TEXT_PATHS,
+      fuzzy: { maxEdits: 2, prefixLength: 1 },
     };
   }
 
   // ----- 2. Build filter clauses -----
   const filterClauses: any[] = [];
 
+  // ObjectId-typed paths (categoryId, brand) need a real BSON ObjectId,
+  // not a hex string. Passing `value.toString()` silently matches nothing.
   const addTerm = (path: string, value: string) => {
-    const objectId = toObjectId(value);
-    if (objectId) {
-      filterClauses.push({ equals: { path, value: objectId.toString() } });
-    } else if (value) {
-      filterClauses.push({ equals: { path, value } });
-    }
+    if (!value) return;
+    const oid = Types.ObjectId.isValid(value)
+      ? new Types.ObjectId(value)
+      : null;
+    filterClauses.push({ equals: { path, value: oid ?? value } });
   };
 
   for (const f of filters) {
+    // --- term: { categoryId: "…" } | { brand: "…" } | { status: "active" }
     if (f.term) {
       const [path, value] = Object.entries(f.term)[0];
       addTerm(path, value as string);
     }
+
+    // --- range: { price: { gte, lte } }
     if (f.range) {
       const [path, range]: any = Object.entries(f.range)[0];
       const rangeClause: any = {};
@@ -68,28 +60,37 @@ export async function searchProducts(
         filterClauses.push({ range: { path, ...rangeClause } });
       }
     }
+
+    // --- attribute: { key: "color", value: "black" }
+    //
+    // Attributes are stored FLAT on the Product root, one key per
+    // category attribute code (`product.color`, `product.weight`, …).
+    // The Atlas index has `dynamic: true`, so each dynamic string is
+    // indexed with the standard analyzer (lowercased, tokenized) and
+    // each dynamic number is indexed as a number. `equals` on a string
+    // field matches either the scalar value or any element of an array,
+    // which is why `color: "black"` and `color: ["black","white"]` both
+    // resolve with a single `equals` clause.
     if (f.attribute) {
       const { key, value } = f.attribute;
-      if (key && value !== undefined && value !== null && value !== "") {
-        const raw = String(value);
-        const asNumber = Number(raw);
-        const numericValue =
-          raw.trim() !== "" &&
-          Number.isFinite(asNumber) &&
-          String(asNumber) === raw
-            ? asNumber
-            : null;
+      if (!key || value == null || value === "") continue;
 
-        if (numericValue !== null) {
-          filterClauses.push({
-            equals: { path: String(key), value: numericValue },
-          });
-        } else {
-          filterClauses.push({
-            equals: { path: String(key), value: raw },
-          });
-        }
-      }
+      const path = String(key);
+      const raw = String(value).trim().toLowerCase();
+
+      // Numeric-looking strings ("45", "3.5") are sent as numbers so
+      // they match number-typed dynamic fields. Everything else stays
+      // a string. String("45") === "45" — that check rejects "45abc",
+      // "045", " 45 ", "4e2" etc. where Number() would silently coerce.
+      const asNumber = Number(raw);
+      const numericValue =
+        raw !== "" && Number.isFinite(asNumber) && String(asNumber) === raw
+          ? asNumber
+          : null;
+
+      filterClauses.push({
+        equals: { path, value: numericValue ?? raw },
+      });
     }
   }
 
@@ -112,12 +113,9 @@ export async function searchProducts(
   }
 
   const compound: any = {};
-  if (must.length > 0) {
-    compound.must = must;
-  } else {
-    // Safe match-all when the user has only applied filters.
-    compound.must = [{ exists: { path: "name" } }];
-  }
+  // When there's no text query, we still need a must clause for the
+  // filters to attach to. `exists: name` is a cheap match-all.
+  compound.must = must.length > 0 ? must : [{ exists: { path: "name" } }];
   if (filter) compound.filter = filter;
 
   searchStage.compound = compound;
@@ -178,12 +176,13 @@ export async function searchProducts(
           { $project: { _id: 1, name: "$brandInfo.name", count: 1 } },
           { $sort: { count: -1 } },
         ],
+        // Uses `price`, matching the range filter in `buildFilters`.
         priceRange: [
           {
             $group: {
               _id: null,
-              min: { $min: "$listPrice" },
-              max: { $max: "$listPrice" },
+              min: { $min: "$price" },
+              max: { $max: "$price" },
             },
           },
         ],
@@ -192,9 +191,6 @@ export async function searchProducts(
     },
   ];
 
-  // 👇 TEMP DIAGNOSTIC — remove once search is verified working
-  console.log("[search] stage:", JSON.stringify(searchStage, null, 2));
-
   const [result] = await Product.aggregate(pipeline);
 
   const hits = result.hits || [];
@@ -202,14 +198,6 @@ export async function searchProducts(
   const brands = result.brands || [];
   const priceRange = result.priceRange?.[0] || { min: 0, max: 0 };
   const total = result.totalCount?.[0]?.total || 0;
-
-  // 👇 TEMP DIAGNOSTIC — remove once search is verified working
-  console.log("[search] raw result counts:", {
-    hits: hits.length,
-    total,
-    categories: categories.length,
-    brands: brands.length,
-  });
 
   return {
     hits: hits.map((hit: any) => ({
