@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { CalcShippingPrice } from "@/app/(checkout)/checkout/page";
 import { useCart } from "@/app/context/CartContext";
 import { Prices } from "@/components/cart/Prices";
+import { CalcShippingPrice } from "@/app/(checkout)/_component/CheckoutClient";
 
 interface AppliedPromotion {
   _id: string;

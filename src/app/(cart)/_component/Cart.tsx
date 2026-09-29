@@ -1,9 +1,9 @@
 "use client";
 
 import { useCart } from "@/app/context/CartContext";
+import { Prices } from "@/components/cart/Prices";
 import { Delete } from "@mui/icons-material";
 import Image from "next/image";
-import { Prices } from "./Prices";
 import { useCallback, useState } from "react";
 
 const CartItem = ({ item, onUpdate, onRemove, disabled }: any) => {

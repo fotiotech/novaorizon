@@ -7,9 +7,9 @@ import { toast } from "react-hot-toast";
 import { createOrUpdateOrder, findOrders } from "@/app/actions/order";
 import { CartItem } from "@/app/reducer/cartReducer";
 import { calculateShippingPrice } from "@/app/actions/carrier";
-import { CalcShippingPrice } from "../../page";
-import { generateOrderPDF } from "@/app/actions/generatePDF";
 import { notifyAdminsAboutPaymentSuccess } from "@/app/actions/notifications";
+import { CalcShippingPrice } from "@/app/(checkout)/_component/CheckoutClient";
+import { generateOrderPDF } from "@/app/actions/generatePDF";
 
 const DEFAULT_CARRIER_ID = "675eeda75a81d16c81aca736";
 
