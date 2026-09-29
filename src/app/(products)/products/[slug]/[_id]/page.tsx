@@ -10,8 +10,7 @@ interface Params {
   _id: string;
 }
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://novaorizon.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://novaorizon.com";
 
 const CURRENCY = "XAF";
 
