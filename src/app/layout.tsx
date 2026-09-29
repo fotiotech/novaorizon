@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "./providers";
 import Script from "next/script";
@@ -12,22 +12,16 @@ import { PageViewTracker } from "@/components/PageViewTracker";
 import { getSeoSetting } from "@/app/actions/seo";
 import { DEFAULT_SEO } from "@/app/lib/seo-defaults";
 
-// Use Geist as the default font (includes a CSS variable)
 const geist = Geist({
   subsets: ["latin"],
-  variable: "--font-sans", // makes the font available via CSS variable
+  variable: "--font-sans",
 });
 
-// Fallbacks specific to the root layout that aren't part of the SEO settings
-// form (site URL, social handles, verification tokens, image dimensions).
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://dyfk-com.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://novaorizon.com";
 const TWITTER_HANDLE = "@dyfkCameroun";
 const GOOGLE_VERIFICATION = "jGAR6wmWVPQe_fzOwoL1MqqKWSdN-Ty2dFf60Zu";
 
 export async function generateMetadata(): Promise<Metadata> {
-  // If the DB read fails for any reason, fall back to defaults so the app
-  // still ships valid metadata instead of a 500 from the root layout.
   let seo = DEFAULT_SEO;
   try {
     seo = await getSeoSetting();
@@ -35,15 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
     console.error("[layout] Failed to load SEO settings:", err);
   }
 
-  const {
-    siteName,
-    title,
-    description,
-    keywords,
-    canonicalUrl,
-    ogImage,
-    robots,
-  } = seo;
+  const { siteName, title, description, keywords, ogImage, robots } = seo;
 
   const robotsValue =
     robots === "noindex,nofollow"
@@ -51,8 +37,8 @@ export async function generateMetadata(): Promise<Metadata> {
       : { index: true, follow: true };
 
   return {
-    // The root "default" title is used when a page doesn't set its own.
-    // The template is applied to child pages that do set one.
+    // Applies to pages that don't set their own title.
+    // The template applies to pages that do.
     title: {
       default: title,
       template: `%s | ${siteName}`,
@@ -64,27 +50,25 @@ export async function generateMetadata(): Promise<Metadata> {
           .map((k) => k.trim())
           .filter(Boolean)
       : undefined,
+
+    // Needed so relative canonicals on child pages resolve correctly.
     metadataBase: new URL(SITE_URL),
-    alternates: {
-      canonical: canonicalUrl || "/",
-    },
+
+    // NOTE: canonical is intentionally NOT set here.
+    // Each page owns its own canonical. Setting it in the root layout
+    // would make every page that lacks one declare itself a duplicate
+    // of the homepage, which blocks indexing.
+
     robots: robotsValue,
     openGraph: {
       type: "website",
       locale: "en_US",
-      url: canonicalUrl || SITE_URL,
+      url: SITE_URL,
       siteName,
       title,
       description,
       images: ogImage
-        ? [
-            {
-              url: ogImage,
-              width: 1200,
-              height: 630,
-              alt: title,
-            },
-          ]
+        ? [{ url: ogImage, width: 1200, height: 630, alt: title }]
         : undefined,
     },
     twitter: {
@@ -101,7 +85,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport = "width=device-width, initial-scale=1";
+// Object form — the string form does not emit a proper <meta viewport>.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#ffffff",
+};
 
 export default function RootLayout({
   children,
@@ -110,8 +99,37 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn(geist.variable, "font-sans")}>
-      <head>
-        {/* Google Tag Manager */}
+      <body className="font-sans">
+        {/* GTM noscript fallback */}
+        <noscript>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-PKXZ9B9T"
+            height="0"
+            width="0"
+            style={{ display: "none", visibility: "hidden" }}
+          />
+        </noscript>
+
+        <Providers>
+          <div className="flex flex-col min-h-screen">
+            <Header />
+
+            {/* Only the page content sits in a Suspense boundary.
+                Header and Footer render as part of the initial HTML. */}
+            <main className="flex-1 pt-[100px]">
+              <Suspense fallback={<Loading />}>{children}</Suspense>
+            </main>
+
+            <Footer />
+          </div>
+
+          {/* PageViewTracker uses useSearchParams, so it needs its own boundary. */}
+          <Suspense fallback={null}>
+            <PageViewTracker />
+          </Suspense>
+        </Providers>
+
+        {/* Scripts live in body in App Router. next/script handles injection. */}
         <Script
           id="google-tag-manager"
           strategy="afterInteractive"
@@ -125,35 +143,10 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* Monetbil Widget */}
         <Script
           src="https://www.monetbil.com/widget/v2/monetbil.min.js"
           strategy="afterInteractive"
         />
-      </head>
-      <body className={geist.variable}>
-        {/* Google Tag Manager (noscript) */}
-        <noscript>
-          <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-PKXZ9B9T"
-            height="0"
-            width="0"
-            style={{ display: "none", visibility: "hidden" }}
-          />
-        </noscript>
-
-        <Providers>
-          <Suspense fallback={<Loading />}>
-            <PageViewTracker />
-            <div className="flex flex-col min-h-screen">
-              <Header />
-
-              <div className="flex-1 pt-[100px]">{children}</div>
-
-              <Footer />
-            </div>
-          </Suspense>
-        </Providers>
       </body>
     </html>
   );

@@ -1,11 +1,20 @@
 // app/privacy/page.tsx
 import Link from "next/link";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Novaorizon",
+  // No "| Novaorizon" — the root layout template adds it.
+  title: "Privacy Policy",
   description:
     "Learn how Novaorizon collects, uses, and protects your personal information.",
+  alternates: { canonical: "/privacy" },
+  openGraph: {
+    type: "article",
+    title: "Privacy Policy",
+    description:
+      "Learn how Novaorizon collects, uses, and protects your personal information.",
+    url: "/privacy",
+  },
 };
 
 export default function PrivacyPolicy() {
@@ -21,10 +30,10 @@ export default function PrivacyPolicy() {
 
         <div className="prose prose-gray max-w-none">
           <p className="text-gray-700">
-            At <strong>Novaorizon</strong> ("we," "our," or "us"), your privacy
-            is important to us. This Privacy Policy explains how we collect,
-            use, disclose, and safeguard your information when you visit our
-            website and use our services.
+            At <strong>Novaorizon</strong> (&quot;we,&quot; &quot;our,&quot; or
+            &quot;us&quot;), your privacy is important to us. This Privacy
+            Policy explains how we collect, use, disclose, and safeguard your
+            information when you visit our website and use our services.
           </p>
 
           <hr className="my-6 border-gray-200" />
@@ -163,7 +172,7 @@ export default function PrivacyPolicy() {
           </p>
 
           <h2 className="text-xl font-semibold text-gray-800 mt-6">
-            8. Children's Privacy
+            8. Children&apos;s Privacy
           </h2>
           <p className="text-gray-700">
             Our services are not directed to individuals under the age of 13. We
@@ -215,7 +224,6 @@ export default function PrivacyPolicy() {
           </p>
         </div>
 
-        {/* Back to home button */}
         <div className="mt-8 pt-6 border-t border-gray-200">
           <Link
             href="/"

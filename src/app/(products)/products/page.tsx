@@ -1,7 +1,16 @@
-import { connection } from "@/utils/connection";
-import Product from "@/models/Product";
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import { connection } from "@/utils/connection";
+import Product from "@/models/Product";
+
+export const revalidate = 300; // ISR: rebuild every 5 minutes
+
+export const metadata: Metadata = {
+  title: "All Products",
+  description: "Browse the full catalogue of products.",
+  alternates: { canonical: "/products" },
+};
 
 // Simple slugify for product names
 function slugify(text: string): string {
@@ -39,7 +48,6 @@ export default async function ProductsPage() {
     .lean()
     .exec();
 
-  // If no products, show a friendly message
   if (products.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12 text-center">

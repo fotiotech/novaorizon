@@ -1,9 +1,24 @@
+// app/auth/login/page.tsx
 import { redirect } from "next/navigation";
 import { signIn, auth, providerMap } from "@/app/auth";
 import { AuthError } from "next-auth";
 import Link from "next/link";
+import type { Metadata } from "next";
 
 const SIGNIN_ERROR_URL = "/auth/error";
+
+export const metadata: Metadata = {
+  title: "Sign In",
+  description: "Sign in to your Novaorizon account.",
+  // Never index auth pages. `follow: true` lets Google follow links
+  // from this page (Terms, Privacy, sign up) without indexing it.
+  robots: {
+    index: false,
+    follow: true,
+    nocache: true,
+  },
+  // No canonical — it is contradictory with noindex.
+};
 
 export default async function SignInPage(props: {
   searchParams: Promise<{
@@ -12,10 +27,11 @@ export default async function SignInPage(props: {
   }>;
 }) {
   const session = await auth();
+  const searchParams = await props.searchParams;
 
-  // If user is already authenticated, redirect to callbackUrl or home
+  // If user is already authenticated, redirect to callbackUrl or home.
   if (session) {
-    redirect((await props.searchParams).callbackUrl || "/");
+    redirect(searchParams.callbackUrl || "/");
   }
 
   return (
@@ -25,9 +41,9 @@ export default async function SignInPage(props: {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
             Sign in to your account
           </h2>
-          {(await props.searchParams).error && (
+          {searchParams.error && (
             <div className="mt-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-md text-center">
-              {(await props.searchParams).error === "CredentialsSignin"
+              {searchParams.error === "CredentialsSignin"
                 ? "Invalid email or password"
                 : "Authentication failed. Please try again."}
             </div>
@@ -44,8 +60,8 @@ export default async function SignInPage(props: {
                 redirect: false,
               });
 
-              // If successful, redirect to callback URL or home
-              redirect((await props.searchParams).callbackUrl || "/");
+              // If successful, redirect to callback URL or home.
+              redirect(searchParams.callbackUrl || "/");
             } catch (error) {
               if (error instanceof AuthError) {
                 return redirect(`${SIGNIN_ERROR_URL}?error=${error.type}`);
@@ -126,8 +142,7 @@ export default async function SignInPage(props: {
                     "use server";
                     try {
                       await signIn(provider.id, {
-                        redirectTo:
-                          (await props.searchParams)?.callbackUrl || "/",
+                        redirectTo: searchParams.callbackUrl || "/",
                       });
                     } catch (error) {
                       if (error instanceof AuthError) {
@@ -155,7 +170,7 @@ export default async function SignInPage(props: {
         )}
 
         <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link
             href="/auth/sign_up"
             className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"

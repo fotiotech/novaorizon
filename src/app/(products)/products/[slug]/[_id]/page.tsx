@@ -1,6 +1,8 @@
 import ProductDetailsClient from "./_compnents/ProductDetailsClient";
 import RelatedMenus from "./_compnents/RelatedMenus";
 import { findProducts } from "@/app/actions/products";
+import { connection } from "@/utils/connection";
+import Product from "@/models/Product";
 import type { Metadata } from "next";
 
 interface Params {
@@ -13,7 +15,37 @@ const SITE_URL =
 
 const CURRENCY = "XAF";
 
-// ---------- helpers (mirrors of the client-side ones) ----------
+// ---------- ISR ----------
+// Safety net: a product page regenerates at most once per hour.
+// Pair this with an on-demand revalidatePath(`/products/${slug}/${id}`)
+// from your admin/ERP when price or stock changes.
+export const revalidate = 3600;
+
+// Pre-render every product at build time. Products added later are
+// rendered on-demand on first request, then cached (ISR).
+export async function generateStaticParams() {
+  try {
+    await connection();
+    const products = await Product.find({}).select("_id name").lean();
+    return products.map((p: any) => ({
+      slug: slugify(String(p.name || "")),
+      _id: String(p._id),
+    }));
+  } catch (err) {
+    console.error("[product page] generateStaticParams failed:", err);
+    // Fall back to purely dynamic rendering for uncached paths.
+    return [];
+  }
+}
+
+// ---------- helpers ----------
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function toImageUrl(entry: any): string | null {
   if (!entry) return null;
   if (typeof entry === "string") return entry;
@@ -62,6 +94,25 @@ function pickPrice(...candidates: any[]): number {
     if (Number.isFinite(n) && n > 0) return n;
   }
   return 0;
+}
+
+// Resolve the category a product belongs to, if the product doc has one.
+// Handles both populated objects and plain ObjectId refs.
+function resolveCategory(product: any): {
+  name?: string;
+  slug?: string;
+  id?: string;
+} {
+  const cat = product?.category;
+  if (!cat) return {};
+  if (typeof cat === "object") {
+    return {
+      name: cat.name,
+      slug: cat.url_slug || cat.slug,
+      id: String(cat._id ?? ""),
+    };
+  }
+  return { id: String(cat) };
 }
 
 async function fetchProduct(id: string) {
@@ -154,20 +205,32 @@ export default async function Page({ params }: { params: Promise<Params> }) {
   // Fetch once on the server so the client component doesn't have to.
   const product = await fetchProduct(_id);
 
-  // JSON-LD Product structured data for rich results.
-  const jsonLd = product ? buildJsonLd({ product, slug, _id }) : null;
+  // Structured data for rich results.
+  const productJsonLd = product
+    ? buildProductJsonLd({ product, slug, _id })
+    : null;
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd({ product, slug, _id });
 
   return (
     <>
-      {jsonLd && (
+      {productJsonLd && (
         <script
           type="application/ld+json"
           // The payload is JSON.stringify of a plain object we built — safe.
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+            __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c"),
           }}
         />
       )}
+      {breadcrumbJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+      )}
+
       <ProductDetailsClient
         productId={_id}
         initialProduct={product ?? undefined}
@@ -177,8 +240,8 @@ export default async function Page({ params }: { params: Promise<Params> }) {
   );
 }
 
-// ---------- JSON-LD builder ----------
-function buildJsonLd({
+// ---------- JSON-LD: Product ----------
+function buildProductJsonLd({
   product,
   slug,
   _id,
@@ -241,5 +304,47 @@ function buildAggregateRating(reviews: any[]) {
     reviewCount: ratings.length,
     bestRating: "5",
     worstRating: "1",
+  };
+}
+
+// ---------- JSON-LD: Breadcrumb ----------
+function buildBreadcrumbJsonLd({
+  product,
+  slug,
+  _id,
+}: {
+  product: any;
+  slug: string;
+  _id: string;
+}) {
+  const name: string = product?.name || "Product";
+  const category = resolveCategory(product);
+
+  const items: Array<{ name: string; url: string }> = [
+    { name: "Home", url: SITE_URL },
+  ];
+
+  // Only include a category step when we can build a valid URL.
+  if (category.name && category.slug && category.id) {
+    items.push({
+      name: category.name,
+      url: `${SITE_URL}/category/${category.slug}/${category.id}`,
+    });
+  }
+
+  items.push({
+    name,
+    url: `${SITE_URL}/products/${slug}/${_id}`,
+  });
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
   };
 }
