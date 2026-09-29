@@ -6,7 +6,8 @@ import { getCategoriesForTree } from "@/app/actions/category";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://novaorizon.com";
 
-// Slugify must match the one used across the app so URLs are identical.
+// Must match the slugify used by /products/page.tsx and
+// /products/[slug]/[_id]/page.tsx.
 function slugify(text: string): string {
   return String(text || "")
     .toLowerCase()
@@ -14,16 +15,21 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// Regenerate the sitemap at most once per hour. Products and categories
-// added after deploy will be picked up on the next regeneration.
+/**
+ * Percent-encode a path segment so it is valid in both URLs and XML.
+ * Category slugs in the current DB contain `>` separators, which are
+ * illegal in XML. This converts them to `%3E`.
+ */
+function encodeSegment(s: string): string {
+  return encodeURIComponent(s);
+}
+
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   // ---------- Static routes ----------
-  // Only include publicly indexable pages. Do NOT include /cart, /checkout,
-  // /search, /auth/*, /profile/* — those are all noindex.
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: `${SITE_URL}/`,
@@ -70,58 +76,72 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // ---------- Dynamic routes ----------
-  // Wrap in try/catch so a DB hiccup never breaks the whole sitemap.
   let productEntries: MetadataRoute.Sitemap = [];
   let categoryEntries: MetadataRoute.Sitemap = [];
 
   try {
     await connection();
 
-    const [products, categories] = await Promise.all([
-      Product.find({}).select("_id name updatedAt createdAt").lean().exec(),
+    const [productsRaw, categoriesRaw] = await Promise.all([
+      Product.find({})
+        .select("_id name updatedAt createdAt categoryId")
+        .lean()
+        .exec(),
       getCategoriesForTree(),
     ]);
 
-    // Products: /products/[slug]/[_id]
-    productEntries = (products as any[]).map((p) => {
-      const slug = slugify(p.name);
-      const lastMod = p.updatedAt
-        ? new Date(p.updatedAt)
-        : p.createdAt
-          ? new Date(p.createdAt)
-          : now;
+    const products = (productsRaw as any[]) || [];
+    const categories = Array.isArray(categoriesRaw) ? categoriesRaw : [];
 
-      return {
-        url: `${SITE_URL}/products/${slug}/${p._id}`,
-        lastModified: lastMod,
-        changeFrequency: "weekly",
-        priority: 0.8,
-      };
-    });
-
-    // Categories: /category/[slug]/[_id]
-    // getCategoriesForTree returns a flat list with _id, name, and either
-    // url_slug or slug. Fall back to a slugified name if neither exists.
-    categoryEntries = (Array.isArray(categories) ? categories : []).map(
-      (c: any) => {
-        const slug =
-          c.url_slug || c.slug || slugify(c.name || "") || "category";
+    // ---------- Product entries ----------
+    productEntries = products
+      .filter((p) => p && p._id && p.name)
+      .map((p) => {
+        const slug = slugify(p.name) || "product";
+        const lastMod = p.updatedAt
+          ? new Date(p.updatedAt)
+          : p.createdAt
+            ? new Date(p.createdAt)
+            : now;
 
         return {
-          url: `${SITE_URL}/category/${slug}/${c._id}`,
-          lastModified: c.updatedAt
-            ? new Date(c.updatedAt)
-            : c.createdAt
-              ? new Date(c.createdAt)
-              : now,
-          changeFrequency: "weekly",
+          url: `${SITE_URL}/products/${encodeSegment(slug)}/${String(p._id)}`,
+          lastModified: lastMod,
+          changeFrequency: "weekly" as const,
+          priority: 0.8,
+        };
+      });
+
+    // ---------- Category entries ----------
+    // Only include categories that reference at least one product.
+    const usedCategoryIds = new Set<string>();
+    for (const p of products) {
+      const cid = (p as any)?.categoryId;
+      if (!cid) continue;
+      const key =
+        typeof cid === "object" && cid !== null
+          ? String((cid as any)._id ?? cid)
+          : String(cid);
+      if (key) usedCategoryIds.add(key);
+    }
+
+    categoryEntries = categories
+      .filter((c: any) => c && c._id && usedCategoryIds.has(String(c._id)))
+      .map((c: any) => {
+        // getCategoriesForTree returns `slug`, not `url_slug`.
+        const rawSlug = c.slug || slugify(c.name || "") || "category";
+        const slug = encodeSegment(rawSlug);
+
+        const lastMod = c.updatedAt ? new Date(c.updatedAt) : now;
+
+        return {
+          url: `${SITE_URL}/category/${slug}/${String(c._id)}`,
+          lastModified: lastMod,
+          changeFrequency: "weekly" as const,
           priority: 0.7,
         };
-      },
-    );
+      });
   } catch (err) {
-    // Don't fail the build if Mongo is unreachable — just ship the
-    // static routes so Google still gets a valid sitemap.
     console.error("[sitemap] failed to load dynamic routes:", err);
   }
 

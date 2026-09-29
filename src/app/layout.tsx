@@ -18,7 +18,7 @@ const geist = Geist({
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://novaorizon.com";
-const TWITTER_HANDLE = "@dyfkCameroun";
+const TWITTER_HANDLE = "@novaorizon";
 const GOOGLE_VERIFICATION = "jGAR6wmWVPQe_fzOwoL1MqqKWSdN-Ty2dFf60Zu";
 
 export async function generateMetadata(): Promise<Metadata> {

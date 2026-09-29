@@ -360,12 +360,13 @@ export async function getCategoriesForTree(): Promise<
     imageUrl: string[];
     description?: string;
     sortOrder?: number;
+    updatedAt?: string;
   }>
 > {
   await connection();
   const rows = await Category.find(
     {},
-    "_id name slug parentId imageUrl description sortOrder",
+    "_id name slug parentId imageUrl description sortOrder updatedAt",
   )
     .sort({ sortOrder: 1, name: 1 })
     .lean();
@@ -378,5 +379,11 @@ export async function getCategoriesForTree(): Promise<
     imageUrl: Array.isArray(c.imageUrl) ? c.imageUrl.map(String) : [],
     description: c.description ?? undefined,
     sortOrder: typeof c.sortOrder === "number" ? c.sortOrder : undefined,
+    updatedAt:
+      c.updatedAt instanceof Date
+        ? c.updatedAt.toISOString()
+        : typeof c.updatedAt === "string"
+          ? c.updatedAt
+          : undefined,
   }));
 }
