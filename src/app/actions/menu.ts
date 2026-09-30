@@ -207,9 +207,21 @@ function revalidateMenuConsumers() {
 export async function getMenusByLocation(location: string, context?: any) {
   try {
     await connection();
+    console.log(
+      "[getMenusByLocation] location =",
+      JSON.stringify(location),
+      "context =",
+      context,
+    );
+
     const menus = await Menu.find({ location })
       .sort({ order: 1, createdAt: -1 })
       .lean();
+    console.log(
+      "[getMenusByLocation] menus matched =",
+      menus.length,
+      menus.map((m) => ({ id: m._id, name: m.name, loc: m.location })),
+    );
 
     const enriched = await Promise.all(
       menus.map(async (menu) => {
@@ -219,6 +231,16 @@ export async function getMenusByLocation(location: string, context?: any) {
             menu.collectionId.toString(),
             context,
           );
+          console.log("[resolveCollectionItems]", {
+            menu: menu.name,
+            collectionId: menu.collectionId,
+            itemCount: items.length,
+          });
+        } else {
+          console.log(
+            "[getMenusByLocation] no collectionId on menu:",
+            menu.name,
+          );
         }
         return { ...menu, items };
       }),
@@ -226,6 +248,7 @@ export async function getMenusByLocation(location: string, context?: any) {
 
     return { success: true, data: JSON.parse(JSON.stringify(enriched)) };
   } catch (error: any) {
+    console.error("[getMenusByLocation] threw:", error);
     return { success: false, error: error.message };
   }
 }

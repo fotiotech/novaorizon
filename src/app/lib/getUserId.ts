@@ -8,7 +8,7 @@ export async function getCurrentUserId() {
   if (session?.user?.id) return session.user.id;
 
   // 2) Fallback to guest cookie
-  const cookieStore: any = cookies();
+  const cookieStore = await cookies(); // <-- await here
   const guestId = cookieStore.get("guestId")?.value;
   if (guestId) return guestId;
 
