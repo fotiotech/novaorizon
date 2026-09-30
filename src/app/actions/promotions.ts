@@ -88,6 +88,8 @@ function meetsEligibility(
 ): boolean {
   const elig = promotion.customerEligibility ?? {};
   const minOrder = Number(elig.minOrderAmount ?? 0);
+  // NOTE: uses the FULL cart subtotal, not the scoped one — the minimum
+  // is a customer-order threshold, not a promotion-scope threshold.
   if (minOrder > 0 && cart.subtotal < minOrder) return false;
 
   if (elig.allCustomers !== false) return true;
@@ -100,7 +102,137 @@ function meetsEligibility(
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Discount calculators
+// Scope
+//
+// A promotion's `scope.appliesTo` decides which cart items it can
+// discount:
+//
+//   "all"        → every item (default; no filtering)
+//   "products"   → items whose productId is in scope.productIds
+//   "categories" → items whose categoryIds intersect scope.categoryIds
+//   "brands"     → items whose brandId is in scope.brandIds
+//
+// `scope.excludeProductIds` is a carve-out applied first. Excluded
+// products are never counted toward the promotion, even if they
+// otherwise match.
+//
+// `buildScopedCart` narrows the cart to matching items and recomputes
+// the subtotal. Every discount calculator operates on the narrowed
+// cart, so "10% off these products" correctly discounts only those
+// items, not the whole order.
+//
+// `free_shipping` is order-level (one shipment), so it can't simply
+// use the narrowed subtotal. It is prorated instead — see
+// `calcFreeShipping` and `buildScopeContext`.
+// ─────────────────────────────────────────────────────────────────────
+
+const EMPTY_SCOPE = { appliesTo: "all" } as const;
+
+/** Coerce an array of ObjectIds OR populated docs OR a single value →
+ *  a Set of string IDs. */
+function toIdSet(raw: any): Set<string> {
+  if (raw == null) return new Set();
+  const arr = Array.isArray(raw) ? raw : [raw];
+  const out = new Set<string>();
+  for (const x of arr) {
+    if (x == null) continue;
+    if (typeof x === "object" && "_id" in x) {
+      out.add(String((x as any)._id));
+    } else {
+      out.add(String(x));
+    }
+  }
+  return out;
+}
+
+/** Does an individual cart item fall within a promotion's scope? */
+function itemInScope(item: CartItem, scope: any): boolean {
+  const s = scope ?? EMPTY_SCOPE;
+  const appliesTo = s.appliesTo ?? "all";
+
+  if (appliesTo === "all") return true;
+
+  if (appliesTo === "products") {
+    const ids = toIdSet(s.productIds);
+    return ids.size > 0 && ids.has(String(item.productId));
+  }
+
+  if (appliesTo === "categories") {
+    const ids = toIdSet(s.categoryIds);
+    if (ids.size === 0) return false;
+    return (item.categoryIds ?? []).some((c) => ids.has(String(c)));
+  }
+
+  if (appliesTo === "brands") {
+    const ids = toIdSet(s.brandIds);
+    if (ids.size === 0) return false;
+    return item.brandId != null && ids.has(String(item.brandId));
+  }
+
+  return true;
+}
+
+/** Narrow the cart to just the items this promotion can discount.
+ *  Returns the original cart when scope is "all" so the common path
+ *  allocates nothing. */
+function buildScopedCart(cart: Cart, promotion: any): Cart {
+  const scope = promotion?.scope;
+  if (!scope || !scope.appliesTo || scope.appliesTo === "all") return cart;
+
+  const excluded = toIdSet(scope.excludeProductIds);
+
+  const items = cart.items.filter((i) => {
+    if (excluded.has(String(i.productId))) return false;
+    return itemInScope(i, scope);
+  });
+
+  if (items.length === 0) {
+    return { ...cart, items: [], subtotal: 0 };
+  }
+
+  const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+
+  return { ...cart, items, subtotal };
+}
+
+/** Sizing information the discount calculators need when the cart has
+ *  been narrowed by a non-"all" scope. Used by `free_shipping` to
+ *  prorate the shipping discount. */
+interface ScopeContext {
+  scopedSubtotal: number;
+  fullSubtotal: number;
+  /** True when the scoped cart contains exactly the same line items as
+   *  the full cart (scope was "all", or every item happened to match). */
+  isFullCart: boolean;
+}
+
+function buildScopeContext(fullCart: Cart, scopedCart: Cart): ScopeContext {
+  return {
+    scopedSubtotal: scopedCart.subtotal,
+    fullSubtotal: fullCart.subtotal,
+    isFullCart:
+      scopedCart.items.length === fullCart.items.length &&
+      scopedCart.items.every((it, i) => it === fullCart.items[i]),
+  };
+}
+
+/** Human-readable reason a scoped promotion doesn't fit a cart. */
+function scopeMismatchReason(promotion: any): string {
+  const appliesTo = promotion?.scope?.appliesTo;
+  switch (appliesTo) {
+    case "products":
+      return "This code applies to specific products that aren't in your cart";
+    case "categories":
+      return "This code applies to specific categories that aren't in your cart";
+    case "brands":
+      return "This code applies to specific brands that aren't in your cart";
+    default:
+      return "This code isn't valid for the items in your cart";
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Discount calculators — operate on the (possibly narrowed) cart
 // ─────────────────────────────────────────────────────────────────────
 
 function calcPercentage(promotion: any, cart: Cart): number {
@@ -159,12 +291,45 @@ function calcBuyXGetY(promotion: any, cart: Cart): number {
   return Math.max(0, discount);
 }
 
-function calcFreeShipping(promotion: any, cart: Cart): number {
+/**
+ * Free shipping.
+ *
+ *   - scope "all"        → cover the full shipping cost (capped by
+ *                          maxShippingCost).
+ *   - scope products/    → cover only the portion of shipping
+ *     categories/brands    attributable to the matching items.
+ *
+ * Shipping is one order-level charge with no per-item breakdown, so
+ * the proration uses the scoped subtotal's share of the full
+ * subtotal as a proxy. If matching items are 30% of the cart by
+ * value, 30% of the shipping cost is covered. Round to the nearest
+ * integer since CFA is integer-only.
+ */
+function calcFreeShipping(
+  promotion: any,
+  cart: Cart,
+  scopeCtx?: ScopeContext,
+): number {
   const shipping = Number(cart.shippingCost ?? 0);
   if (shipping <= 0) return 0;
+
   const capRaw = prop(promotion, "maxShippingCost", null);
   const cap = capRaw == null || capRaw === "" ? Infinity : Number(capRaw);
-  return Math.max(0, Math.min(shipping, cap));
+
+  // No narrowing, or every item matched — cover the whole thing.
+  if (!scopeCtx || scopeCtx.isFullCart || scopeCtx.fullSubtotal <= 0) {
+    return Math.max(0, Math.min(shipping, cap));
+  }
+
+  // Prorate by value. Clamp the ratio to [0, 1] in case the scoped
+  // subtotal exceeds the full one (defensive; shouldn't happen).
+  const ratio = Math.max(
+    0,
+    Math.min(1, scopeCtx.scopedSubtotal / scopeCtx.fullSubtotal),
+  );
+  const prorated = Math.round(shipping * ratio);
+
+  return Math.max(0, Math.min(prorated, cap, shipping));
 }
 
 function calcBundleDiscount(promotion: any, cart: Cart): number {
@@ -189,7 +354,11 @@ function calcBundleDiscount(promotion: any, cart: Cart): number {
   return Math.min(discountAmount, cart.subtotal);
 }
 
-function calculateDiscount(promotion: any, cart: Cart): number {
+function calculateDiscount(
+  promotion: any,
+  cart: Cart,
+  scopeCtx?: ScopeContext,
+): number {
   const calcType = promotion?.promotionType?.calculationType;
   switch (calcType) {
     case "percentage":
@@ -199,7 +368,7 @@ function calculateDiscount(promotion: any, cart: Cart): number {
     case "buy_x_get_y":
       return calcBuyXGetY(promotion, cart);
     case "free_shipping":
-      return calcFreeShipping(promotion, cart);
+      return calcFreeShipping(promotion, cart, scopeCtx);
     case "bundle_discount":
       return calcBundleDiscount(promotion, cart);
     default:
@@ -364,9 +533,18 @@ export async function getApplicablePromotions(
   for (const p of promotions as any[]) {
     if (!isLive(p, now)) continue;
     if (p.promotionType?.isActive === false) continue;
+
+    // Eligibility is checked against the FULL cart — minOrderAmount is
+    // an order-level threshold, not a scope-level one.
     if (!meetsEligibility(p, cart, ctx)) continue;
 
-    const discount = calculateDiscount(p, cart);
+    // Then narrow to the items this promotion can actually discount.
+    // A non-"all" scope that matches nothing gates the promotion out.
+    const scopedCart = buildScopedCart(cart, p);
+    if (scopedCart.items.length === 0) continue;
+
+    const scopeCtx = buildScopeContext(cart, scopedCart);
+    const discount = calculateDiscount(p, scopedCart, scopeCtx);
     if (discount <= 0) continue;
 
     candidates.push({
@@ -461,7 +639,15 @@ export async function validatePromotionCode(
     };
   }
 
-  const discount = calculateDiscount(promotion, cart);
+  // Scope gate — a code for a product/category/brand-scoped promotion
+  // can't be applied to a cart that doesn't contain any matching item.
+  const scopedCart = buildScopedCart(cart, promotion);
+  if (scopedCart.items.length === 0) {
+    return { ok: false, reason: scopeMismatchReason(promotion) };
+  }
+
+  const scopeCtx = buildScopeContext(cart, scopedCart);
+  const discount = calculateDiscount(promotion, scopedCart, scopeCtx);
   if (discount <= 0) {
     return { ok: false, reason: "Your cart does not qualify for this code" };
   }
