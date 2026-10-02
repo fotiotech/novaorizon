@@ -1,12 +1,19 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FilterList, Clear } from "@mui/icons-material";
 import Link from "next/link";
 import ImageRenderer from "@/components/ImageRenderer";
 import Spinner from "@/components/Spinner";
 import { searchProducts } from "@/app/actions/search";
+import { semanticSearch } from "@/app/actions/semanticSearch";
 import { getCategoryAttributeSets } from "@/app/actions/category";
 import { Prices } from "@/components/cart/Prices";
 import { debounce } from "./debounce";
@@ -18,6 +25,11 @@ const ALLOWED_ATTRIBUTE_SETS = new Set<string>([
 ]);
 
 const EXCLUDED_ATTRIBUTE_TYPES = new Set<string>(["file"]);
+
+// Grid page size for the merged list. Matches the keyword page size
+// so pagination math stays consistent, but semantic hits fill any
+// shortfall.
+const PAGE_SIZE = 20;
 
 // ---------- Types ----------
 type AttributeDef = {
@@ -55,7 +67,63 @@ function pickPrice(...candidates: any[]): number {
   return 0;
 }
 
+// Matches MongoDB ObjectId hex strings. Client-safe (no mongoose).
 const OBJECT_ID_RE = /^[0-9a-fA-F]{24}$/;
+
+// Normalize whatever shape an ObjectId has survived serialization as.
+const normalizeId = (v: any): string => {
+  if (!v) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "object" && "$oid" in v) return String((v as any).$oid);
+  return String(v);
+};
+
+// Reusable product card.
+const ProductCard = ({ id, item }: { id: string; item: any }) => {
+  const imageUrl = item?.images?.[0] || null;
+  const title = item?.name || item?.title;
+  const currency = "F";
+
+  const displayPrice = pickPrice(item?.price, item?.listPrice);
+  const numericListPrice = Number(item?.listPrice) || 0;
+  const showListPrice = numericListPrice > displayPrice && displayPrice > 0;
+
+  return (
+    <Link
+      href={`/products/${title?.slice(0, 15) || "product"}/${id}`}
+      className="group flex flex-col bg-background border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/30"
+    >
+      {imageUrl ? (
+        <div className="relative w-full aspect-square bg-muted/30 overflow-hidden shrink-0">
+          <ImageRenderer image={imageUrl} />
+        </div>
+      ) : (
+        <div className="w-full aspect-square bg-muted flex items-center justify-center text-muted-foreground text-sm">
+          No image
+        </div>
+      )}
+      <div className="p-3">
+        <p className="text-sm font-medium line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+          {title || "Untitled"}
+        </p>
+        {displayPrice > 0 ? (
+          <div className="mt-1 flex items-baseline gap-2">
+            <p className="text-primary font-semibold text-sm">
+              <Prices amount={displayPrice} currency={currency} />
+            </p>
+            {showListPrice && (
+              <p className="text-xs text-muted-foreground line-through">
+                <Prices amount={numericListPrice} currency={currency} />
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">Price on request</p>
+        )}
+      </div>
+    </Link>
+  );
+};
 
 const SearchClient = () => {
   const searchParams = useSearchParams();
@@ -71,6 +139,7 @@ const SearchClient = () => {
 
   // State
   const [data, setData] = useState<any[]>([]);
+  const [semanticData, setSemanticData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [openClose, setOpenClose] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +150,10 @@ const SearchClient = () => {
   });
   const [totalCount, setTotalCount] = useState(0);
   const [attributeDefs, setAttributeDefs] = useState<AttributeDef[]>([]);
+
+  // Monotonic request id. Guards against a slow semantic call from a
+  // previous query overwriting the current one.
+  const requestIdRef = useRef(0);
 
   // ----- Derive the active category for attribute lookup -----
   const derivedCategoryId = useMemo(() => {
@@ -163,38 +236,7 @@ const SearchClient = () => {
     [query, hasNonQueryFilters],
   );
 
-  // Enhanced debounced search
-  const debouncedSearch = useCallback(
-    debounce(async (searchQuery: string, filters: any[]) => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const result = await searchProducts(searchQuery, filters, page, 20);
-        const items = result.hits.map((hit: any) => ({
-          _id: hit._id,
-          ...hit._source,
-        }));
-
-        setFiltersData({
-          categories: result.aggregations?.categories || [],
-          brands: result.aggregations?.brands || [],
-          priceRange: result.aggregations?.priceRange || { min: 0, max: 0 },
-        });
-        setData(items);
-        setTotalCount(result.total.value || 0);
-      } catch (err) {
-        console.error("Search error:", err);
-        setError("Failed to load search results. Please try again.");
-        setData([]);
-        setTotalCount(0);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 300),
-    [page],
-  );
-
+  // ----- Build the keyword filter array from URL params -----
   const buildFilters = useCallback(() => {
     const filters: any[] = [];
 
@@ -224,15 +266,106 @@ const SearchClient = () => {
     return filters;
   }, [category, brand, priceMin, priceMax, searchParams]);
 
+  // ----- Build the semantic filter object from URL params -----
+  const buildSemanticFilters = useCallback(() => {
+    const f: {
+      categoryId?: string;
+      brand?: string;
+      priceMin?: number;
+      priceMax?: number;
+    } = {};
+    if (category && OBJECT_ID_RE.test(category)) f.categoryId = category;
+    if (brand && OBJECT_ID_RE.test(brand)) f.brand = brand;
+    if (priceMin) f.priceMin = Number(priceMin);
+    if (priceMax) f.priceMax = Number(priceMax);
+    return f;
+  }, [category, brand, priceMin, priceMax]);
+
+  // ----- Combined debounced search (keyword + semantic in parallel) -----
+  const debouncedSearch = useCallback(
+    debounce(
+      async (
+        searchQuery: string,
+        keywordFilters: any[],
+        semanticFilters: any,
+      ) => {
+        const reqId = ++requestIdRef.current;
+
+        setIsLoading(true);
+        setError(null);
+
+        // Semantic runs in parallel and is skippable for very short
+        // queries — a 2-character string has no meaningful embedding
+        // signal and just burns a Voyage call.
+        const semanticPromise: Promise<{
+          hits: any[];
+          total: { value: number };
+        }> =
+          searchQuery.trim().length >= 3
+            ? semanticSearch(searchQuery, semanticFilters, 12).catch((err) => {
+                console.warn("[semantic] unavailable:", err);
+                return { hits: [], total: { value: 0 } };
+              })
+            : Promise.resolve({ hits: [], total: { value: 0 } });
+
+        try {
+          const result = await searchProducts(
+            searchQuery,
+            keywordFilters,
+            page,
+            PAGE_SIZE,
+          );
+
+          if (reqId !== requestIdRef.current) return;
+
+          const items = result.hits.map((hit: any) => ({
+            _id: hit._id,
+            ...hit._source,
+          }));
+
+          setFiltersData({
+            categories: result.aggregations?.categories || [],
+            brands: result.aggregations?.brands || [],
+            priceRange: result.aggregations?.priceRange || { min: 0, max: 0 },
+          });
+          setData(items);
+          setTotalCount(result.total.value || 0);
+
+          // Keyword grid is ready — clear the spinner now so the user
+          // isn't waiting on the Voyage round-trip.
+          setIsLoading(false);
+
+          // Semantic arrives after; it fills remaining slots.
+          const semanticResult = await semanticPromise;
+          if (reqId !== requestIdRef.current) return;
+          setSemanticData(semanticResult.hits);
+        } catch (err) {
+          if (reqId !== requestIdRef.current) return;
+          console.error("Search error:", err);
+          setError("Failed to load search results. Please try again.");
+          setData([]);
+          setSemanticData([]);
+          setTotalCount(0);
+          setIsLoading(false);
+        }
+      },
+      300,
+    ),
+    [page],
+  );
+
   // Re-run the search whenever any relevant URL parameter changes.
   const urlSignature = useMemo(() => searchParams.toString(), [searchParams]);
 
   useEffect(() => {
     if (shouldSearch) {
-      const filters = buildFilters();
-      debouncedSearch(query, filters);
+      const keywordFilters = buildFilters();
+      const semanticFilters = buildSemanticFilters();
+      debouncedSearch(query, keywordFilters, semanticFilters);
     } else {
+      requestIdRef.current++;
       setData([]);
+      setSemanticData([]);
       setTotalCount(0);
       setFiltersData({
         categories: [],
@@ -243,17 +376,34 @@ const SearchClient = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlSignature, page, debouncedSearch]);
 
+  // Flat map of currently-active filters. Used by ListFilter for the
+  // active visual state.
+  const activeFilters = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const [key, value] of searchParams.entries()) {
+      if (key === "category" || key === "brand" || key.startsWith("attr_")) {
+        map[key] = value;
+      }
+    }
+    return map;
+  }, [searchParams]);
+
   const handleFilterClick = useCallback(
     (key: string, value: string): void => {
       const params = new URLSearchParams(searchParams.toString());
-      // Attribute values are stored lowercased on the product document, so
-      // the URL carries the lowercased form too. This is what makes
-      // clicking "Green" and "green" resolve to the same filter.
+
       const normalised = key.startsWith("attr_")
         ? value.trim().toLowerCase()
         : value;
-      if (normalised) params.set(key, normalised);
-      else params.delete(key);
+
+      if (params.get(key) === normalised) {
+        params.delete(key);
+      } else if (normalised) {
+        params.set(key, normalised);
+      } else {
+        params.delete(key);
+      }
+
       params.delete("page");
       router.push(`/search?${params.toString()}`);
     },
@@ -267,12 +417,40 @@ const SearchClient = () => {
     router.push(qs ? `/search?${qs}` : "/search");
   }, [query, router]);
 
+  // ----- Semantic hits not already in the keyword grid -----
+  // Used for the merged grid and for facet derivation.
+  const semanticOnly = useMemo(() => {
+    const keywordIds = new Set(data.map((d: any) => d._id));
+    return semanticData.filter((s: any) => !keywordIds.has(s._id));
+  }, [data, semanticData]);
+
+  // ----- Merged results: keyword first, semantic fills the tail -----
+  //
+  // Keyword hits are relevance-ranked by Atlas Search, semantic hits
+  // by cosine similarity. The scores are not comparable, so we don't
+  // try to interleave them — keyword results take priority in their
+  // existing order, and semantic-only products fill whatever slots
+  // remain up to PAGE_SIZE.
+  //
+  // When keyword returns a full page (20 hits), semantic contributes
+  // nothing visible. When keyword is thin or empty, semantic carries
+  // the grid.
+  const mergedResults = useMemo(() => {
+    const keyword = data;
+    const remaining = Math.max(0, PAGE_SIZE - keyword.length);
+    const semanticFill = semanticOnly
+      .slice(0, remaining)
+      .map((s: any) => ({ _id: s._id, ...s._source }));
+    return [...keyword, ...semanticFill];
+  }, [data, semanticOnly]);
+
   // ----- Build attribute filter options -----
+  // Counts across everything currently displayed.
   const attributeFilters = useMemo(() => {
     if (attributeDefs.length === 0) return [];
 
     const counts: Record<string, Record<string, number>> = {};
-    data.forEach((product) => {
+    mergedResults.forEach((product: any) => {
       attributeDefs.forEach((def) => {
         const raw = product[def.code];
         if (raw === undefined || raw === null || raw === "") return;
@@ -311,59 +489,99 @@ const SearchClient = () => {
           values: { value: string; count: number }[];
         } => item !== null,
       );
-  }, [data, attributeDefs]);
+  }, [mergedResults, attributeDefs]);
 
-  // Memoized product list
-  const productList = useMemo(() => {
-    return data.map((item: any) => {
-      const imageUrl = item.images?.[0] || null;
-      const title = item.name || item.title;
-      const currency = "F";
+  // ----- Sidebar facets = keyword aggregations ∪ semantic-only results -----
+  const mergedFilters = useMemo(() => {
+    const catMap = new Map<
+      string,
+      { _id: string; name: string; count: number }
+    >();
+    const brandMap = new Map<
+      string,
+      { _id: string; name: string; count: number }
+    >();
 
-      const displayPrice = pickPrice(item.price, item.listPrice);
-      const numericListPrice = Number(item.listPrice) || 0;
-      const showListPrice = numericListPrice > displayPrice && displayPrice > 0;
+    for (const c of filtersData.categories || []) {
+      const id = normalizeId(c._id);
+      if (!id) continue;
+      catMap.set(id, {
+        _id: id,
+        name: c.name || "Unknown",
+        count: c.count || 0,
+      });
+    }
+    for (const b of filtersData.brands || []) {
+      const id = normalizeId(b._id);
+      if (!id) continue;
+      brandMap.set(id, {
+        _id: id,
+        name: b.name || "Unknown",
+        count: b.count || 0,
+      });
+    }
 
-      return (
-        <Link
-          key={item._id}
-          href={`/products/${title?.slice(0, 15) || "product"}/${item._id}`}
-          className="group flex flex-col bg-background border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/30"
-        >
-          {imageUrl ? (
-            <div className="relative w-full aspect-square bg-muted/30 overflow-hidden shrink-0">
-              <ImageRenderer image={imageUrl} />
-            </div>
-          ) : (
-            <div className="w-full aspect-square bg-muted flex items-center justify-center text-muted-foreground text-sm">
-              No image
-            </div>
-          )}
-          <div className="p-3">
-            <p className="text-sm font-medium line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-              {title || "Untitled"}
-            </p>
-            {displayPrice > 0 ? (
-              <div className="mt-1 flex items-baseline gap-2">
-                <p className="text-primary font-semibold text-sm">
-                  <Prices amount={displayPrice} currency={currency} />
-                </p>
-                {showListPrice && (
-                  <p className="text-xs text-muted-foreground line-through">
-                    <Prices amount={numericListPrice} currency={currency} />
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Price on request
-              </p>
-            )}
-          </div>
-        </Link>
-      );
-    });
-  }, [data]);
+    let minPrice = filtersData.priceRange?.min ?? 0;
+    let maxPrice = filtersData.priceRange?.max ?? 0;
+
+    for (const hit of semanticOnly) {
+      const src = hit._source ?? {};
+
+      const catId = normalizeId(src.categoryId);
+      if (catId) {
+        const existing = catMap.get(catId);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          catMap.set(catId, {
+            _id: catId,
+            name: src.categoryName || "Unknown",
+            count: 1,
+          });
+        }
+      }
+
+      const brandId = normalizeId(src.brand);
+      if (brandId) {
+        const existing = brandMap.get(brandId);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          brandMap.set(brandId, {
+            _id: brandId,
+            name: src.brandName || "Unknown",
+            count: 1,
+          });
+        }
+      }
+
+      const p = Number(src.price) || 0;
+      if (p > 0) {
+        if (minPrice === 0 || p < minPrice) minPrice = p;
+        if (p > maxPrice) maxPrice = p;
+      }
+    }
+
+    return {
+      categories: Array.from(catMap.values()).sort((a, b) => b.count - a.count),
+      brands: Array.from(brandMap.values()).sort((a, b) => b.count - a.count),
+      priceRange: { min: minPrice, max: maxPrice },
+    };
+  }, [filtersData, semanticOnly]);
+
+  // ----- Memoized grid -----
+  const productList = useMemo(
+    () =>
+      mergedResults.map((item: any) => (
+        <ProductCard key={item._id} id={item._id} item={item} />
+      )),
+    [mergedResults],
+  );
+
+  // Total displayed = keyword count + semantic fill actually shown.
+  // Distinct from totalCount, which is the keyword-engine's full count
+  // (paginated). We show the displayed count since it matches the grid.
+  const displayCount = mergedResults.length;
 
   return (
     <div className="flex flex-col lg:flex-row w-full min-h-screen bg-background p-2 lg:px-8 lg:py-4">
@@ -372,11 +590,12 @@ const SearchClient = () => {
           openClose={openClose}
           setOpenClose={setOpenClose}
           filters={{
-            categories: filtersData.categories,
-            brands: filtersData.brands,
-            priceRange: filtersData.priceRange,
+            categories: mergedFilters.categories,
+            brands: mergedFilters.brands,
+            priceRange: mergedFilters.priceRange,
             attributes: attributeFilters,
           }}
+          activeFilters={activeFilters}
           handleFilterClick={handleFilterClick}
         />
       </div>
@@ -433,7 +652,7 @@ const SearchClient = () => {
             <Spinner size={25} />
             <p className="mt-3 text-muted-foreground">Searching...</p>
           </div>
-        ) : data.length === 0 ? (
+        ) : displayCount === 0 ? (
           <div className="flex flex-col items-center justify-center h-60 text-muted-foreground">
             <p className="text-lg">
               {shouldSearch ? "No results found." : "No products available."}
@@ -447,7 +666,7 @@ const SearchClient = () => {
         ) : (
           <>
             <div className="mb-4 text-sm text-muted-foreground">
-              Found {totalCount} {totalCount === 1 ? "result" : "results"}
+              Found {displayCount} {displayCount === 1 ? "result" : "results"}
               {hasNonQueryFilters && " (filtered)"}
             </div>
 
