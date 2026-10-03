@@ -1,5 +1,5 @@
 import ProductDetailsClient from "./_compnents/ProductDetailsClient";
-import RelatedMenus from "./_compnents/RelatedMenus";
+import RelatedProduct from "./_compnents/RelatedProduct";
 import { findProducts } from "@/app/actions/products";
 import { connection } from "@/utils/connection";
 import Product from "@/models/Product";
@@ -233,7 +233,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
       <ProductDetailsClient
         productId={_id}
         initialProduct={product ?? undefined}
-        relatedSlot={<RelatedMenus productId={_id} />}
+        relatedSlot={<RelatedProduct productId={_id} />}
       />
     </>
   );

@@ -1,3 +1,4 @@
+// app/actions/collection.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -9,102 +10,15 @@ import Brand from "@/models/Brand";
 import Promotion from "@/models/Promotion";
 import Page from "@/models/Page";
 import { Collection } from "@/models/Collection";
+import { deleteS3Object } from "./s3";
 import {
-  getTrendingItems,
-  getRecommendations,
-  getRecentlyViewed,
-  getRelatedProducts,
-} from "./events"; // 👈 recommendation functions
+  getModelForTargetType,
+  buildQueryFromRules,
+} from "@/lib/content/query";
 
-// ---------- Helper: get model by targetType ----------
-function getModelForTargetType(targetType: string) {
-  switch (targetType) {
-    case "Product":
-      return Product;
-    case "Category":
-      return Category;
-    case "Brand":
-      return Brand;
-    case "Promotion":
-      return Promotion;
-    case "Page":
-      return Page;
-    case "Collection":
-      return Collection;
-    default:
-      return null;
-  }
-}
+const COLLECTION_LIST_PATH = "/catalog/collections";
 
-// ---------- Helper: parse rule value ----------
-function parseRuleValue(value: any, operator: string) {
-  if (operator === "$in" || operator === "$nin") {
-    if (Array.isArray(value)) return value;
-    if (typeof value === "string") {
-      try {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed;
-        if (value.includes(",")) {
-          return value.split(",").map((item: string) => item.trim());
-        }
-        return [value];
-      } catch {
-        if (value.includes(",")) {
-          return value.split(",").map((item: string) => item.trim());
-        }
-        return [value];
-      }
-    }
-    return [value];
-  }
-
-  if (["$lt", "$lte", "$gt", "$gte"].includes(operator)) {
-    const num = Number(value);
-    return isNaN(num) ? value : num;
-  }
-
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return value;
-}
-
-// ---------- Build query from rules (only for Product & Collection) ----------
-function buildQueryFromRules(rules: any[], targetType: string) {
-  if (!["Product", "Collection"].includes(targetType)) return {};
-  if (!rules || rules.length === 0) return {};
-
-  const query: any = { $and: [] };
-
-  for (const rule of rules) {
-    if (!rule.attribute || !rule.operator) continue;
-    const value = parseRuleValue(rule.value, rule.operator);
-
-    if (targetType === "Product" && rule.attribute === "categoryId") {
-      if (Array.isArray(value)) {
-        const objectIds = value
-          .filter((v) => mongoose.Types.ObjectId.isValid(v))
-          .map((v) => new mongoose.Types.ObjectId(v));
-        if (objectIds.length) {
-          query.$and.push({
-            [rule.attribute]: { [rule.operator]: objectIds },
-          });
-        }
-      } else if (mongoose.Types.ObjectId.isValid(value)) {
-        query.$and.push({
-          [rule.attribute]: new mongoose.Types.ObjectId(value),
-        });
-      }
-    } else {
-      query.$and.push({
-        [rule.attribute]: { [rule.operator]: value },
-      });
-    }
-  }
-
-  return query.$and.length > 0 ? query : {};
-}
-
-// ---------- Get all collections (without items) ----------
+// ---------- Get all collections ----------
 export async function getAllCollections() {
   try {
     await connection();
@@ -118,19 +32,19 @@ export async function getAllCollections() {
   }
 }
 
-// ---------- Get collections with resolved items (for preview / client) ----------
+// ---------- Get collections with resolved items (for admin preview) ----------
 export async function getCollectionsWithProducts() {
   try {
     await connection();
     const collections = await Collection.find({})
       .populate("items")
-      .sort({ order: 1, created_at: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .lean();
 
     const results = [];
 
     for (const collection of collections) {
-      let matchingItems = [];
+      let matchingItems: any[] = [];
 
       if (collection.type === "rule") {
         const Model = getModelForTargetType(collection.targetType);
@@ -142,38 +56,14 @@ export async function getCollectionsWithProducts() {
         if (Object.keys(query).length > 0) {
           matchingItems = await (Model as any).find(query).limit(50).lean();
         }
-      } else if (collection.type === "recommendation") {
-        const limit = collection.recommendationLimit || 10;
-        let raw: any[] = [];
-        switch (collection.recommendationType) {
-          case "trending":
-            raw = await getTrendingItems(limit);
-            break;
-          case "personalized":
-            raw = await getRecommendations(limit);
-            break;
-          case "recentlyViewed":
-            raw = await getRecentlyViewed(limit);
-            break;
-          default:
-            raw = [];
-        }
-        matchingItems = raw.map((item: any) => ({
-          _id: item._id.toString(),
-          name: item.name || item.title || "Unnamed",
-          image: Array.isArray(item.images)
-            ? item.images[0] || null
-            : item.mainImage || item.image || item.imageUrl || null,
-          price: item.price ?? null,
-          listPrice: item.listPrice ?? null,
-          contentType: "Product",
-        }));
-      } else if (collection.type === "related") {
-        // Related collections require a product context and cannot be previewed globally.
-        matchingItems = [];
-      } else {
-        // manual
+      } else if (collection.type === "manual") {
         matchingItems = collection.items || [];
+      } else if (collection.type === "recommendation") {
+        // Recommendation collections are dynamic; we don't pre-fetch items for admin preview.
+        matchingItems = [];
+      } else if (collection.type === "related") {
+        // Related collections require a product context, which the admin list does not have.
+        matchingItems = [];
       }
 
       results.push({
@@ -191,8 +81,8 @@ export async function getCollectionsWithProducts() {
           showName: collection.showName,
           recommendationType: collection.recommendationType,
           recommendationLimit: collection.recommendationLimit,
-          created_at: collection.created_at,
-          updated_at: collection.updated_at,
+          createdAt: (collection as any).createdAt,
+          updatedAt: (collection as any).updatedAt,
         },
         items: matchingItems,
         itemCount: matchingItems.length,
@@ -229,6 +119,7 @@ export async function createCollection(formData: FormData) {
     const recommendationLimit =
       parseInt(formData.get("recommendationLimit") as string) || 10;
 
+    // --- Validation ---
     if (!name?.trim()) {
       return { success: false, error: "Name is required" };
     }
@@ -251,6 +142,15 @@ export async function createCollection(formData: FormData) {
       return { success: false, error: "Invalid target type" };
     }
 
+    // Server-side enforcement: rule-based collections only for Product/Collection.
+    if (type === "rule" && !["Product", "Collection"].includes(targetType)) {
+      return {
+        success: false,
+        error:
+          "Rule-based collections are only allowed for Products and Collections.",
+      };
+    }
+
     // Validate dynamic product collection configuration
     if (type === "recommendation") {
       if (
@@ -271,7 +171,10 @@ export async function createCollection(formData: FormData) {
       };
     }
 
-    let rules = [];
+    // Parse rules / items only for relevant types
+    let rules: any[] = [];
+    let items: string[] = [];
+
     if (type === "rule") {
       try {
         rules = rulesJson ? JSON.parse(rulesJson) : [];
@@ -301,10 +204,7 @@ export async function createCollection(formData: FormData) {
       } catch (e) {
         return { success: false, error: "Invalid rules format" };
       }
-    }
-
-    let items = [];
-    if (type === "manual") {
+    } else if (type === "manual") {
       try {
         items = itemsJson ? JSON.parse(itemsJson) : [];
         if (!Array.isArray(items)) {
@@ -320,6 +220,7 @@ export async function createCollection(formData: FormData) {
       }
     }
 
+    // Check duplicate name
     const existing = await Collection.findOne({ name: name.trim() });
     if (existing) {
       return {
@@ -348,7 +249,7 @@ export async function createCollection(formData: FormData) {
     });
 
     await collection.save();
-    revalidatePath("/marketing/content/navigation/collection");
+    revalidatePath(COLLECTION_LIST_PATH);
     return {
       success: true,
       data: collection.toObject(),
@@ -378,6 +279,7 @@ export async function updateCollection(id: string, formData: FormData) {
     const itemsJson = formData.get("items") as string;
     const order = parseInt(formData.get("order") as string) || 0;
     const showName = formData.get("showName") === "true";
+
     const recommendationType =
       (formData.get("recommendationType") as string) || "";
     const recommendationLimit =
@@ -402,6 +304,15 @@ export async function updateCollection(id: string, formData: FormData) {
       return { success: false, error: "Invalid target type" };
     }
 
+    // Server-side enforcement: rule-based collections only for Product/Collection.
+    if (type === "rule" && !["Product", "Collection"].includes(targetType)) {
+      return {
+        success: false,
+        error:
+          "Rule-based collections are only allowed for Products and Collections.",
+      };
+    }
+
     if (type === "recommendation") {
       if (
         !["trending", "personalized", "recentlyViewed"].includes(
@@ -421,7 +332,7 @@ export async function updateCollection(id: string, formData: FormData) {
       };
     }
 
-    let rules = [];
+    let rules: any[] = [];
     if (type === "rule") {
       try {
         rules = rulesJson ? JSON.parse(rulesJson) : [];
@@ -453,7 +364,7 @@ export async function updateCollection(id: string, formData: FormData) {
       }
     }
 
-    let items = [];
+    let items: string[] = [];
     if (type === "manual") {
       try {
         items = itemsJson ? JSON.parse(itemsJson) : [];
@@ -498,7 +409,7 @@ export async function updateCollection(id: string, formData: FormData) {
         type === "recommendation" || type === "related"
           ? recommendationLimit
           : undefined,
-      updated_at: new Date(),
+      updatedAt: new Date(),
     };
 
     const collection = await Collection.findByIdAndUpdate(
@@ -511,7 +422,7 @@ export async function updateCollection(id: string, formData: FormData) {
       return { success: false, error: "Collection not found" };
     }
 
-    revalidatePath("/marketing/content/navigation/collection");
+    revalidatePath(COLLECTION_LIST_PATH);
     return {
       success: true,
       data: collection,
@@ -523,66 +434,18 @@ export async function updateCollection(id: string, formData: FormData) {
   }
 }
 
-// ---------- Get collection by ID (with resolved items) ----------
-export async function getCollectionById(
-  id: string,
-  context?: { productId?: string },
-) {
+// ---------- Get collection by ID ----------
+export async function getCollectionById(id: string) {
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return { success: false, error: "Invalid collection ID" };
     }
     await connection();
-    const collection: any = await Collection.findById(id)
-      .populate("items")
-      .lean();
+    const collection = await Collection.findById(id).populate("items").lean();
     if (!collection) {
       return { success: false, error: "Collection not found" };
     }
-
-    // 👇 If it's a recommendation type, resolve items dynamically
-    let resolvedItems = [];
-    if (collection.type === "recommendation") {
-      const limit = collection.recommendationLimit || 10;
-      switch (collection.recommendationType) {
-        case "trending":
-          resolvedItems = await getTrendingItems(limit);
-          break;
-        case "personalized":
-          resolvedItems = await getRecommendations(limit);
-          break;
-        case "recentlyViewed":
-          resolvedItems = await getRecentlyViewed(limit);
-          break;
-        default:
-          resolvedItems = [];
-      }
-      // Normalize (all return Product docs)
-      resolvedItems = resolvedItems.map((item: any) => ({
-        _id: item._id,
-        title: item.title || item.name || "Unnamed",
-        // ... other fields
-      }));
-    } else if (collection.type === "related") {
-      resolvedItems = context?.productId
-        ? await getRelatedProducts(
-            context.productId,
-            collection.recommendationLimit || 10,
-          )
-        : [];
-    } else {
-      // For rule/manual, use populated items (already done via populate)
-      resolvedItems = collection.items || [];
-    }
-
-    // Return the collection with resolved items attached (override `items` field)
-    return {
-      success: true,
-      data: {
-        ...collection,
-        items: resolvedItems,
-      },
-    };
+    return { success: true, data: collection };
   } catch (error) {
     console.error("Error fetching collection:", error);
     return { success: false, error: "Failed to fetch collection" };
@@ -600,7 +463,7 @@ export async function deleteCollection(id: string) {
     if (!collection) {
       return { success: false, error: "Collection not found" };
     }
-    revalidatePath("/marketing/content/navigation/collection");
+    revalidatePath(COLLECTION_LIST_PATH);
     return { success: true, message: "Collection deleted successfully" };
   } catch (error) {
     console.error("Error deleting collection:", error);
@@ -608,7 +471,7 @@ export async function deleteCollection(id: string) {
   }
 }
 
-// ---------- Delete image (admin only) ----------
+// ---------- Delete image ----------
 export async function deleteCollectionImage(collectionId: string) {
   try {
     await connection();
@@ -622,12 +485,11 @@ export async function deleteCollectionImage(collectionId: string) {
     if (!collection.imageUrl) {
       return { success: false, error: "No image to delete" };
     }
-    // Assuming deleteS3Object is imported from "./s3" (you may need to add import)
-    // import { deleteS3Object } from "./s3";
-    // await deleteS3Object(collection.imageUrl);
+    await deleteS3Object(collection.imageUrl);
     collection.imageUrl = "";
     await collection.save();
-    revalidatePath("/marketing/content/navigation/collections");
+    // Consistent with the rest of the actions (singular path).
+    revalidatePath(COLLECTION_LIST_PATH);
     return { success: true };
   } catch (error) {
     console.error("Error deleting collection image:", error);
@@ -648,23 +510,28 @@ export async function fetchAvailableItems(targetType: string, search?: string) {
     }
 
     const filter: any = {};
+    const isProduct = targetType === "Product";
+
     if (search) {
-      const searchField = targetType === "Product" ? "title" : "name";
-      filter[searchField] = { $regex: search, $options: "i" };
+      // Product uses `name`; everything else also uses `name` in this codebase.
+      filter.name = { $regex: search, $options: "i" };
     }
 
     const items = await (Model as any)
       .find(filter)
-      .select(
-        targetType === "Product" ? "_id title imageUrl" : "_id name imageUrl",
-      )
+      .select(isProduct ? "_id name images" : "_id name imageUrl")
       .limit(50)
       .lean();
 
     const normalized = items.map((item: any) => ({
       _id: item._id.toString(),
-      name: targetType === "Product" ? item.title : item.name,
-      imageUrl: item.imageUrl || null,
+      name: item.name,
+      // Product stores multiple images as `images[]`; other models use `imageUrl`.
+      imageUrl: isProduct
+        ? Array.isArray(item.images) && item.images.length > 0
+          ? item.images[0]
+          : null
+        : item.imageUrl || null,
     }));
 
     return { success: true, data: normalized };
@@ -673,6 +540,3 @@ export async function fetchAvailableItems(targetType: string, search?: string) {
     return { success: false, error: "Failed to fetch items" };
   }
 }
-
-// Export helpers for external use (e.g., in menu.ts)
-export { getModelForTargetType, parseRuleValue, buildQueryFromRules };

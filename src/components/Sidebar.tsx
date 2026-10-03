@@ -1,263 +1,156 @@
+// components/Sidebar.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Close, ExpandLess, ExpandMore } from "@mui/icons-material";
-import { Category } from "@/constant/types";
+import { resolveHref } from "@/lib/menu/resolve";
+import type { NavItem, NavMenuConfig } from "./HeaderClient";
 
-// ---------- Helpers ----------
-function getItemName(item: any): string {
-  return item?.title || item?.name || "Unnamed";
+/* -------------------------------------------------------------------------- */
+/*                                  Types                                     */
+/* -------------------------------------------------------------------------- */
+
+interface SidebarMenu extends NavMenuConfig {
+  _id?: string;
+  name?: string;
+  sectionTitle?: string;
+  items?: NavItem[];
+  displayConfig?: NavMenuConfig;
 }
 
-function slugify(text: string): string {
-  return String(text || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-/** Dynamic route from a menu item (products, collections, …). */
-function getItemHref(item: any): string {
-  const name = getItemName(item);
-  const slug = slugify(name);
-  const contentType = item?.contentType || "Product";
-  const prefix = String(contentType).toLowerCase() + "s"; // products, collections…
-  return `/${prefix}/${slug}/${item._id}`;
-}
-
-/** Category link in the new slug/id route shape. */
-function categoryHref(cat: any): string {
-  const id = String(cat?._id ?? "");
-  const slug = cat?.slug || cat?.url_slug || slugify(cat?.name || "");
-  return `/category/${slug}/${id}`;
-}
-
-function categoryImage(cat: any): string | null {
-  const raw = cat?.imageUrl ?? cat?.image ?? null;
-  if (!raw) return null;
-  if (Array.isArray(raw)) return raw[0] ?? null;
-  if (typeof raw === "string") return raw;
-  return null;
-}
-
-// ---------- Menu node (SidebarMenu) ----------
-const SidebarMenuNode = ({
-  menu,
-  onClose,
-}: {
-  menu: any;
+interface SidebarProps {
+  isOpen: boolean;
   onClose: () => void;
-}) => {
-  const { name, display, link, items = [], sectionTitle } = menu;
-
-  const renderItems = () => (
-    <ul>
-      {items.map((item: any) => (
-        <li key={item._id}>
-          <Link
-            href={getItemHref(item)}
-            className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
-            onClick={onClose}
-          >
-            {getItemName(item)}
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-
-  const renderFallback = () =>
-    link ? (
-      <Link
-        href={link}
-        className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
-        onClick={onClose}
-      >
-        {name}
-      </Link>
-    ) : null;
-
-  if (["List", "Grid", "Carousel", "Dropdown", "MegaMenu"].includes(display)) {
-    const hasItems = Array.isArray(items) && items.length > 0;
-    return (
-      <div className="py-1">
-        {sectionTitle && (
-          <h3 className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {sectionTitle}
-          </h3>
-        )}
-        {hasItems ? renderItems() : renderFallback()}
-      </div>
-    );
-  }
-
-  return (
-    <div className="py-1">
-      <Link
-        href={link || "#"}
-        className="block py-2 px-6 hover:bg-muted transition-colors text-foreground"
-        onClick={onClose}
-      >
-        {name}
-      </Link>
-    </div>
-  );
-};
-
-// ---------- Category tree ----------
-type CatNode = {
-  _id: string;
-  name: string;
-  slug?: string;
-  url_slug?: string;
-  parentId?: string | null;
-  parent_id?: string | null;
-  imageUrl?: string[] | string | null;
-  image?: string | null;
-  sortOrder?: number;
-};
-
-function parentOf(cat: CatNode): string | null {
-  const raw = cat.parentId ?? cat.parent_id ?? null;
-  if (!raw) return null;
-  return String(raw);
+  sidebarMenus: any[];
 }
 
-const CategoryTree = ({
-  categories,
+/* -------------------------------------------------------------------------- */
+/*                              Tree renderer                                 */
+/* -------------------------------------------------------------------------- */
+
+function SidebarTree({
+  items,
   onClose,
+  depth = 0,
 }: {
-  categories: CatNode[];
+  items: NavItem[];
   onClose: () => void;
-}) => {
+  depth?: number;
+}) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const { childrenByParent, topLevel } = useMemo(() => {
-    const byId = new Map<string, CatNode>();
-    const childrenByParent = new Map<string, CatNode[]>();
-    const topLevel: CatNode[] = [];
-
-    for (const c of categories) {
-      if (c?._id) byId.set(String(c._id), c);
-    }
-    for (const c of categories) {
-      const pid = parentOf(c);
-      if (!pid || !byId.has(pid)) {
-        topLevel.push(c);
-      } else {
-        const arr = childrenByParent.get(pid) ?? [];
-        arr.push(c);
-        childrenByParent.set(pid, arr);
-      }
-    }
-
-    const byOrder = (a: CatNode, b: CatNode) => {
-      const ao = a.sortOrder ?? Number.POSITIVE_INFINITY;
-      const bo = b.sortOrder ?? Number.POSITIVE_INFINITY;
-      if (ao !== bo) return ao - bo;
-      return String(a.name ?? "").localeCompare(String(b.name ?? ""));
-    };
-    topLevel.sort(byOrder);
-    for (const arr of childrenByParent.values()) arr.sort(byOrder);
-
-    return { childrenByParent, topLevel };
-  }, [categories]);
-
-  const toggle = (id: string) => {
+  const toggle = (key: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
 
-  const renderRow = (cat: CatNode, depth = 0): React.ReactNode => {
-    const id = String(cat._id);
-    const kids = childrenByParent.get(id) ?? [];
-    const hasChildren = kids.length > 0;
-    const isExpanded = expanded.has(id);
-    const thumb = categoryImage(cat);
+  const visible = (items ?? []).filter((i) => i.isVisible !== false);
+  if (!visible.length) return null;
 
-    return (
-      <li key={id}>
-        <div
-          className="flex items-center border-b border-border"
-          style={{ paddingLeft: `${depth * 12}px` }}
-        >
-          {hasChildren ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggle(id);
-              }}
-              className="p-2 text-muted-foreground hover:text-foreground"
-              aria-label={isExpanded ? "Collapse" : "Expand"}
-              aria-expanded={isExpanded}
+  return (
+    <ul className={depth ? "border-l border-border/60" : undefined}>
+      {visible.map((item) => {
+        const key = item._id ?? item.label;
+        const hasChildren = !!item.children?.length;
+        const isOpen = expanded.has(key);
+
+        return (
+          <li key={key}>
+            <div
+              className="flex items-center border-b border-border"
+              style={{ paddingLeft: `${depth * 12}px` }}
             >
-              {isExpanded ? (
-                <ExpandLess fontSize="small" />
+              {hasChildren ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggle(key);
+                  }}
+                  className="p-2 text-muted-foreground hover:text-foreground"
+                  aria-label={isOpen ? "Collapse" : "Expand"}
+                  aria-expanded={isOpen}
+                >
+                  {isOpen ? (
+                    <ExpandLess fontSize="small" />
+                  ) : (
+                    <ExpandMore fontSize="small" />
+                  )}
+                </button>
               ) : (
-                <ExpandMore fontSize="small" />
+                <span className="inline-block w-8" aria-hidden="true" />
               )}
-            </button>
-          ) : (
-            <span className="inline-block w-8" aria-hidden="true" />
-          )}
 
-          {thumb && (
-            <span className="relative mr-2 h-6 w-6 flex-shrink-0 overflow-hidden rounded bg-muted">
-              <Image
-                src={thumb}
-                alt=""
-                fill
-                sizes="24px"
-                className="object-cover"
+              <Link
+                href={resolveHref(item)}
+                target={item.openInNewTab ? "_blank" : undefined}
+                rel={item.openInNewTab ? "noopener noreferrer" : undefined}
+                onClick={onClose}
+                className="flex flex-1 items-center gap-2 py-3 pr-4 text-sm text-foreground transition-colors hover:bg-muted hover:text-primary"
+              >
+                {item.icon ? <span aria-hidden>{item.icon}</span> : null}
+                <span className="truncate">{item.label}</span>
+                {item.badge ? (
+                  <span className="ml-auto rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
+                    {item.badge}
+                  </span>
+                ) : null}
+              </Link>
+            </div>
+
+            {hasChildren && isOpen ? (
+              <SidebarTree
+                items={item.children ?? []}
+                onClose={onClose}
+                depth={depth + 1}
               />
-            </span>
-          )}
-
-          <Link
-            href={categoryHref(cat)}
-            className="flex-1 py-3 pr-4 text-sm text-foreground hover:bg-muted hover:text-primary transition-colors"
-            onClick={onClose}
-          >
-            {cat.name}
-          </Link>
-        </div>
-
-        {hasChildren && isExpanded && (
-          <ul>{kids.map((k) => renderRow(k, depth + 1))}</ul>
-        )}
-      </li>
-    );
-  };
-
-  if (topLevel.length === 0) {
-    return (
-      <p className="px-6 py-4 text-sm text-muted-foreground">
-        No categories yet.
-      </p>
-    );
-  }
-
-  return <ul>{topLevel.map((c) => renderRow(c, 0))}</ul>;
-};
-
-// ---------- Sidebar Component ----------
-interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  categories: Category[];
-  sidebarMenus: any[];
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              Menu section                                  */
+/* -------------------------------------------------------------------------- */
+
+function SidebarMenuSection({
+  menu,
+  onClose,
+}: {
+  menu: SidebarMenu;
+  onClose: () => void;
+}) {
+  const items = menu.items ?? [];
+  if (!items.length) return null;
+
+  return (
+    <div className="py-1">
+      {menu.sectionTitle ? (
+        <h3 className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {menu.sectionTitle}
+        </h3>
+      ) : null}
+      <SidebarTree items={items} onClose={onClose} />
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 Sidebar                                    */
+/* -------------------------------------------------------------------------- */
+
 const Sidebar = React.memo(
-  ({ isOpen, onClose, categories, sidebarMenus }: SidebarProps) => {
+  ({ isOpen, onClose, sidebarMenus }: SidebarProps) => {
     const hasMenus = Array.isArray(sidebarMenus) && sidebarMenus.length > 0;
 
     return (
@@ -280,11 +173,11 @@ const Sidebar = React.memo(
         >
           <div className="flex items-center justify-between border-b border-border p-4">
             <Link
-              href={hasMenus ? "/" : "/category"}
+              href="/"
               onClick={onClose}
               className="text-xl font-semibold text-foreground"
             >
-              {hasMenus ? "Menu" : "Categories"}
+              Menu
             </Link>
             <button
               title="Close sidebar"
@@ -299,14 +192,17 @@ const Sidebar = React.memo(
 
           <div className="h-[calc(100%-4rem)] overflow-y-auto pb-20">
             {hasMenus ? (
-              sidebarMenus.map((menu) => (
-                <SidebarMenuNode key={menu._id} menu={menu} onClose={onClose} />
+              sidebarMenus.map((menu, i) => (
+                <SidebarMenuSection
+                  key={menu._id ?? i}
+                  menu={menu}
+                  onClose={onClose}
+                />
               ))
             ) : (
-              <CategoryTree
-                categories={categories as unknown as CatNode[]}
-                onClose={onClose}
-              />
+              <p className="px-6 py-4 text-sm text-muted-foreground">
+                No navigation available.
+              </p>
             )}
 
             {/* Support links */}
