@@ -61,7 +61,7 @@ const getHeaderData = unstable_cache(
   },
   ["header-nav"], // cache key
   {
-    revalidate: 60, // 1 hour safety net
+    revalidate: 3600, // 1 hour safety net
     tags: ["header-nav"], // purge with revalidateTag("header-nav")
   },
 );
