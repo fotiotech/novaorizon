@@ -16,6 +16,8 @@ import ProductViewAnalytics from "./ProductViewAnalytics";
 import ExistingReviews from "@/app/(products)/products/[slug]/[_id]/_compnents/reviews/ExistingReviews";
 import { getCarriers } from "@/app/actions/carrier";
 import { useUserData } from "@/app/context/UserDataContext";
+import { useCart } from "@/app/context/CartContext";
+import { Prices } from "@/components/cart/Prices";
 import Image from "next/image";
 import { findProducts } from "@/app/actions/products";
 import ProductAttributes from "./ProductAttributes";
@@ -36,7 +38,6 @@ interface Carrier {
 
 interface ProductDetailsClientProps {
   productId: string;
-  /** Product fetched on the server; when provided, the client skips its initial fetch. */
   initialProduct?: any;
   relatedSlot?: React.ReactNode;
 }
@@ -140,10 +141,102 @@ function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
   });
 }
 
+// ---------- Fade-preview section ----------
+// Shows a clipped preview of its children with a gradient fade at the bottom
+// and an "Expand all" pill centered over the fade. Expanding reveals the full
+// content and swaps the pill for a "Show less" link. The fade + pill are only
+// rendered when the content actually overflows the collapsed height, so short
+// sections don't get a pointless toggle.
+function FadePreview({
+  id,
+  title,
+  expanded,
+  onToggle,
+  collapsedHeight = 220,
+  children,
+}: {
+  id: string;
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  collapsedHeight?: number;
+  children: React.ReactNode;
+}) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setOverflows(el.scrollHeight > collapsedHeight + 4);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [collapsedHeight]);
+
+  const showToggle = overflows;
+
+  return (
+    <section className="pt-6">
+      <h2 className={`${TYPO.sectionTitle} mb-3`}>{title}</h2>
+
+      <div className="relative">
+        <div
+          ref={contentRef}
+          id={id}
+          className="overflow-hidden transition-[max-height] duration-500 ease-out"
+          style={{
+            maxHeight:
+              expanded || !showToggle ? "none" : `${collapsedHeight}px`,
+          }}
+        >
+          {children}
+        </div>
+
+        {showToggle && !expanded && (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background via-background/90 to-transparent"
+            />
+            <div className="absolute inset-x-0 bottom-3 flex justify-center">
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={false}
+                aria-controls={id}
+                className="rounded-full border border-border bg-background px-4 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Expand all
+              </button>
+            </div>
+          </>
+        )}
+
+        {showToggle && expanded && (
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={true}
+              aria-controls={id}
+              className="rounded text-xs font-medium text-muted-foreground transition-colors hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Show less
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ---------- Product Title ----------
-// Renders the product name with the brand name at the start, linked to the
-// brand store. If the name already begins with the brand name, that leading
-// portion becomes the link; otherwise the brand name is prepended.
 function ProductTitle({
   name,
   brand,
@@ -180,6 +273,111 @@ function ProductTitle({
     <>
       {linkedBrand} {name}
     </>
+  );
+}
+
+// ---------- Mini cart (desktop third column) ----------
+function CartPreview() {
+  const { items, subtotal, updateItem, removeItem, loading } = useCart();
+
+  if (items.length === 0) {
+    return (
+      <div className="sticky top-24 rounded-lg border border-border bg-card p-4">
+        <h3 className="mb-2 text-sm font-semibold text-foreground">
+          Your Cart
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Your cart is empty. Add products to see them here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="sticky top-24 rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">Your Cart</h3>
+        <span className="text-xs text-muted-foreground">
+          {items.length} {items.length === 1 ? "item" : "items"}
+        </span>
+      </div>
+
+      <ul className="max-h-72 space-y-3 overflow-y-auto pr-1">
+        {items.slice(0, 5).map((it: any) => (
+          <li key={it._id} className="flex items-center gap-2">
+            {it.image ? (
+              <Image
+                src={it.image}
+                alt={it.name || "Cart item"}
+                width={40}
+                height={40}
+                className="h-10 w-10 flex-shrink-0 rounded bg-muted object-contain"
+              />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-foreground">
+                {it.name}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => updateItem(it._id, it.quantity - 1)}
+                  disabled={loading || it.quantity <= 1}
+                  aria-label="Decrease quantity"
+                  className="h-5 w-5 rounded border border-input text-xs leading-none hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  −
+                </button>
+                <span className="min-w-[1.25rem] text-center text-xs font-medium text-foreground">
+                  {it.quantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => updateItem(it._id, it.quantity + 1)}
+                  disabled={loading}
+                  aria-label="Increase quantity"
+                  className="h-5 w-5 rounded border border-input text-xs leading-none hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="whitespace-nowrap text-xs font-semibold text-foreground">
+                <Prices amount={it.price * it.quantity} />
+              </p>
+              <button
+                type="button"
+                onClick={() => removeItem(it._id)}
+                className="text-[10px] text-destructive hover:underline"
+              >
+                Remove
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {items.length > 5 ? (
+        <p className="mt-2 text-[10px] text-muted-foreground">
+          +{items.length - 5} more item{items.length - 5 === 1 ? "" : "s"}
+        </p>
+      ) : null}
+
+      <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
+        <span className="text-muted-foreground">Subtotal</span>
+        <span className="font-semibold text-foreground">
+          <Prices amount={subtotal} />
+        </span>
+      </div>
+
+      <Link
+        href="/cart"
+        className="mt-3 block w-full rounded-md bg-primary px-3 py-2 text-center text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        View Cart
+      </Link>
+    </div>
   );
 }
 
@@ -473,6 +671,16 @@ export default function ProductDetailsClient({
   const [isSpecsSheetOpen, setIsSpecsSheetOpen] = useState(false);
   const initialLoadComplete = useRef(false);
 
+  // Independent preview/expanded state for the two fade sections.
+  const [specsExpanded, setSpecsExpanded] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+
+  const toggleSpecs = useCallback(() => setSpecsExpanded((p) => !p), []);
+  const toggleDescription = useCallback(
+    () => setDescriptionExpanded((p) => !p),
+    [],
+  );
+
   const isMobile = useIsMobile();
   const { addresses: userAddresses } = useUserData();
 
@@ -485,7 +693,6 @@ export default function ProductDetailsClient({
     }
 
     if (initialProduct) {
-      // Server-rendered payload for this id; no need to refetch.
       setProduct(initialProduct);
       setLoading(false);
       setError(null);
@@ -517,6 +724,8 @@ export default function ProductDetailsClient({
     initialLoadComplete.current = false;
     setSelectedValues({});
     setIsSpecsSheetOpen(false);
+    setSpecsExpanded(false);
+    setDescriptionExpanded(false);
   }, [productId]);
 
   const themeKeys = useMemo<string[]>(() => {
@@ -678,28 +887,27 @@ export default function ProductDetailsClient({
   const inStock = displayQuantity > 0;
   const stockStatus = inStock ? "In Stock" : "Out of Stock";
 
-  const descriptionBlock = (
-    <div className="mt-6">
-      <h2 className={`${TYPO.sectionTitle} mb-3`}>Description</h2>
-      {description ? (
-        <div
-          className="prose prose-sm max-w-none text-foreground"
-          dangerouslySetInnerHTML={{ __html: description }}
-        />
-      ) : (
-        <p className={TYPO.muted}>No description available.</p>
-      )}
-    </div>
-  );
-
   return (
     <div className="w-full border-b-2 border-border bg-background px-3 py-2 md:px-8 md:py-4">
       <ProductViewAnalytics productId={productId} />
-      <div className="mx-auto max-w-6xl">
-        {/* Top: images + info */}
-        <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-          {/* Left column */}
-          <div className="md:w-1/2">
+
+      <div className="mx-auto max-w-7xl">
+        {/*
+          Single grid for the whole page body.
+
+          Columns:
+            - mobile  (< md): 1 col
+            - md    (≥ md): 2 cols
+            - lg    (≥ lg): 3 cols — [content | content | 280px cart]
+
+          Rows:
+            row 1  → images | info | mini cart (spans 2 rows)
+            row 2  → attributes (plain key features + fade-preview specs)
+                     and description (fade-preview)
+        */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_280px]">
+          {/* Row 1 / Col 1 — images */}
+          <div>
             {displayImages.length > 0 ? (
               <DetailImages file={displayImages} />
             ) : (
@@ -707,12 +915,10 @@ export default function ProductDetailsClient({
                 No images available
               </div>
             )}
-
-            <div className="hidden md:block">{descriptionBlock}</div>
           </div>
 
-          {/* Right column */}
-          <div className="text-foreground md:w-1/2 lg:pt-6">
+          {/* Row 1 / Col 2 — transactional info */}
+          <div className="text-foreground lg:pt-6">
             <h1 className={`${TYPO.pageTitle} mb-2`}>
               <ProductTitle name={name} brand={brand} />
             </h1>
@@ -772,10 +978,6 @@ export default function ProductDetailsClient({
               userAddresses={userAddresses}
             />
 
-            {isMobile && (
-              <ProductAttributes product={product} variant="keyFeatures" />
-            )}
-
             {shortDescription && (
               <div className="my-4">
                 <p className={TYPO.muted}>{shortDescription}</p>
@@ -783,50 +985,92 @@ export default function ProductDetailsClient({
             )}
 
             {isMobile && (
-              <button
-                type="button"
-                onClick={() => setIsSpecsSheetOpen(true)}
-                className="mt-4 flex w-full items-center justify-between text-foreground transition-colors"
-              >
-                <span className={TYPO.sectionTitle}>Specifications</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <>
+                <ProductAttributes product={product} variant="keyFeatures" />
+
+                <button
+                  type="button"
+                  onClick={() => setIsSpecsSheetOpen(true)}
+                  className="mt-4 flex w-full items-center justify-between text-foreground transition-colors"
                 >
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </button>
-            )}
+                  <span className={TYPO.sectionTitle}>Specifications</span>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
 
+                <BottomSheet
+                  open={isSpecsSheetOpen}
+                  onClose={() => setIsSpecsSheetOpen(false)}
+                  title="Specifications"
+                >
+                  <ProductAttributes
+                    product={product}
+                    variant="specifications"
+                  />
+                </BottomSheet>
+              </>
+            )}
+          </div>
+
+          {/* Rows 1-2 / Col 3 — mini cart (lg+) */}
+          <div className="hidden lg:row-span-2 lg:block">
+            <CartPreview />
+          </div>
+
+          <div className="border-t border-border md:col-span-2">
             {!isMobile && (
-              <ProductAttributes product={product} variant="both" />
+              <>
+                {/* Plain key features — no fade */}
+                <ProductAttributes product={product} variant="keyFeatures" />
+
+                {/* Fade-preview specifications */}
+                <FadePreview
+                  id="product-specifications-section"
+                  title="Specifications"
+                  expanded={specsExpanded}
+                  onToggle={toggleSpecs}
+                  collapsedHeight={260}
+                >
+                  <ProductAttributes
+                    product={product}
+                    variant="specifications"
+                  />
+                </FadePreview>
+              </>
             )}
 
-            {isMobile && (
-              <BottomSheet
-                open={isSpecsSheetOpen}
-                onClose={() => setIsSpecsSheetOpen(false)}
-                title="Specifications"
-              >
-                <ProductAttributes product={product} variant="specifications" />
-              </BottomSheet>
-            )}
+            {/* Fade-preview description */}
+            <FadePreview
+              id="product-description-section"
+              title="Description"
+              expanded={descriptionExpanded}
+              onToggle={toggleDescription}
+              collapsedHeight={420}
+            >
+              {description ? (
+                <div
+                  className="prose prose-sm max-w-none text-foreground"
+                  dangerouslySetInnerHTML={{ __html: description }}
+                />
+              ) : (
+                <p className={TYPO.muted}>No description available.</p>
+              )}
+            </FadePreview>
           </div>
         </div>
 
-        {/* Mobile description */}
-        <div className="md:hidden">{descriptionBlock}</div>
-
-        {/* Related menus — server-rendered slot */}
+        {/* Full-width rows below the grid */}
         {relatedSlot}
-
-        {/* Reviews */}
         <ExistingReviews reviews={product?.reviews} />
       </div>
     </div>
