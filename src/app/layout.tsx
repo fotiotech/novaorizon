@@ -111,6 +111,7 @@ export default function Layout({
         </noscript>
 
         <Providers>
+          {children}
           {/* PageViewTracker uses useSearchParams, so it needs its own boundary. */}
           <Suspense fallback={null}>
             <PageViewTracker />
