@@ -117,7 +117,7 @@ importers:
         specifier: 16.3.2
         version: 16.3.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next-auth:
-        specifier: ^5.0.0-beta.28
+        specifier: 5.0.0-beta.32
         version: 5.0.0-beta.32(next@16.3.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
       next-i18next:
         specifier: ^15.4.0

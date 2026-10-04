@@ -1,32 +1,43 @@
-// middleware.ts
+// proxy.ts
 import { auth } from "@/app/auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export async function proxy(request: any) {
-  // 1) Get the session using NextAuth's auth() function (pass the request)
-  const session = await auth(request);
-  const response = NextResponse.next();
+const PROTECTED_PATHS = [
+  "/profile",
+  "/orders",
+  "/settings",
+  "/wishlist",
+  "/checkout",
+  "/checkout/success",
+];
 
-  // 2) If not authenticated, ensure a guestId cookie exists
-  if (!session?.user?.id) {
-    const guestId = request.cookies.get("guestId")?.value;
-    if (!guestId) {
-      response.cookies.set("guestId", crypto.randomUUID(), {
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365, // 1 year
-        sameSite: "lax",
-        httpOnly: true,
-      });
-    }
-  } else {
-    // Optionally clear guest cookie if user logs in (not required)
-    response.cookies.delete("guestId");
-  }
-
-  return response;
+function isProtected(pathname: string) {
+  return PROTECTED_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
 }
 
-// Match all routes except static files, auth pages, etc.
+export default auth((request) => {
+  // Local cast bypasses the broken NextAuthRequest type.
+  const req = request as unknown as NextRequest & {
+    auth: { user?: { id?: string } } | null;
+  };
+
+  const { pathname, origin, search } = req.nextUrl;
+  const isLoggedIn = !!req.auth?.user?.id;
+
+  if (isProtected(pathname) && !isLoggedIn) {
+    const loginUrl = new URL("/auth/login", origin);
+    loginUrl.searchParams.set("callbackUrl", pathname + search);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+});
+
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|auth/|public/).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$).*)",
+  ],
 };
