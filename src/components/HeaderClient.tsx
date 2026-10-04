@@ -8,11 +8,10 @@ import Link from "next/link";
 import { useCart } from "@/app/context/CartContext";
 import { SignIn } from "../app/(auth)/components/auth/SignInButton";
 import { useSession } from "next-auth/react";
-import { useUnreadMessages } from "@/app/(checkout)/checkout/chat/_component/useUnreadMessages";
+import { useUnreadMessages } from "@/app/(root)/checkout/chat/_component/useUnreadMessages";
 import Sidebar from "./Sidebar";
 import SearchModal from "./ui/SearchModal";
 import DesktopSearchBar from "./ui/DesktopSearchBar";
-import ProfilePopover from "@/app/(profile)/components/ux/ProfilePopover";
 import CartPopover from "./cart/CartPopover";
 import {
   NavTree,
@@ -20,6 +19,7 @@ import {
   type NavMenu,
   type NavMenuConfig,
 } from "@/components/menu/NavTree";
+import ProfilePopover from "@/app/(root)/profile/components/ux/ProfilePopover";
 
 // Re-export so `components/Header.tsx` (and anything else) can keep
 // importing these types from "@/components/HeaderClient" unchanged.

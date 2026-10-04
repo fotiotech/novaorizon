@@ -92,7 +92,7 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
-export default function RootLayout({
+export default function Layout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -111,13 +111,6 @@ export default function RootLayout({
         </noscript>
 
         <Providers>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-1">
-              <Suspense fallback={<Loading />}>{children}</Suspense>
-            </main>
-            <Footer />
-          </div>
           {/* PageViewTracker uses useSearchParams, so it needs its own boundary. */}
           <Suspense fallback={null}>
             <PageViewTracker />

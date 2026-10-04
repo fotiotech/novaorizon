@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowBack, Close, Search } from "@mui/icons-material";
 import ImageRenderer from "../ImageRenderer";
-import { debounce } from "@/app/(search)/search/_component/debounce";
+import { debounce } from "@/app/(root)/search/_component/debounce";
 
 interface SearchModalProps {
   isOpen: boolean;

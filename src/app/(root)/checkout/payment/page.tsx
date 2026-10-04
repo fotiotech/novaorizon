@@ -1,0 +1,60 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import React from "react";
+import CashOnDelivery from "../../profile/components/payments/CashOnDelivery";
+import CreditCardPayment from "../../profile/components/payments/CreditCardPayment";
+import MonetBilPayment from "../../profile/components/payments/MonetBilPayment";
+import PaypalPayment from "../../profile/components/payments/PaypalPayment";
+
+const PaymentPage: React.FC = () => {
+  const searchParams = useSearchParams();
+  const payment_ref = searchParams?.get("payment_ref") || undefined;
+  const paymentMethod = searchParams?.get("paymentMethod") || "";
+
+  let content;
+
+  if (paymentMethod) {
+    switch (paymentMethod) {
+      case "MobileMoney":
+        content = <MonetBilPayment payment_ref={payment_ref} />;
+        break;
+      case "PayPal":
+        content = <PaypalPayment payment_ref={payment_ref} />;
+        break;
+      case "CreditCard":
+        content = <CreditCardPayment />;
+        break;
+      case "CashOnDelivery":
+        content = (
+          <CashOnDelivery
+            orderNumber={payment_ref || "N/A"}
+            redirectDelay={5000}
+          />
+        );
+        break;
+      default:
+        content = <p>Invalid payment method or no payment method selected.</p>;
+        break;
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-2xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-4">Payment</h2>
+        <div className="mb-6 text-center">
+          <p className="text-lg">
+            Payment Method:{" "}
+            <span className="font-semibold">
+              {paymentMethod || "Loading..."}
+            </span>
+          </p>
+        </div>
+        <div>{content}</div>
+      </div>
+    </div>
+  );
+};
+
+export default PaymentPage;

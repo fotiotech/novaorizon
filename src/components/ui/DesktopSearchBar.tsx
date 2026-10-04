@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Close, Search } from "@mui/icons-material";
 import ImageRenderer from "../ImageRenderer";
 import useClickOutside from "../Hooks";
-import { debounce } from "@/app/(search)/search/_component/debounce";
+import { debounce } from "@/app/(root)/search/_component/debounce";
 
 interface DesktopSearchBarProps {
   isTransparent?: boolean;

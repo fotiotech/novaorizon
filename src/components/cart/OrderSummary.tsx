@@ -3,7 +3,7 @@
 import React from "react";
 import { useCart } from "@/app/context/CartContext";
 import { Prices } from "@/components/cart/Prices";
-import { CalcShippingPrice } from "@/app/(checkout)/_component/CheckoutClient";
+import { CalcShippingPrice } from "@/app/(root)/checkout/_component/CheckoutClient";
 
 interface AppliedPromotion {
   _id: string;
