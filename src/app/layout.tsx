@@ -113,16 +113,11 @@ export default function RootLayout({
         <Providers>
           <div className="flex flex-col min-h-screen">
             <Header />
-
-            {/* Only the page content sits in a Suspense boundary.
-                Header and Footer render as part of the initial HTML. */}
-            <main className="flex-1 pt-[100px]">
+            <main className="flex-1">
               <Suspense fallback={<Loading />}>{children}</Suspense>
             </main>
-
             <Footer />
           </div>
-
           {/* PageViewTracker uses useSearchParams, so it needs its own boundary. */}
           <Suspense fallback={null}>
             <PageViewTracker />

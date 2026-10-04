@@ -892,19 +892,6 @@ export default function ProductDetailsClient({
       <ProductViewAnalytics productId={productId} />
 
       <div className="mx-auto max-w-7xl">
-        {/*
-          Single grid for the whole page body.
-
-          Columns:
-            - mobile  (< md): 1 col
-            - md    (≥ md): 2 cols
-            - lg    (≥ lg): 3 cols — [content | content | 280px cart]
-
-          Rows:
-            row 1  → images | info | mini cart (spans 2 rows)
-            row 2  → attributes (plain key features + fade-preview specs)
-                     and description (fade-preview)
-        */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_280px]">
           {/* Row 1 / Col 1 — images */}
           <div>
