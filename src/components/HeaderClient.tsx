@@ -598,18 +598,12 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
             </div>
           </div>
 
-          {/*
-            Navbar row — desktop only; mobile uses the sidebar.
-
-            `relative` here is the positioning context for top-level mega
-            panels. `overflow-visible` must survive up the tree so the
-            panel can render outside the nav strip's box; if any ancestor
-            adds overflow-hidden/overflow-x-clip, mega panels will be
-            cropped.
-          */}
           {hasNav ? (
-            <div className="hidden md:block relative w-full overflow-visible">
-              <nav aria-label="Main navigation" className="w-full">
+            <div className="relative w-full overflow-x-auto md:overflow-visible">
+              <nav
+                aria-label="Main navigation"
+                className="w-max min-w-full md:w-full"
+              >
                 <NavTree
                   items={navMenu.items}
                   config={displayConfig}

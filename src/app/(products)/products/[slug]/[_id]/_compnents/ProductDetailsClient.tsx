@@ -140,6 +140,49 @@ function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
   });
 }
 
+// ---------- Product Title ----------
+// Renders the product name with the brand name at the start, linked to the
+// brand store. If the name already begins with the brand name, that leading
+// portion becomes the link; otherwise the brand name is prepended.
+function ProductTitle({
+  name,
+  brand,
+}: {
+  name: string;
+  brand?: { _id?: string; name?: string } | null;
+}) {
+  if (!brand?.name) return <>{name}</>;
+
+  const brandName = brand.name;
+  const href = `/brandStore?brandId=${brand._id}`;
+
+  const linkedBrand = (
+    <Link href={href} className="font-semibold text-primary hover:underline">
+      {brandName}
+    </Link>
+  );
+
+  const startsWithBrand = name
+    .toLowerCase()
+    .startsWith(brandName.toLowerCase());
+
+  if (startsWithBrand) {
+    const rest = name.slice(brandName.length);
+    return (
+      <>
+        {linkedBrand}
+        {rest}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {linkedBrand} {name}
+    </>
+  );
+}
+
 // ---------- Carrier Shipping Options ----------
 const CarrierShippingOptions: React.FC<{
   product: any;
@@ -658,20 +701,7 @@ export default function ProductDetailsClient({
           {/* Left column */}
           <div className="md:w-1/2">
             {displayImages.length > 0 ? (
-              <>
-                {brand?.name && (
-                  <Link
-                    href={`/brandStore?brandId=${brand?._id}`}
-                    className={`mb-2 inline-block ${TYPO.muted} hover:text-primary`}
-                  >
-                    Visit{" "}
-                    <span className="font-medium text-primary">
-                      {brand.name}
-                    </span>
-                  </Link>
-                )}
-                <DetailImages file={displayImages} />
-              </>
+              <DetailImages file={displayImages} />
             ) : (
               <div className="flex w-full items-center justify-center rounded-lg bg-muted p-6 text-sm text-muted-foreground">
                 No images available
@@ -683,7 +713,9 @@ export default function ProductDetailsClient({
 
           {/* Right column */}
           <div className="text-foreground md:w-1/2 lg:pt-6">
-            <h1 className={`${TYPO.pageTitle} mb-2`}>{name}</h1>
+            <h1 className={`${TYPO.pageTitle} mb-2`}>
+              <ProductTitle name={name} brand={brand} />
+            </h1>
 
             <div className="mb-2 flex items-baseline gap-3">
               <p className={TYPO.price}>
