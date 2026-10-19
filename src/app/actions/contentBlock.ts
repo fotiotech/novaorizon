@@ -8,8 +8,10 @@ import { ContentBlock } from "@/models/ContentBlock";
 import { Collection } from "@/models/Collection";
 import Promotion from "@/models/Promotion";
 import { deleteS3Object } from "./s3";
+import { getModelForTargetType } from "@/lib/content/query";
 import {
   resolveSource,
+  applySourceStyles,
   type NormalizedContentItem,
   type ResolveContext,
 } from "@/lib/content/resolve";
@@ -25,16 +27,14 @@ import {
   BLOCK_ANIMATIONS,
   BLOCK_ALIGNMENTS,
   CTA_STYLES,
+  CARD_SHAPES,
   DEFAULT_BLOCK_DISPLAY_CONFIG,
+  DEFAULT_BLOCK_SOURCE_STYLES,
   DEFAULT_BLOCK_LIMIT,
   MAX_BLOCK_LIMIT,
 } from "@/lib/content/constants";
 
 const BLOCKS_LIST_PATH = "/marketing/content/navigation/blocks";
-
-/* -------------------------------------------------------------------------- */
-/*                                    Types                                   */
-/* -------------------------------------------------------------------------- */
 
 export type ActionResult<T = unknown> =
   | { success: true; data: T; message?: string }
@@ -51,12 +51,26 @@ export interface ResolvedBlock {
   columns: number;
   showImages: boolean;
   displayConfig: any;
+  sourceType: string;
+  sourceStyles: any;
   ctaText?: string;
   ctaLink?: string;
   ctaStyle?: string;
   backgroundColor?: string;
   backgroundImage?: string;
   items: NormalizedContentItem[];
+}
+
+export interface BlockRefOption {
+  id: string;
+  name: string;
+  sublabel?: string;
+}
+
+export interface BlockOptions {
+  collections: BlockRefOption[];
+  promotions: BlockRefOption[];
+  refOptions: Record<string, BlockRefOption[]>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -73,22 +87,38 @@ function revalidateBlockConsumers() {
 /*                             Reference options                              */
 /* -------------------------------------------------------------------------- */
 
-export interface BlockRefOption {
-  id: string;
-  name: string;
-  sublabel?: string;
-}
+const REF_MODELS_FOR_BLOCKS = [
+  "Category",
+  "Product",
+  "Collection",
+  "Brand",
+  "Promotion",
+  "Page",
+] as const;
 
-export interface BlockOptions {
-  collections: BlockRefOption[];
-  promotions: BlockRefOption[];
+async function fetchRefOptionsForModel(
+  modelName: string,
+): Promise<BlockRefOption[]> {
+  const Model = getModelForTargetType(modelName);
+  if (!Model) return [];
+
+  const docs = await (Model as mongoose.Model<any>)
+    .find({}, { name: 1 })
+    .sort({ name: 1 })
+    .limit(500)
+    .lean();
+
+  return docs.map((d: any) => ({
+    id: String(d._id),
+    name: d.name ?? d.title ?? "Untitled",
+  }));
 }
 
 export async function getBlockOptions(): Promise<ActionResult<BlockOptions>> {
   try {
     await connection();
 
-    const [collections, promotions] = await Promise.all([
+    const [collections, promotions, ...refBuckets] = await Promise.all([
       Collection.find({ status: "active" }, { name: 1, targetType: 1, type: 1 })
         .sort({ name: 1 })
         .limit(500)
@@ -100,7 +130,13 @@ export async function getBlockOptions(): Promise<ActionResult<BlockOptions>> {
         .sort({ startDate: -1 })
         .limit(500)
         .lean(),
+      ...REF_MODELS_FOR_BLOCKS.map((m) => fetchRefOptionsForModel(m)),
     ]);
+
+    const refOptions: Record<string, BlockRefOption[]> = {};
+    REF_MODELS_FOR_BLOCKS.forEach((m, i) => {
+      refOptions[m] = refBuckets[i] as BlockRefOption[];
+    });
 
     return {
       success: true,
@@ -115,6 +151,7 @@ export async function getBlockOptions(): Promise<ActionResult<BlockOptions>> {
           name: p.name ?? "Untitled",
           sublabel: p.code ?? undefined,
         })),
+        refOptions,
       },
     };
   } catch (error: any) {
@@ -141,7 +178,12 @@ export async function getBlocksByLocation(
 
     const enriched = await Promise.all(
       blocks.map(async (block) => {
-        const items = await resolveSource(block.source as any, ctx);
+        const rawItems = await resolveSource(block.source as any, ctx);
+        const items = applySourceStyles(
+          rawItems,
+          block.source.type,
+          (block as any).sourceStyles ?? DEFAULT_BLOCK_SOURCE_STYLES,
+        );
         return {
           _id: String(block._id),
           name: block.name,
@@ -153,6 +195,8 @@ export async function getBlocksByLocation(
           columns: block.columns,
           showImages: block.showImages,
           displayConfig: block.displayConfig,
+          sourceType: block.source.type,
+          sourceStyles: (block as any).sourceStyles,
           ctaText: block.ctaText ?? undefined,
           ctaLink: block.ctaLink ?? undefined,
           ctaStyle: block.ctaStyle ?? undefined,
@@ -238,6 +282,9 @@ function validateBlockData(data: any): string | null {
       if (!Array.isArray(s.refs) || s.refs.length === 0) {
         return "At least one ref is required for manual sources";
       }
+      if (s.refs.length > MAX_BLOCK_LIMIT) {
+        return `Manual sources can contain at most ${MAX_BLOCK_LIMIT} refs`;
+      }
       for (const r of s.refs) {
         if (!BLOCK_REF_MODELS.includes(r.refModel)) {
           return `Invalid ref model: ${r.refModel}`;
@@ -246,6 +293,9 @@ function validateBlockData(data: any): string | null {
           return `Invalid ref id: ${r.refId}`;
         }
       }
+      break;
+    case "category":
+      // No extra validation needed.
       break;
   }
 
@@ -271,6 +321,9 @@ function validateBlockData(data: any): string | null {
     }
     if (dc.alignment && !BLOCK_ALIGNMENTS.includes(dc.alignment)) {
       return "Invalid alignment";
+    }
+    if (dc.cardShape && !CARD_SHAPES.includes(dc.cardShape)) {
+      return "Invalid card shape";
     }
     if (dc.gap != null) {
       const n = Number(dc.gap);
@@ -298,6 +351,9 @@ function sanitizeSource(source: any) {
   switch (source.type) {
     case "collection":
       out.collectionId = source.collectionId || null;
+      break;
+    case "category":
+      // No extra fields.
       break;
     case "promotion":
       out.promotionId = source.promotionId || null;
@@ -342,6 +398,10 @@ function buildBlockUpdates(data: any) {
     displayConfig: {
       ...DEFAULT_BLOCK_DISPLAY_CONFIG,
       ...(data.displayConfig ?? {}),
+    },
+    sourceStyles: {
+      ...DEFAULT_BLOCK_SOURCE_STYLES,
+      ...(data.sourceStyles ?? {}),
     },
     ctaText: data.ctaText?.trim() || null,
     ctaLink: data.ctaLink?.trim() || null,

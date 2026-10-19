@@ -4,15 +4,23 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ContentCard } from "./ContentCard";
 import type { NormalizedContentItem } from "@/lib/content/resolve";
+import type { CardSize, CardVariant, CardShape } from "@/lib/content/constants";
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
 /* -------------------------------------------------------------------------- */
 
+export interface CardOverride {
+  size?: CardSize;
+  variant?: CardVariant;
+  shape?: CardShape;
+}
+
 interface CarouselRailProps {
   items: NormalizedContentItem[];
   showImages: boolean;
   gap: number;
+  cardOverride?: CardOverride;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -57,12 +65,16 @@ function ChevronRight() {
 /*                                 CarouselRail                               */
 /* -------------------------------------------------------------------------- */
 
-export function CarouselRail({ items, showImages, gap }: CarouselRailProps) {
+export function CarouselRail({
+  items,
+  showImages,
+  gap,
+  cardOverride,
+}: CarouselRailProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  /* Recompute button visibility from the scroller's current position. */
   const updateButtons = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -71,23 +83,19 @@ export function CarouselRail({ items, showImages, gap }: CarouselRailProps) {
     setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
   }, []);
 
-  /* Sync on mount, on item changes, on resize. */
   useEffect(() => {
     updateButtons();
     const el = scrollerRef.current;
     if (!el) return;
-
     const ro = new ResizeObserver(updateButtons);
     ro.observe(el);
     return () => ro.disconnect();
   }, [updateButtons, items.length]);
 
-  /* Scroll by roughly a viewport of cards, so both buttons feel responsive
-     at any container width. Minimum of one card + gap. */
   const scrollByAmount = (dir: 1 | -1) => {
     const el = scrollerRef.current;
     if (!el) return;
-    const cardWidth = 224; // matches md:w-56
+    const cardWidth = 224;
     const amount = Math.max(cardWidth * 2, el.clientWidth * 0.8);
     el.scrollBy({ left: dir * amount, behavior: "smooth" });
   };
@@ -121,7 +129,13 @@ export function CarouselRail({ items, showImages, gap }: CarouselRailProps) {
             key={`${item.contentType}:${item._id}`}
             className="w-40 shrink-0 snap-start sm:w-48 md:w-56"
           >
-            <ContentCard item={item} showImage={showImages} />
+            <ContentCard
+              item={item}
+              showImage={showImages}
+              size={cardOverride?.size}
+              variant={cardOverride?.variant}
+              shape={cardOverride?.shape}
+            />
           </div>
         ))}
       </div>

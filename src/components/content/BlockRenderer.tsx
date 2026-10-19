@@ -3,9 +3,14 @@ import React from "react";
 import Link from "next/link";
 import { getBlocksByLocation } from "@/app/actions/contentBlock";
 import { ContentCard } from "./ContentCard";
-import { CarouselRail } from "./Carousel";
+import { CarouselRail, type CardOverride } from "./Carousel";
 import type { NormalizedContentItem } from "@/lib/content/resolve";
-import type { BlockDisplay, BlockDisplayConfig } from "@/lib/content/constants";
+import type {
+  BlockDisplay,
+  BlockDisplayConfig,
+  BlockSourceStyles,
+  CardShape,
+} from "@/lib/content/constants";
 import type { ResolveContext } from "@/lib/content/resolve";
 
 /* -------------------------------------------------------------------------- */
@@ -20,6 +25,8 @@ interface ResolvedBlockShape {
   columns: number;
   showImages: boolean;
   displayConfig: BlockDisplayConfig;
+  sourceType: string;
+  sourceStyles?: BlockSourceStyles;
   ctaText?: string;
   ctaLink?: string;
   ctaStyle?: string;
@@ -32,6 +39,32 @@ interface BlockRendererProps {
   location: string;
   context?: ResolveContext;
   className?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                        Card override builder                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Merges block-level `cardShape` (displayConfig) with per-source style
+ * overrides (sourceStyles). Result is passed to every layout.
+ */
+function getCardOverride(block: ResolvedBlockShape): CardOverride {
+  const s = block.sourceStyles;
+  const shape: CardShape = block.displayConfig.cardShape ?? "default";
+
+  const out: CardOverride = { shape };
+
+  if (block.sourceType === "manual" && s) {
+    out.size = s.manualCardSize;
+    out.variant = s.manualCardVariant;
+  }
+  if (block.sourceType === "related" && s) {
+    if (s.relatedVariant === "compact") out.size = "sm";
+    if (s.relatedVariant === "withScore") out.size = "md";
+  }
+
+  return out;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -100,11 +133,13 @@ function GridLayout({
   columns,
   showImages,
   gap,
+  cardOverride,
 }: {
   items: NormalizedContentItem[];
   columns: number;
   showImages: boolean;
   gap: number;
+  cardOverride?: CardOverride;
 }) {
   const cols = GRID_COLS[columns] ?? GRID_COLS[4];
   return (
@@ -114,6 +149,9 @@ function GridLayout({
           key={`${item.contentType}:${item._id}`}
           item={item}
           showImage={showImages}
+          size={cardOverride?.size}
+          variant={cardOverride?.variant}
+          shape={cardOverride?.shape}
         />
       ))}
     </div>
@@ -124,11 +162,14 @@ function ListLayout({
   items,
   showImages,
   gap,
+  cardOverride,
 }: {
   items: NormalizedContentItem[];
   showImages: boolean;
   gap: number;
+  cardOverride?: CardOverride;
 }) {
+  const isCircle = cardOverride?.shape === "circle";
   return (
     <div className="flex flex-col" style={{ gap: `${gap}px` }}>
       {items.map((item) => (
@@ -138,7 +179,11 @@ function ListLayout({
           className="group flex items-center gap-4 rounded-lg border border-border bg-card p-3 transition hover:border-primary hover:shadow-sm"
         >
           {showImages && item.image ? (
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+            <div
+              className={`h-16 w-16 shrink-0 overflow-hidden bg-muted ${
+                isCircle ? "rounded-full" : "rounded-lg"
+              }`}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.image}
@@ -157,6 +202,11 @@ function ListLayout({
                 {item.description}
               </p>
             ) : null}
+            {item.subline ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {item.subline}
+              </p>
+            ) : null}
           </div>
           {item.badge ? (
             <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
@@ -173,10 +223,12 @@ function HeroLayout({
   items,
   showImages,
   gap,
+  cardOverride,
 }: {
   items: NormalizedContentItem[];
   showImages: boolean;
   gap: number;
+  cardOverride?: CardOverride;
 }) {
   if (!items.length) return null;
   const [first, ...rest] = items;
@@ -218,6 +270,7 @@ function HeroLayout({
             item={item}
             showImage={showImages}
             size="sm"
+            shape={cardOverride?.shape}
           />
         ))}
       </div>
@@ -276,14 +329,36 @@ function renderLayout(block: ResolvedBlockShape) {
   if (!items.length) return null;
 
   const gap = displayConfig?.gap ?? 16;
+  const cardOverride = getCardOverride(block);
 
   switch (display as BlockDisplay) {
     case "carousel":
-      return <CarouselRail items={items} showImages={showImages} gap={gap} />;
+      return (
+        <CarouselRail
+          items={items}
+          showImages={showImages}
+          gap={gap}
+          cardOverride={cardOverride}
+        />
+      );
     case "list":
-      return <ListLayout items={items} showImages={showImages} gap={gap} />;
+      return (
+        <ListLayout
+          items={items}
+          showImages={showImages}
+          gap={gap}
+          cardOverride={cardOverride}
+        />
+      );
     case "hero":
-      return <HeroLayout items={items} showImages={showImages} gap={gap} />;
+      return (
+        <HeroLayout
+          items={items}
+          showImages={showImages}
+          gap={gap}
+          cardOverride={cardOverride}
+        />
+      );
     case "grid":
     default:
       return (
@@ -292,6 +367,7 @@ function renderLayout(block: ResolvedBlockShape) {
           columns={columns}
           showImages={showImages}
           gap={gap}
+          cardOverride={cardOverride}
         />
       );
   }
