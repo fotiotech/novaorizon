@@ -57,31 +57,31 @@ export type Carrier = {
 
 export type Product = {
   _id?: string;
-  name: string; // Product name
-  sku?: string; // Stock Keeping Unit
-  slug?: string; // URL slug
-  categoryId: string; // Category ID
-  brand: string | { _id: string; name: string }; // Brand ID or object
-  hasVariants?: boolean; // Whether product has variants
-  variantThemes?: string[]; // Variant theme codes
-  keyFeatures?: any[]; // Key features array
-  specifications?: any[]; // Specifications array
-  quantity: number; // Stock quantity
-  lowStockThreshold?: number; // Low stock threshold
-  listPrice: number; // List price
-  price: number; // Sale/current price
-  mainImage?: string; // Main product image
-  images?: string[]; // Gallery images
-  description?: string; // Product description
-  shortDescription?: string; // Short description
-  variants?: any[]; // Product variants
-  carrier?: string; // Carrier/shipping ID
-  relatedProducts?: any[]; // Related products
-  tags?: string[]; // Product tags
-  status?: "draft" | "active" | "inactive"; // Product status
-  createdAt?: string; // Creation timestamp
-  updatedAt?: string; // Last update timestamp
-  [key: string]: any; // Allow additional fields
+  name: string;
+  sku?: string;
+  slug?: string;
+  categoryId: string;
+  brand: string | { _id: string; name: string };
+  hasVariants?: boolean;
+  variantThemes?: string[];
+  keyFeatures?: any[];
+  specifications?: any[];
+  quantity: number;
+  lowStockThreshold?: number;
+  listPrice: number;
+  price: number;
+  mainImage?: string;
+  images?: string[];
+  description?: string;
+  shortDescription?: string;
+  variants?: any[];
+  carrier?: string;
+  relatedProducts?: any[];
+  tags?: string[];
+  status?: "draft" | "active" | "inactive";
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: any;
 };
 
 export type Smartphones = {
@@ -215,7 +215,7 @@ export type Orders = {
       city?: string;
       country?: string;
       postalCode?: string;
-      preferences?: string[]; // Array to store customer preferences
+      preferences?: string[];
     };
   };
   shippingAddress: {
@@ -244,6 +244,16 @@ export type ProductsFiles = {
   size: string;
 };
 
+// A single trust badge shown in the hero section
+// (e.g. Secure Payment, Fast Shipping, 24/7 Support)
+export type TrustBadge = {
+  icon: string; // Icon identifier (maps to lucide-react / heroicons)
+  title: string;
+  description?: string;
+  popupText?: string; // Text shown in a popup when clicked
+  link?: string; // Link opened on click (or shown inside the popup)
+};
+
 export type HeroSection = {
   _id?: string;
   title: string;
@@ -251,12 +261,13 @@ export type HeroSection = {
   imageUrl?: string;
   cta_text?: string;
   cta_link: string;
+  trustBadges?: TrustBadge[];
   created_at?: string;
 };
 
 export type Customer = {
   _id: string;
-  userId: string; // Reference to the User (authenticated user)
+  userId: string;
   photo: string;
   language: string;
   billingAddress: {
@@ -269,7 +280,7 @@ export type Customer = {
     city?: string;
     region?: string;
     country?: string;
-    preferences?: string[]; // Array to store customer preferences
+    preferences?: string[];
   };
   shippingAddress: {
     street: string;
@@ -281,7 +292,7 @@ export type Customer = {
     shippingMethod: string;
   };
   billingMethod?: {
-    methodType: string; // e.g., "Credit Card", "PayPal", etc.
+    methodType: string;
     details?: {
       cardNumber?: string;
       expiryDate?: string;
@@ -313,7 +324,6 @@ export type MonetbilPaymentRequest = {
   logo?: string;
 };
 
-// app/types/tag.ts
 export interface Tag {
   _id: string;
   name: string;
