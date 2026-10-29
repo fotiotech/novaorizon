@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { getSeoSetting } from "@/app/actions/seo";
 import { DEFAULT_SEO } from "@/app/lib/seo-defaults";
+import MetaPixel from "@/components/MetaPixel";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -114,6 +115,7 @@ export default function Layout({
           {children}
           {/* PageViewTracker uses useSearchParams, so it needs its own boundary. */}
           <Suspense fallback={null}>
+            <MetaPixel />
             <PageViewTracker />
           </Suspense>
         </Providers>

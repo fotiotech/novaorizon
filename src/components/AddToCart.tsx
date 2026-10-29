@@ -67,11 +67,23 @@ const AddToCart = ({
     setIsAdding(true);
     try {
       await addItem(product._id, undefined, 1);
+
       await track({
         itemId: product._id,
         eventType: "cart_add",
         metadata: { quantity: 1 },
       });
+
+      // 2. Fire the Meta Pixel event
+      if (typeof window !== "undefined" && window.fbq) {
+        window.fbq("track", "AddToCart", {
+          content_ids: product._id, // ID of the product
+          content_type: "product",
+          content_name: product.name,
+          value: product.price, // Price of the item
+          currency: "XAF",
+        });
+      }
     } catch (error) {
       console.error("Failed to add to cart:", error);
     } finally {
