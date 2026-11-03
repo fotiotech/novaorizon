@@ -101,7 +101,7 @@ export function ContentCard({
           <div className="flex items-baseline gap-1.5">
             <span className="text-sm font-bold text-foreground">{price}</span>
             {hasDiscount ? (
-              <span className="text-xs text-muted-foreground line-through">
+              <span className="hidden text-xs text-muted-foreground line-through sm:inline">
                 {listPrice}
               </span>
             ) : null}
@@ -163,7 +163,7 @@ export function ContentCard({
           <div className="mt-auto flex items-baseline gap-2 pt-2">
             <span className="text-sm font-bold text-foreground">{price}</span>
             {hasDiscount ? (
-              <span className="text-xs text-muted-foreground line-through">
+              <span className="hidden text-xs text-muted-foreground line-through sm:inline">
                 {listPrice}
               </span>
             ) : null}

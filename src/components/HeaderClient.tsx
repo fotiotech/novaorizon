@@ -104,11 +104,9 @@ const UserProfile = React.memo(() => {
             </span>
           )}
           {user?.image ? (
-            <Image
+            <img
               src={user.image}
               alt={user?.name ?? "Profile"}
-              width={28}
-              height={28}
               className="h-7 w-7 rounded-full object-cover border border-primary-foreground/30 transition-transform hover:scale-110"
             />
           ) : (
