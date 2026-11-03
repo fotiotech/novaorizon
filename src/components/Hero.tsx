@@ -1,48 +1,22 @@
+// components/Hero.tsx
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import {
-  ShieldCheck,
-  Truck,
-  Headset,
-  Lock,
-  RefreshCw,
-  CreditCard,
-  Clock,
-  Award,
-  Star,
-  Phone,
-  Package,
-  BadgeCheck,
-} from "lucide-react";
 import { HeroSection, TrustBadge } from "@/constant/types";
 import { findHeroContent } from "@/app/actions/content_management";
+import TrustBadgeIcon from "@/components/trust/TrustBadgeIcon";
 
 const MAX_SLIDES = 6;
 const PLACEHOLDER_IMAGE = "/placeholder-hero.jpg";
 
-// Maps the string identifiers stored in the DB to a real icon component.
-// Falls back to ShieldCheck if an unknown icon name is encountered.
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  "shield-check": ShieldCheck,
-  truck: Truck,
-  headset: Headset,
-  lock: Lock,
-  "refresh-cw": RefreshCw,
-  "credit-card": CreditCard,
-  clock: Clock,
-  award: Award,
-  star: Star,
-  phone: Phone,
-  package: Package,
-  "badge-check": BadgeCheck,
-};
-
 const isExternal = (url: string) => /^https?:\/\//i.test(url);
 
+/* ------------------------------------------------------------------ */
+/*  Trust badges strip                                                 */
+/* ------------------------------------------------------------------ */
 interface TrustBadgesListProps {
   badges?: TrustBadge[];
   onBadgeActivate?: (badge: TrustBadge) => void;
@@ -60,14 +34,20 @@ const TrustBadgesList: React.FC<TrustBadgesListProps> = ({
       className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-3 lg:justify-start"
     >
       {badges.map((badge, i) => {
-        const Icon = ICON_MAP[badge.icon] ?? ShieldCheck;
+        // Stable key: library refs stay stable across reorders/edits;
+        // ad-hoc badges fall back to their index (they can't move around
+        // without changing the hero document anyway).
+        const key = badge.badgeId ?? `adhoc-${i}`;
         const isInteractive = !!(badge.popupText || badge.link);
         const hasPopup = !!badge.popupText;
 
         const inner = (
           <>
             <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20">
-              <Icon className="h-4 w-4 text-white" />
+              <TrustBadgeIcon
+                name={badge.icon}
+                className="h-4 w-4 text-white"
+              />
             </span>
             <span className="text-left">
               <span className="block text-xs font-semibold text-white sm:text-sm">
@@ -84,7 +64,7 @@ const TrustBadgesList: React.FC<TrustBadgesListProps> = ({
 
         if (isInteractive) {
           return (
-            <li key={i}>
+            <li key={key}>
               <button
                 type="button"
                 onClick={(e) => {
@@ -109,7 +89,7 @@ const TrustBadgesList: React.FC<TrustBadgesListProps> = ({
         }
 
         return (
-          <li key={i} className="flex items-center gap-2">
+          <li key={key} className="flex items-center gap-2">
             {inner}
           </li>
         );
@@ -118,6 +98,9 @@ const TrustBadgesList: React.FC<TrustBadgesListProps> = ({
   );
 };
 
+/* ------------------------------------------------------------------ */
+/*  Hero carousel                                                      */
+/* ------------------------------------------------------------------ */
 const HeaderScroll: React.FC = () => {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);

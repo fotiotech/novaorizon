@@ -4,6 +4,7 @@
 import Link from "next/link";
 import type { NormalizedContentItem } from "@/lib/content/resolve";
 import type { CardShape } from "@/lib/content/constants";
+import { CardAddToCart } from "./CardAddToCart";
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -45,6 +46,9 @@ export function ContentCard({
     typeof item.price === "number" &&
     typeof item.listPrice === "number" &&
     item.price < item.listPrice;
+
+  const canBuy =
+    item.contentType === "Product" && typeof item.price === "number";
 
   /* ----------------------------- Circle mode ----------------------------- */
   if (shape === "circle") {
@@ -117,7 +121,7 @@ export function ContentCard({
       ? "group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:border-primary hover:shadow-md"
       : "group flex h-full flex-col";
 
-  return (
+  const cardNode = (
     <Link href={item.href} className={cardCls}>
       {showImage && item.image ? (
         <div className={`relative w-full overflow-hidden bg-muted ${imgCls}`}>
@@ -136,7 +140,11 @@ export function ContentCard({
         </div>
       ) : null}
 
-      <div className={`flex flex-1 flex-col ${paddingCls}`}>
+      <div
+        className={`flex flex-1 flex-col ${paddingCls} ${
+          canBuy && variant === "card" ? "pr-12" : ""
+        }`}
+      >
         <p className={`line-clamp-2 font-semibold text-foreground ${textCls}`}>
           {item.name}
         </p>
@@ -163,6 +171,28 @@ export function ContentCard({
         ) : null}
       </div>
     </Link>
+  );
+
+  // Only the boxed "card" variant gets the floating cart button. The "bare"
+  // variant has no visual boundary, and the circle shape already has a
+  // dedicated layout above — keeping those untouched avoids a floating
+  // button appearing without a card to anchor it.
+  if (variant !== "card" || !canBuy) return cardNode;
+
+  return (
+    <div className="relative h-full">
+      {cardNode}
+      <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-end p-2">
+        <div className="pointer-events-auto">
+          <CardAddToCart
+            productId={item._id}
+            name={item.name}
+            image={item.image as any}
+            price={item.price as number}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 

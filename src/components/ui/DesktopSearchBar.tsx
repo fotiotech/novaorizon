@@ -100,13 +100,15 @@ const DesktopSearchBar: React.FC<DesktopSearchBarProps> = ({
   // Theme tokens based on header state
   const wrapClass = isTransparent
     ? "border-white/25 bg-white/15 focus-within:bg-white/20 focus-within:border-white/40"
-    : "border-border bg-muted/40 focus-within:bg-background focus-within:border-primary";
+    : "border-white/20 bg-white/10 focus-within:bg-white/15 focus-within:border-white/40";
 
-  const textClass = isTransparent ? "text-white/90" : "text-foreground";
+  const textClass = isTransparent ? "text-white/90" : "text-primary-foreground";
+
   const placeholderClass = isTransparent
     ? "placeholder:text-white/70"
-    : "placeholder:text-muted-foreground";
-  const iconClass = isTransparent ? "text-white/80" : "text-muted-foreground";
+    : "placeholder:text-primary-foreground/80";
+
+  const iconClass = isTransparent ? "text-white/80" : "text-white/80";
 
   return (
     <div ref={dropdownRef} className="relative w-full">

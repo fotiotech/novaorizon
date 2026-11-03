@@ -1,10 +1,17 @@
 // components/HeaderClient.tsx
 "use client";
 
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Menu, Person, Search, ShoppingCart } from "@mui/icons-material";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
 import { SignIn } from "../app/(auth)/components/auth/SignInButton";
 import { useSession } from "next-auth/react";
@@ -26,7 +33,7 @@ import ProfilePopover from "@/app/(root)/profile/components/ux/ProfilePopover";
 export type { NavItem, NavMenu, NavMenuConfig };
 
 // ---------- Logo sources ----------
-const LOGO_DARK = "/logoc1.png";
+const LOGO_DARK = "/logo2.png";
 
 interface HeaderClientProps {
   navMenu: NavMenu | null;
@@ -81,7 +88,7 @@ const UserProfile = React.memo(() => {
       <Link
         href="/profile"
         onClick={togglePopover}
-        className="flex items-center gap-1.5 rounded-md text-sm text-foreground transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+        className="flex items-center gap-1.5 rounded-md text-sm text-primary-foreground transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-ring"
         aria-label="Profile"
         aria-haspopup="dialog"
         aria-expanded={isPopoverOpen}
@@ -102,12 +109,12 @@ const UserProfile = React.memo(() => {
               alt={user?.name ?? "Profile"}
               width={28}
               height={28}
-              className="h-7 w-7 rounded-full object-cover border border-border transition-transform hover:scale-110"
+              className="h-7 w-7 rounded-full object-cover border border-primary-foreground/30 transition-transform hover:scale-110"
             />
           ) : (
             <Person
               style={{ fontSize: 28 }}
-              className="text-foreground transition-transform hover:scale-110"
+              className="text-primary-foreground transition-transform hover:scale-110"
             />
           )}
         </div>
@@ -160,7 +167,10 @@ const CartIcon = React.memo(() => {
         className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring"
         aria-label="Shopping cart"
       >
-        <ShoppingCart style={{ fontSize: 28 }} className="text-foreground" />
+        <ShoppingCart
+          style={{ fontSize: 28 }}
+          className="text-primary-foreground"
+        />
       </Link>
 
       <CartPopover
@@ -178,13 +188,26 @@ CartIcon.displayName = "CartIcon";
 /* -------------------------------------------------------------------------- */
 
 const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
+  const pathname = usePathname();
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAtTop, setIsAtTop] = useState(true);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((p) => !p), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
   const openSearch = useCallback(() => setIsSearchOpen(true), []);
   const closeSearch = useCallback(() => setIsSearchOpen(false), []);
+
+  // Track scroll position to know if we're at the very top of the page.
+  // The nav is only rendered on the home page AND when the user is at the
+  // top (any scroll up or down hides it again).
+  useEffect(() => {
+    const handleScroll = () => setIsAtTop(window.scrollY < 4);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const displayConfig = useMemo<NavMenuConfig>(
     () => navMenu?.displayConfig ?? {},
@@ -192,12 +215,14 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
   );
 
   const hasNav = !!navMenu && navMenu.items.length > 0;
+  const isHome = pathname === "/";
+  const showNav = hasNav && isHome && isAtTop;
 
   return (
     <>
       <header
         role="banner"
-        className="sticky top-0 z-50 bg-white/95 border-b border-border shadow-sm backdrop-blur-md"
+        className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-sm"
       >
         <div className="mx-auto max-w-7xl px-2 md:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 py-1">
@@ -207,9 +232,12 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
                 type="button"
                 onClick={toggleSidebar}
                 aria-label="Toggle navigation menu"
-                className="rounded-full p-2 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                className="rounded-full p-2 transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <Menu style={{ fontSize: 28 }} className="text-foreground" />
+                <Menu
+                  style={{ fontSize: 28 }}
+                  className="text-primary-foreground"
+                />
               </button>
               <Logo />
             </div>
@@ -219,25 +247,33 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
               <DesktopSearchBar isTransparent={false} />
             </div>
 
-            {/* Spacer on mobile */}
-            <div className="flex-1 lg:hidden" />
-
-            {/* Right: mobile search, user, cart */}
+            {/* Right: user, cart */}
             <div className="flex items-center gap-2 lg:gap-3">
-              <button
-                type="button"
-                onClick={openSearch}
-                aria-label="Search"
-                className="lg:hidden rounded-full p-2 transition-colors hover:bg-muted"
-              >
-                <Search style={{ fontSize: 26 }} className="text-foreground" />
-              </button>
               <UserProfile />
               <CartIcon />
             </div>
           </div>
 
-          {hasNav ? (
+          {/* Mobile full-width search bar — tappable, opens the modal */}
+          <div className="lg:hidden pb-2">
+            <button
+              type="button"
+              onClick={openSearch}
+              aria-label="Open search"
+              className="flex w-full items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-left text-sm transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <Search
+                style={{ fontSize: 20 }}
+                className="shrink-0 text-primary-foreground"
+              />
+              <span className="truncate text-primary-foreground/90">
+                Search products…
+              </span>
+            </button>
+          </div>
+
+          {/* Nav menu — home page only, and only while at the top */}
+          {showNav ? (
             <div className="relative w-full overflow-x-auto md:overflow-visible scrollbar-hide">
               <nav
                 aria-label="Main navigation"

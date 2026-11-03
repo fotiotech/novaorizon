@@ -24,7 +24,7 @@ interface CheckoutProps {
 const CheckoutButton: FC<CheckoutProps> = ({
   width = "w-44",
   height = "h-10",
-  bgColor = "bg-primary-800", // now uses theme primary
+  bgColor = "bg-primary-500", // now uses theme primary
   textColor = "text-primary-foreground",
   product,
   children,

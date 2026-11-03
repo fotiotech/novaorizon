@@ -247,6 +247,7 @@ export type ProductsFiles = {
 // A single trust badge shown in the hero section
 // (e.g. Secure Payment, Fast Shipping, 24/7 Support)
 export type TrustBadge = {
+  badgeId?: string;
   icon: string; // Icon identifier (maps to lucide-react / heroicons)
   title: string;
   description?: string;
@@ -256,6 +257,7 @@ export type TrustBadge = {
 
 export type HeroSection = {
   _id?: string;
+  badgeId?: string | null;
   title: string;
   description?: string;
   imageUrl?: string;

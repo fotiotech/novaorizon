@@ -135,7 +135,9 @@ export function NavTree({
 
         const linkCls = isGridRoot
           ? "flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-6 text-center transition hover:border-primary hover:shadow-md"
-          : "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring";
+          : isRoot
+            ? "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-base font-medium text-primary-foreground transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-ring"
+            : "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring";
 
         return (
           <li key={item._id ?? item.label} className="relative group">

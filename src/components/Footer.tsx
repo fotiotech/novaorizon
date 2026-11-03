@@ -15,7 +15,7 @@ import { PAYMENT_LOGOS } from "./PaymentLogos";
 
 const Footer = () => {
   return (
-    <footer className="bg-background border-t border-border text-foreground w-full">
+    <footer className="bg-primary text-primary-foreground border-t border-white/20 w-full">
       <div className="px-4 lg:px-10 py-12 max-w-7xl mx-auto">
         {/* Main footer content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
@@ -32,7 +32,7 @@ const Footer = () => {
                 />
               </div>
             </Link>
-            <p className="text-center md:text-left text-muted-foreground mb-6 max-w-xs text-sm leading-relaxed">
+            <p className="text-center md:text-left text-primary-foreground/70 mb-6 max-w-xs text-sm leading-relaxed">
               Faites vos Achats en un <br />
               Clik sur Novaorizon
             </p>
@@ -41,21 +41,21 @@ const Footer = () => {
             <div className="flex items-center justify-center md:justify-start gap-3 mb-6">
               <a
                 href="#"
-                className="bg-muted hover:bg-primary/20 p-2 rounded-full transition-all duration-200 hover:scale-110 text-foreground"
+                className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all duration-200 hover:scale-110 text-primary-foreground"
                 aria-label="Twitter"
               >
                 <Twitter fontSize="small" />
               </a>
               <a
                 href="#"
-                className="bg-muted hover:bg-primary/20 p-2 rounded-full transition-all duration-200 hover:scale-110 text-foreground"
+                className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all duration-200 hover:scale-110 text-primary-foreground"
                 aria-label="Instagram"
               >
                 <Instagram fontSize="small" />
               </a>
               <a
                 href="#"
-                className="bg-muted hover:bg-primary/20 p-2 rounded-full transition-all duration-200 hover:scale-110 text-foreground"
+                className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all duration-200 hover:scale-110 text-primary-foreground"
                 aria-label="Facebook"
               >
                 <Facebook fontSize="small" />
@@ -68,10 +68,10 @@ const Footer = () => {
 
           {/* Company Information */}
           <div className="md:ml-4">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">
+            <h3 className="text-lg font-semibold mb-4 text-primary-foreground">
               Novaorizon.com
             </h3>
-            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+            <p className="text-sm text-primary-foreground/70 mb-4 leading-relaxed">
               Novaorizon is your premier destination for quality products at
               affordable prices. We are committed to providing exceptional
               customer service and a seamless shopping experience.
@@ -83,7 +83,7 @@ const Footer = () => {
                     fontSize="small"
                     className="mr-2 opacity-70 shrink-0"
                   />
-                  <span className="text-muted-foreground">
+                  <span className="text-primary-foreground/70">
                     Ngousso, Yaounde, Cameroun
                   </span>
                 </div>
@@ -92,20 +92,20 @@ const Footer = () => {
                     fontSize="small"
                     className="mr-2 opacity-70 shrink-0 sm:hidden"
                   />
-                  <span className="text-muted-foreground">
+                  <span className="text-primary-foreground/70">
                     Bonaberie, Douala, Cameroun
                   </span>
                 </div>
               </div>
               <div className="flex items-center">
                 <Phone fontSize="small" className="mr-2 opacity-70 shrink-0" />
-                <span className="text-muted-foreground">
+                <span className="text-primary-foreground/70">
                   + (237) 696-210-939
                 </span>
               </div>
               <div className="flex items-center">
                 <Email fontSize="small" className="mr-2 opacity-70 shrink-0" />
-                <span className="text-muted-foreground">
+                <span className="text-primary-foreground/70">
                   support@novaorizon.com
                 </span>
               </div>
@@ -114,7 +114,7 @@ const Footer = () => {
 
           {/* Products Section */}
           <div className="lg:ml-4">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">
+            <h3 className="text-lg font-semibold mb-4 text-primary-foreground">
               Novaorizon Products
             </h3>
             <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -129,7 +129,7 @@ const Footer = () => {
                 <li key={item}>
                   <Link
                     href="#"
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+                    className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors duration-200"
                   >
                     {item}
                   </Link>
@@ -140,7 +140,7 @@ const Footer = () => {
 
           {/* Customer Support */}
           <div className="lg:ml-4">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">
+            <h3 className="text-lg font-semibold mb-4 text-primary-foreground">
               Customer Support
             </h3>
             <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -161,7 +161,7 @@ const Footer = () => {
                 >
                   <Link
                     href={item.link}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+                    className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors duration-200"
                   >
                     {item.name}
                   </Link>
@@ -172,8 +172,8 @@ const Footer = () => {
         </div>
 
         {/* Payment Methods */}
-        <div className="mt-12 pt-6 border-t border-border">
-          <h3 className="text-sm font-semibold mb-3 text-center text-foreground">
+        <div className="mt-12 pt-6 border-t border-white/20">
+          <h3 className="text-sm font-semibold mb-3 text-center text-primary-foreground">
             We Accept
           </h3>
           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -191,7 +191,7 @@ const Footer = () => {
               return (
                 <div
                   key={key}
-                  className="inline-flex items-center justify-center rounded-md border border-border bg-muted/50 p-1 transition-colors duration-200 hover:border-primary"
+                  className="inline-flex items-center justify-center rounded-md border border-white/20 bg-white/10 p-1 transition-colors duration-200 hover:border-white/50"
                   title={label}
                 >
                   <Component className={`${h} w-auto`} title={label} />
@@ -202,12 +202,12 @@ const Footer = () => {
         </div>
 
         {/* Copyright */}
-        <div className="mt-8 pt-4 border-t border-border/50 text-center text-xs text-muted-foreground">
+        <div className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-primary-foreground/70">
           <p>
             &copy; {new Date().getFullYear()} Novaorizon. All rights reserved. |{" "}
             <a
               href="mailto:fotiodev@gmail.com"
-              className="hover:text-primary transition-colors"
+              className="hover:text-primary-foreground transition-colors"
             >
               fotiodev@gmail.com
             </a>
