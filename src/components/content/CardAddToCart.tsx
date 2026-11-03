@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShoppingCart, Add, Remove } from "@mui/icons-material";
+import { ShoppingCart, Check } from "@mui/icons-material";
 import { useCart } from "@/app/context/CartContext";
 
 interface CardAddToCartProps {
@@ -23,7 +23,6 @@ export function CardAddToCart({
   const cart = useCart() as any;
   const items: any[] = Array.isArray(cart?.items) ? cart.items : [];
   const addItem = cart?.addItem;
-  const updateItem = cart?.updateItem;
   const loading = !!cart?.loading;
   const [isAdding, setIsAdding] = useState(false);
 
@@ -57,46 +56,21 @@ export function CardAddToCart({
     }
   };
 
-  const handleQty = (e: React.MouseEvent, delta: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!line || typeof updateItem !== "function") return;
-    const qty = Number(line.quantity) || 1;
-    const lineId = line._id ?? line.productId ?? line.product?._id ?? productId;
-    updateItem(lineId, qty + delta);
-  };
-
   const dim = size === "sm" ? "h-8" : "h-9";
   const iconFs = size === "sm" ? 14 : 16;
 
+  // In cart → non-interactive success badge. Clicks fall through to the
+  // surrounding <Link> so tapping it still opens the product page.
   if (line) {
-    const qty = Number(line.quantity) || 1;
     return (
-      <div
-        className={`${dim} flex items-center overflow-hidden rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-background`}
+      <span
+        className={`${dim} ${
+          size === "sm" ? "w-8" : "w-9"
+        } pointer-events-none flex items-center justify-center rounded-full bg-emerald-600 text-white shadow-md ring-2 ring-background`}
+        aria-label="In cart"
       >
-        <button
-          type="button"
-          onClick={(e) => handleQty(e, -1)}
-          disabled={loading || qty <= 1}
-          aria-label="Decrease quantity"
-          className="flex h-full w-7 items-center justify-center transition hover:bg-white/15 disabled:opacity-40"
-        >
-          <Remove style={{ fontSize: iconFs }} />
-        </button>
-        <span className="min-w-[1.25rem] text-center text-xs font-semibold">
-          {qty}
-        </span>
-        <button
-          type="button"
-          onClick={(e) => handleQty(e, 1)}
-          disabled={loading}
-          aria-label="Increase quantity"
-          className="flex h-full w-7 items-center justify-center transition hover:bg-white/15 disabled:opacity-40"
-        >
-          <Add style={{ fontSize: iconFs }} />
-        </button>
-      </div>
+        <Check style={{ fontSize: iconFs }} />
+      </span>
     );
   }
 
