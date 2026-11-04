@@ -155,6 +155,7 @@ export async function findProducts(id?: string): Promise<any> {
       const product: any = await Product.findById(idStr)
         .populate("brand", "name")
         .populate("categoryId", "name")
+        .populate({ path: "reviewsRatings.user", select: "name" }) // ← add
         .lean()
         .exec();
 

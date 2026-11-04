@@ -1,20 +1,29 @@
+// app/(root)/products/[slug]/[_id]/_compnents/reviews/ExistingReviews.tsx
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 
-type Review = {
-  _id: string;
-  user_id: { _id: string; name: string };
+type ReviewUser = { _id?: string; name?: string } | string | null | undefined;
+
+export type Review = {
+  _id?: string;
+  user?: ReviewUser;
+  user_id?: { _id?: string; name?: string };
   rating: number;
-  comment: string;
-  created_at: Date | string;
+  comment?: string;
+  createdAt?: Date | string;
+  created_at?: Date | string;
 };
 
 type ExistingReviewsProps = {
-  reviews: Review[];
+  reviews?: Review[] | null;
+  onWriteReview?: () => void;
 };
 
-// ---------- Small star row ----------
+const INITIAL_COUNT = 3;
+const PAGE_STEP = 5;
+
+// ---------- Star row ----------
 const StarRating: React.FC<{ rating: number; size?: number }> = ({
   rating,
   size = 16,
@@ -47,13 +56,41 @@ const StarRating: React.FC<{ rating: number; size?: number }> = ({
   </div>
 );
 
-export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
+// ---------- Shape helpers ----------
+function getUser(review: Review): { id: string; name: string } {
+  if (review.user_id && typeof review.user_id === "object") {
+    return {
+      id: String(review.user_id._id ?? ""),
+      name: review.user_id.name || "Anonymous",
+    };
+  }
+  if (review.user && typeof review.user === "object") {
+    return {
+      id: String(review.user._id ?? ""),
+      name: review.user.name || "Anonymous",
+    };
+  }
+  return { id: "", name: "Anonymous" };
+}
+
+function getDate(review: Review): Date | null {
+  const raw = review.createdAt ?? review.created_at;
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export default function ExistingReviews({
+  reviews,
+  onWriteReview,
+}: ExistingReviewsProps) {
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
+
   const summary = useMemo(() => {
     if (!reviews || reviews.length === 0) return null;
     const total = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
-    const average = total / reviews.length;
     return {
-      average: Math.round(average * 10) / 10,
+      average: Math.round((total / reviews.length) * 10) / 10,
       count: reviews.length,
     };
   }, [reviews]);
@@ -61,22 +98,38 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
   const sorted = useMemo(() => {
     if (!reviews || reviews.length === 0) return [];
     return [...reviews].sort((a, b) => {
-      const da = new Date(a.created_at).getTime();
-      const db = new Date(b.created_at).getTime();
+      const da = getDate(a)?.getTime() ?? 0;
+      const db = getDate(b)?.getTime() ?? 0;
       return db - da;
     });
   }, [reviews]);
+
+  const visible = sorted.slice(0, visibleCount);
+  const remaining = sorted.length - visible.length;
 
   // ---------- Empty state ----------
   if (!reviews || reviews.length === 0) {
     return (
       <section className="mt-8 bg-card">
-        <h2 className="text-lg font-semibold text-foreground">
-          Customer reviews
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          No reviews yet. Be the first to share your thoughts.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">
+              Customer reviews
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              No reviews yet. Be the first to share your thoughts.
+            </p>
+          </div>
+          {onWriteReview && (
+            <button
+              type="button"
+              onClick={onWriteReview}
+              className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Write a review
+            </button>
+          )}
+        </div>
       </section>
     );
   }
@@ -84,7 +137,7 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
   return (
     <section className="mt-8 bg-card">
       {/* Summary header */}
-      <div className="flex flex-wrap items-center justify-between gap-4  pb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-5">
         <div>
           <h2 className="text-lg font-semibold text-foreground">
             Customer reviews
@@ -93,54 +146,96 @@ export default function ExistingReviews({ reviews }: ExistingReviewsProps) {
             {summary!.count} {summary!.count === 1 ? "review" : "reviews"}
           </p>
         </div>
-        {summary && (
-          <div className="flex items-center gap-3">
-            <StarRating rating={summary.average} size={20} />
-            <span className="text-2xl font-semibold text-foreground">
-              {summary.average.toFixed(1)}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {summary && (
+            <>
+              <StarRating rating={summary.average} size={20} />
+              <span className="text-2xl font-semibold text-foreground">
+                {summary.average.toFixed(1)}
+              </span>
+            </>
+          )}
+          {onWriteReview && (
+            <button
+              type="button"
+              onClick={onWriteReview}
+              className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Write a review
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List */}
       <ul className="divide-y divide-border">
-        {sorted.map((review) => (
-          <li key={review._id} className="py-5 last:pb-0">
-            <div className="flex items-start gap-3">
-              {/* Reviewer avatar */}
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
-                {review.user_id?.name?.charAt(0)?.toUpperCase() || "?"}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="text-sm font-semibold text-foreground">
-                    {review.user_id?.name || "Anonymous"}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(review.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
+        {visible.map((review, idx) => {
+          const user = getUser(review);
+          const date = getDate(review);
+          return (
+            <li
+              key={review._id ?? `${user.id}-${idx}`}
+              className="py-5 last:pb-0"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
+                  {user.name.charAt(0).toUpperCase() || "?"}
                 </div>
-
-                <div className="mt-1.5">
-                  <StarRating rating={review.rating} size={14} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="text-sm font-semibold text-foreground">
+                      {user.name}
+                    </span>
+                    {date && (
+                      <span className="text-xs text-muted-foreground">
+                        {date.toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1.5">
+                    <StarRating rating={review.rating} size={14} />
+                  </div>
+                  {review.comment && (
+                    <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                      {review.comment}
+                    </p>
+                  )}
                 </div>
-
-                {review.comment && (
-                  <p className="mt-2 text-sm leading-relaxed text-foreground/90">
-                    {review.comment}
-                  </p>
-                )}
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
+
+      {/* See more / show less */}
+      {remaining > 0 && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleCount((c) => Math.min(c + PAGE_STEP, sorted.length))
+            }
+            className="rounded-full border border-border bg-background px-4 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            See more reviews ({remaining})
+          </button>
+        </div>
+      )}
+      {visibleCount > INITIAL_COUNT && (
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount(INITIAL_COUNT)}
+            className="rounded text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+          >
+            Show less
+          </button>
+        </div>
+      )}
     </section>
   );
 }

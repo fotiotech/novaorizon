@@ -1,68 +1,59 @@
+// app/actions/review.ts
 "use server";
 
 import mongoose from "mongoose";
+import { revalidatePath } from "next/cache";
 import { connection } from "@/utils/connection";
-import { Review } from "@/models/Review";
 import Product from "@/models/Product";
 
-type AddReviewParams = {
+export async function addProductReview(input: {
   productId: string;
   userId: string;
   rating: number;
-  comment: string;
-};
+  comment?: string;
+}) {
+  const { productId, userId, rating } = input;
+  const comment = (input.comment ?? "").trim().slice(0, 1000);
 
-export async function addProductReview({
-  productId,
-  userId,
-  rating,
-  comment,
-}: AddReviewParams) {
-  await connection();
-
-  const product = await Product.findById(productId);
-  if (!product) {
-    throw new Error("Product not found");
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    throw new Error("Invalid product id.");
+  }
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error("You must be logged in to submit a review.");
+  }
+  if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+    throw new Error("Rating must be between 1 and 5.");
   }
 
-  const review = await Review.create({
-    productId: new mongoose.Types.ObjectId(productId),
-    userId: new mongoose.Types.ObjectId(userId),
-    rating,
-    reviewText: comment,
-  });
+  await connection();
 
-  await Product.findByIdAndUpdate(
-    productId,
-    {
-      $push: {
-        reviewsRatings: {
-          user: new mongoose.Types.ObjectId(userId),
-          rating,
-          comment,
-        },
-      },
-    },
-    { new: true },
+  const product: any = await Product.findById(productId);
+  if (!product) throw new Error("Product not found.");
+
+  // One review per user — edit instead of duplicating.
+  const existing = product.reviewsRatings.find(
+    (r: any) => String(r.user) === String(userId),
   );
 
-  const allReviews = await Review.find({ productId }).select("rating").lean();
-  const average =
-    allReviews.length > 0
-      ? allReviews.reduce((sum, item) => sum + (item.rating || 0), 0) /
-        allReviews.length
-      : 0;
+  if (existing) {
+    existing.rating = rating;
+    existing.comment = comment;
+    existing.updatedAt = new Date();
+  } else {
+    product.reviewsRatings.push({
+      user: new mongoose.Types.ObjectId(userId),
+      rating,
+      comment,
+    });
+  }
 
-  await Product.findByIdAndUpdate(
-    productId,
-    {
-      $set: {
-        rating: average,
-        reviewCount: allReviews.length,
-      },
-    },
-    { new: true },
-  );
+  await product.save();
 
-  return review.toObject();
+  // Refresh both the product page and the (optional) catalogue.
+  if (product.slug) {
+    revalidatePath(`/products/${product.slug}/${productId}`);
+  }
+  revalidatePath("/products");
+
+  return { success: true };
 }

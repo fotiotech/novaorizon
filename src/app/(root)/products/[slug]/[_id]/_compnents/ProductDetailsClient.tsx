@@ -14,6 +14,7 @@ import DetailImages from "@/components/DetailImages";
 import Spinner from "@/components/Spinner";
 import ProductViewAnalytics from "./ProductViewAnalytics";
 import ExistingReviews from "@/app/(root)/products/[slug]/[_id]/_compnents/reviews/ExistingReviews";
+import ReviewForm from "@/app/(root)/products/[slug]/[_id]/_compnents/reviews/ReviewForm";
 import { getCarriers } from "@/app/actions/carrier";
 import { useUserData } from "@/app/context/UserDataContext";
 import { useCart } from "@/app/context/CartContext";
@@ -669,6 +670,7 @@ export default function ProductDetailsClient({
     {},
   );
   const [isSpecsSheetOpen, setIsSpecsSheetOpen] = useState(false);
+  const [isReviewSheetOpen, setIsReviewSheetOpen] = useState(false);
   const initialLoadComplete = useRef(false);
 
   // Independent preview/expanded state for the two fade sections.
@@ -724,6 +726,7 @@ export default function ProductDetailsClient({
     initialLoadComplete.current = false;
     setSelectedValues({});
     setIsSpecsSheetOpen(false);
+    setIsReviewSheetOpen(false);
     setSpecsExpanded(false);
     setDescriptionExpanded(false);
   }, [productId]);
@@ -1056,9 +1059,26 @@ export default function ProductDetailsClient({
           </div>
         </div>
 
-        {/* Full-width rows below the grid */}
-        {relatedSlot}
-        <ExistingReviews reviews={product?.reviews} />
+        {/* Related products (server-rendered slot) */}
+        {relatedSlot ? (
+          <div className="mt-6 border-t border-border pt-4">{relatedSlot}</div>
+        ) : null}
+
+        <ExistingReviews
+          reviews={product?.reviewsRatings}
+          onWriteReview={() => setIsReviewSheetOpen(true)}
+        />
+
+        <BottomSheet
+          open={isReviewSheetOpen}
+          onClose={() => setIsReviewSheetOpen(false)}
+          title="Write a review"
+        >
+          <ReviewForm
+            productId={productId}
+            onSuccess={() => setIsReviewSheetOpen(false)}
+          />
+        </BottomSheet>
       </div>
     </div>
   );

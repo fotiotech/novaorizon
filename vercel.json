@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/cron/rollup", "schedule": "5 * * * *" },
+    { "path": "/api/cron/product-metrics", "schedule": "15 * * * *" }
+  ]
+}
