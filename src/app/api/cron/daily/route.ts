@@ -2,8 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { connection } from "@/utils/connection";
-import { rollupEvents } from "@/lib/cron/rollupEvents";
-import { refreshProductMetrics } from "@/lib/cron/refreshProductMetrics";
+import { rollupEvents } from "@/app/lib/cron/rollupEvents";
+import { refreshProductMetrics } from "@/app/lib/cron/refreshProductMetrics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
