@@ -57,7 +57,7 @@ export function ContentCard({
         ? "max-w-[110px]"
         : size === "lg"
           ? "max-w-[200px]"
-          : "max-w-[160px]";
+          : "max-w-[100px]";
     const textCls =
       size === "sm" ? "text-xs" : size === "lg" ? "text-base" : "text-sm";
 
