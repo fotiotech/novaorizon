@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 
 declare global {
   interface Window {
@@ -12,7 +12,8 @@ declare global {
 
 const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
 
-export default function MetaPixel() {
+// Internal tracker that uses useSearchParams (must be inside Suspense)
+function PixelTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isInitialPageView = useRef(true);
@@ -20,7 +21,7 @@ export default function MetaPixel() {
   useEffect(() => {
     if (!PIXEL_ID) return;
 
-    // The base pixel script below already fires the initial PageView.
+    // The base script already fires the first PageView.
     // Only fire PageView for subsequent client-side navigations.
     if (isInitialPageView.current) {
       isInitialPageView.current = false;
@@ -30,11 +31,14 @@ export default function MetaPixel() {
     window.fbq?.("track", "PageView");
   }, [pathname, searchParams]);
 
+  return null;
+}
+
+export default function MetaPixel() {
   if (!PIXEL_ID) return null;
 
   return (
     <>
-      {/* Meta Pixel Base Code */}
       <Script id="meta-pixel" strategy="afterInteractive">
         {`
           !function(f,b,e,v,n,t,s)
@@ -50,7 +54,6 @@ export default function MetaPixel() {
         `}
       </Script>
 
-      {/* Fallback for users with JavaScript disabled */}
       <noscript>
         <img
           height="1"
@@ -60,6 +63,10 @@ export default function MetaPixel() {
           alt=""
         />
       </noscript>
+
+      <Suspense fallback={null}>
+        <PixelTracker />
+      </Suspense>
     </>
   );
 }
