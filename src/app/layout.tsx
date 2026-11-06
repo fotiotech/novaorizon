@@ -112,12 +112,12 @@ export default function Layout({
         </noscript>
 
         <Providers>
-          {children}
           {/* PageViewTracker uses useSearchParams, so it needs its own boundary. */}
           <Suspense fallback={null}>
             <MetaPixel />
             <PageViewTracker />
           </Suspense>
+          {children}
         </Providers>
 
         {/* Scripts live in body in App Router. next/script handles injection. */}
