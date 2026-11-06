@@ -5,7 +5,7 @@ export interface InvoiceDocument extends Document {
   invoiceNumber: string;
   orderNumber: string;
   orderId: mongoose.Types.ObjectId;
-  userId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId | null;
   email: string;
   firstName: string;
   lastName: string;
@@ -54,6 +54,7 @@ const InvoiceSchema = new Schema<InvoiceDocument>(
     orderNumber: {
       type: String,
       required: true,
+      unique: true,
       index: true,
     },
     orderId: {
@@ -64,7 +65,8 @@ const InvoiceSchema = new Schema<InvoiceDocument>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
+      default: null,
     },
     email: { type: String, required: true },
     firstName: { type: String, required: true },

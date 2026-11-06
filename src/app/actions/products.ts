@@ -8,6 +8,7 @@ import Brand from "@/models/Brand";
 import Category from "@/models/Category";
 import "@/models/User";
 import "@/models/Attribute";
+import { requireAdmin } from "@/lib/authz";
 
 // ---------- Plain-value helpers ----------
 
@@ -153,6 +154,7 @@ export async function findProducts(id?: string): Promise<any> {
 
       // Single product — populate refs in one round-trip.
       const product: any = await Product.findById(idStr)
+        .select("-embedding -embeddingText -embeddingModel -embeddedAt -__v")
         .populate("brand", "name")
         .populate("categoryId", "name")
         .populate({ path: "reviewsRatings.user", select: "name" }) // ← add
@@ -217,6 +219,7 @@ export async function findProducts(id?: string): Promise<any> {
 
     // List — same pattern, populate inline instead of per-row queries.
     const products: any[] = await Product.find()
+      .select("-embedding -embeddingText -embeddingModel -embeddedAt -__v")
       .sort({ createdAt: -1 })
       .populate("brand", "name")
       .populate("categoryId", "name")
@@ -253,6 +256,7 @@ export async function findProductsForSitemap() {
 }
 
 export async function deleteProduct(id: string) {
+  await requireAdmin();
   try {
     await connection();
 

@@ -3,35 +3,25 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Types } from "mongoose";
-import { auth } from "@/app/auth";
-import { cookies } from "next/headers";
 
 import { connection } from "@/utils/connection";
 import Address from "@/models/Address";
 import {
   PaymentMethod,
-  CreditCardPaymentMethod,
   MobileMoneyPaymentMethod,
   PayPalPaymentMethod,
   MOBILE_MONEY_PROVIDERS,
 } from "@/models/PaymentMethod";
+import { getAuthUser, requireUser } from "@/lib/authz";
+import { getOrCreateGuestId } from "@/lib/guest";
 
 // ------------------ Auth helper ------------------
 async function getAuthenticatedUser() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-  return session.user.id;
+  const user = await requireUser();
+  return user.id;
 }
 
 // ------------------ Helpers ------------------
-
-function detectCardType(digits: string): string {
-  if (/^4/.test(digits)) return "Visa";
-  if (/^(5[1-5]|2[2-7])/.test(digits)) return "Mastercard";
-  if (/^3[47]/.test(digits)) return "Amex";
-  if (/^6(?:011|5)/.test(digits)) return "Discover";
-  return "Unknown";
-}
 
 function parseExpiry(
   expiryDate: string,
@@ -47,22 +37,6 @@ function parseExpiry(
 
 // ------------------ Zod schema (discriminated union) ------------------
 const paymentMethodSchema = z.discriminatedUnion("methodType", [
-  z.object({
-    methodType: z.literal("CreditCard"),
-    details: z.object({
-      cardNumber: z
-        .string()
-        .transform((v) => v.replace(/\D/g, ""))
-        .refine((v) => v.length >= 13 && v.length <= 19, {
-          message: "Card number must be 13–19 digits",
-        }),
-      expiryDate: z
-        .string()
-        .regex(/^(0[1-9]|1[0-2])\s*\/\s*(\d{2}|\d{4})$/, "Use MM/YY"),
-      cardholderName: z.string().trim().min(1, "Cardholder name is required"),
-      billingAddressId: z.string().min(1, "Billing address is required"),
-    }),
-  }),
   z.object({
     methodType: z.literal("MobileMoney"),
     details: z.object({
@@ -102,20 +76,27 @@ export type CreatePaymentMethodResult =
  */
 export async function createPaymentMethod(
   data: unknown,
-  guestId?: string,
+  _guestId?: string,
 ): Promise<CreatePaymentMethodResult> {
   try {
-    const session = await auth();
-    const userId = session?.user?.id;
-    const cookieStore = await cookies();
-    const resolvedGuestId = guestId || cookieStore.get("guestId")?.value;
-
-    if (!userId && !resolvedGuestId) {
+    // Card payments are intentionally disabled until a tokenizing
+    // gateway/hosted form is wired in. The browser must never send a PAN
+    // to this application.
+    if (
+      data &&
+      typeof data === "object" &&
+      (data as { methodType?: string }).methodType === "CreditCard"
+    ) {
       return {
         success: false,
-        error: "Unauthorized or guest reference missing",
+        error:
+          "Card payments are not enabled yet. Please use Mobile Money or PayPal.",
       };
     }
+
+    const user = await getAuthUser();
+    const userId = user?.id;
+    const resolvedGuestId = userId ? null : await getOrCreateGuestId();
 
     await connection();
 
@@ -138,75 +119,6 @@ export async function createPaymentMethod(
     const owner = userId
       ? { userId: new Types.ObjectId(userId) }
       : { guestId: resolvedGuestId as string };
-
-    // --- Credit Card ---
-    if (validated.methodType === "CreditCard") {
-      const { billingAddressId, cardNumber, cardholderName, expiryDate } =
-        validated.details;
-
-      if (!Types.ObjectId.isValid(billingAddressId)) {
-        return { success: false, error: "Invalid billing address provided" };
-      }
-
-      // Verify the address belongs to the active user or guest session
-      const address = userId
-        ? await Address.findOne({
-            _id: billingAddressId,
-            userId: new Types.ObjectId(userId),
-          })
-        : await Address.findOne({
-            _id: billingAddressId,
-            guestId: resolvedGuestId,
-          });
-
-      if (!address) {
-        return { success: false, error: "Invalid billing address provided" };
-      }
-
-      const expiry = parseExpiry(expiryDate);
-      if (!expiry) {
-        return { success: false, error: "Expiry date must be in MM/YY format" };
-      }
-
-      // Reject expired cards
-      const now = new Date();
-      const expMonth = Number(expiry.expiryMonth);
-      const expYear = Number(expiry.expiryYear);
-      if (
-        expYear < now.getFullYear() ||
-        (expYear === now.getFullYear() && expMonth < now.getMonth() + 1)
-      ) {
-        return { success: false, error: "This card has already expired" };
-      }
-
-      const last4 = cardNumber.slice(-4);
-      const cardType = detectCardType(cardNumber);
-
-      const card = new CreditCardPaymentMethod({
-        ...owner,
-        methodType: "CreditCard",
-        details: {
-          cardNumber,
-          last4,
-          cardType,
-          expiryMonth: expiry.expiryMonth,
-          expiryYear: expiry.expiryYear,
-          expiryDate: `${expiry.expiryMonth}/${expiry.expiryYear.slice(-2)}`,
-          cardholderName,
-          billingAddressId: new Types.ObjectId(billingAddressId),
-        },
-      });
-
-      await card.save();
-
-      revalidatePath("/profile/payment-methods");
-      revalidatePath("/profile/payment");
-
-      return {
-        success: true,
-        paymentMethod: JSON.parse(JSON.stringify(card)),
-      };
-    }
 
     // --- Mobile Money ---
     if (validated.methodType === "MobileMoney") {
@@ -268,20 +180,15 @@ export async function createPaymentMethod(
 /**
  * Merge guest payment methods into an authenticated user's account.
  */
-export async function mergeGuestPaymentMethods({
-  guestId,
-  userId,
-}: {
+export async function mergeGuestPaymentMethods(_args?: {
   guestId?: string;
-  userId: string;
+  userId?: string;
 }) {
+  const user = await requireUser();
   await connection();
 
-  if (!guestId) {
-    return { success: true, merged: false };
-  }
-
-  const targetUserId = new Types.ObjectId(userId);
+  const guestId = await getOrCreateGuestId();
+  const targetUserId = new Types.ObjectId(user.id);
 
   const guestMethods = await PaymentMethod.find({ guestId }).lean();
 
@@ -294,7 +201,7 @@ export async function mergeGuestPaymentMethods({
       $or: [
         { "details.email": gm.details?.email },
         { "details.phoneNumber": gm.details?.phoneNumber },
-        { "details.cardNumber": gm.details?.cardNumber },
+        { "details.last4": gm.details?.last4 },
       ],
     });
 
@@ -407,7 +314,7 @@ export async function updateCreditCard(
     throw new Error("No updates provided");
   }
 
-  const updatedCard = await CreditCardPaymentMethod.findOneAndUpdate(
+  const updatedCard = await PaymentMethod.findOneAndUpdate(
     {
       _id: paymentMethodId,
       userId: new Types.ObjectId(userId),

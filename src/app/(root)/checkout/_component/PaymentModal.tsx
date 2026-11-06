@@ -47,7 +47,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       content = <MonetBilPayment payment_ref={paymentRef} />;
       break;
     case "PayPal":
-      content = <PaypalPayment payment_ref={paymentRef} />;
+      content = <PaypalPayment />;
       break;
     case "CreditCard":
       content = <CreditCardPayment />;

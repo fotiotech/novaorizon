@@ -86,8 +86,11 @@ type NewOrderParams = {
   currency?: string;
 };
 
-/** Fired when an order row is first created (checkout page). */
-export async function notifyAdminsAboutNewOrder(params: NewOrderParams) {
+/**
+ * Internal helper only. Exporting a function from a "use server" module
+ * makes it a public endpoint, which allowed anyone to spam every admin.
+ */
+async function notifyAdminsAboutNewOrder(params: NewOrderParams) {
   const { orderNumber, customerName, total, currency = "CFA" } = params;
 
   const pieces = [`New order #${orderNumber}`];
@@ -107,8 +110,8 @@ type PaymentSuccessParams = {
   transactionId?: string;
 };
 
-/** Fired when a payment is confirmed paid (payment success page). */
-export async function notifyAdminsAboutPaymentSuccess(
+/** Internal helper only (see note above). */
+async function notifyAdminsAboutPaymentSuccess(
   params: PaymentSuccessParams,
 ) {
   const {

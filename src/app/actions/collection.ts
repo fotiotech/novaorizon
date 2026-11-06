@@ -1,5 +1,6 @@
 // app/actions/collection.ts
 "use server";
+import { requireAdmin } from "@/lib/authz";
 
 import { revalidatePath } from "next/cache";
 import { connection } from "@/utils/connection";
@@ -250,6 +251,7 @@ export async function getResolvedCollections(opts?: {
 /* ------------------------------ Create ---------------------------------- */
 
 export async function createCollection(formData: FormData) {
+  await requireAdmin();
   try {
     await connection();
 
@@ -384,6 +386,7 @@ export async function createCollection(formData: FormData) {
 /* ------------------------------ Update ---------------------------------- */
 
 export async function updateCollection(id: string, formData: FormData) {
+  await requireAdmin();
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return { success: false, error: "Invalid collection ID" };
@@ -527,6 +530,7 @@ export async function getCollectionById(id: string) {
 }
 
 export async function deleteCollection(id: string) {
+  await requireAdmin();
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return { success: false, error: "Invalid collection ID" };
@@ -543,6 +547,7 @@ export async function deleteCollection(id: string) {
 }
 
 export async function deleteCollectionImage(collectionId: string) {
+  await requireAdmin();
   try {
     if (!mongoose.Types.ObjectId.isValid(collectionId)) {
       return { success: false, error: "Invalid collection ID" };
@@ -569,6 +574,7 @@ export async function fetchAvailableItems(
   search?: string,
   sortOrder: "asc" | "desc" = "asc",
 ) {
+  await requireAdmin();
   try {
     await connection();
     const cfg = getEntityConfig(targetType);
@@ -605,6 +611,7 @@ export async function fetchReferenceOptions(
   refType: RegistryKey,
   search?: string,
 ) {
+  await requireAdmin();
   try {
     await connection();
     const cfg = getEntityConfig(refType);

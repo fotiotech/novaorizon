@@ -4,6 +4,7 @@
 import User from "@/models/User";
 import { connection } from "@/utils/connection";
 import bcrypt from "bcryptjs";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function resetPassword(prevState: any, formData: FormData) {
   const token = formData.get("token") as string;
@@ -16,6 +17,23 @@ export async function resetPassword(prevState: any, formData: FormData) {
 
   if (password !== confirmPassword) {
     return { error: "Passwords do not match." };
+  }
+
+  if (
+    password.length < 8 ||
+    !/[a-zA-Z]/.test(password) ||
+    !/[0-9]/.test(password)
+  ) {
+    return {
+      error:
+        "Password must be at least 8 characters and contain a letter and a number.",
+    };
+  }
+
+  const ip = await getClientIp();
+  const limit = await consumeRateLimit(`reset-submit:${ip}`, 10, 60 * 60 * 1000);
+  if (!limit.ok) {
+    return { error: "Too many attempts. Please try again later." };
   }
 
   try {

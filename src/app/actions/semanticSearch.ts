@@ -10,6 +10,7 @@ import {
   getCachedQueryEmbedding,
   setCachedQueryEmbedding,
 } from "@/lib/queryEmbeddingCache";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const VECTOR_INDEX = "novaorizon-search";
 
@@ -41,10 +42,17 @@ export async function semanticSearch(
 ): Promise<SemanticSearchResult> {
   await connection();
 
-  const q = query?.trim() ?? "";
+  const q = query?.trim().slice(0, 200) ?? "";
   if (q.length < 2) {
     return { hits: [], total: { value: 0 } };
   }
+
+  const ip = await getClientIp();
+  const limitCheck = await consumeRateLimit(`semantic:${ip}`, 30, 60 * 1000);
+  if (!limitCheck.ok) {
+    return { hits: [], total: { value: 0 } };
+  }
+  const safeLimit = Math.min(20, Math.max(1, Number(limit) || 20));
 
   if (!process.env.VOYAGE_API_KEY) {
     console.warn("[semanticSearch] VOYAGE_API_KEY missing — returning empty");
@@ -122,8 +130,8 @@ export async function semanticSearch(
     index: VECTOR_INDEX,
     path: "embedding",
     queryVector,
-    numCandidates: Math.max(limit * 10, 100),
-    limit,
+    numCandidates: Math.max(safeLimit * 10, 100),
+    limit: safeLimit,
   };
   if (Object.keys(filter).length > 0) {
     vectorStage.filter = filter;

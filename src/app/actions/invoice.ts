@@ -6,6 +6,7 @@ import Invoice, { InvoiceDocument } from "@/models/Invoice";
 import { revalidatePath } from "next/cache";
 import "@/models/Address";
 import "@/models/PaymentMethod";
+import { requireUser } from "@/lib/authz";
 
 /**
  * Generate a unique invoice number
@@ -20,7 +21,7 @@ function generateInvoiceNumber(): string {
 /**
  * Create an invoice for a paid order
  */
-export async function createInvoice(
+async function createInvoice(
   orderNumber: string,
 ): Promise<{ success: boolean; invoice?: any; error?: string }> {
   await connection();
@@ -85,11 +86,12 @@ export async function createInvoice(
 export async function getInvoiceByOrderNumber(
   orderNumber: string,
 ): Promise<{ success: boolean; invoice?: any; error?: string }> {
+  const user = await requireUser();
   await connection();
 
   try {
     const invoice = await Invoice.findOne({ orderNumber }).lean();
-    if (!invoice) {
+    if (!invoice || String(invoice.userId) !== user.id) {
       return { success: false, error: "Invoice not found." };
     }
 
@@ -104,7 +106,7 @@ export async function getInvoiceByOrderNumber(
  * Fetch all invoices for a user
  */
 export async function getInvoicesByUserId(
-  userId: string,
+  _userId?: string,
   options?: { page?: number; limit?: number },
 ): Promise<{
   success: boolean;
@@ -112,9 +114,12 @@ export async function getInvoicesByUserId(
   total?: number;
   error?: string;
 }> {
+  const user = await requireUser();
+  const userId = user.id;
   await connection();
 
-  const { page = 1, limit = 10 } = options || {};
+  const page = Math.max(1, Math.floor(Number(options?.page) || 1));
+  const limit = Math.min(50, Math.max(1, Math.floor(Number(options?.limit) || 10)));
 
   try {
     const skip = (page - 1) * limit;
@@ -144,11 +149,12 @@ export async function getInvoicesByUserId(
 export async function downloadInvoice(
   invoiceNumber: string,
 ): Promise<{ success: boolean; data?: any; error?: string }> {
+  const user = await requireUser();
   await connection();
 
   try {
     const invoice: any = await Invoice.findOne({ invoiceNumber }).lean();
-    if (!invoice) {
+    if (!invoice || String(invoice.userId) !== user.id) {
       return { success: false, error: "Invoice not found." };
     }
 

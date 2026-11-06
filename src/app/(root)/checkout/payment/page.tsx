@@ -20,7 +20,7 @@ const PaymentPage: React.FC = () => {
         content = <MonetBilPayment payment_ref={payment_ref} />;
         break;
       case "PayPal":
-        content = <PaypalPayment payment_ref={payment_ref} />;
+        content = <PaypalPayment />;
         break;
       case "CreditCard":
         content = <CreditCardPayment />;

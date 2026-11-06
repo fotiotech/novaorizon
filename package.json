@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
-    "start": "next start --webpack"
+    "start": "next start --webpack",
+    "typecheck": "tsc -p tsconfig.check.json --noEmit",
+    "purge:cards": "node ../scripts/purge-card-data.mjs"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.9.1",

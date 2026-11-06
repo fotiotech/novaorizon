@@ -3,6 +3,7 @@
 
 import { connection } from "@/utils/connection";
 import ContactMessage from "@/models/ContactMessage";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 type ContactPayload = {
   name: string;
@@ -16,13 +17,22 @@ type ContactPayload = {
 export async function submitContactMessage(
   payload: ContactPayload,
 ): Promise<{ success: boolean; error?: string }> {
+  const ip = await getClientIp();
+  const limit = await consumeRateLimit(`contact:${ip}`, 5, 60 * 60 * 1000);
+  if (!limit.ok) {
+    return {
+      success: false,
+      error: "Too many messages from this connection. Please try again later.",
+    };
+  }
+
   await connection();
 
   try {
-    const name = payload.name?.trim();
-    const email = payload.email?.trim().toLowerCase();
-    const subject = payload.subject?.trim();
-    const message = payload.message?.trim();
+    const name = payload.name?.trim().slice(0, 120);
+    const email = payload.email?.trim().toLowerCase().slice(0, 200);
+    const subject = payload.subject?.trim().slice(0, 160);
+    const message = payload.message?.trim().slice(0, 5000);
 
     if (!name || !email || !subject || !message) {
       return {

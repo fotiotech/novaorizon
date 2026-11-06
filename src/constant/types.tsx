@@ -296,7 +296,8 @@ export type Customer = {
   billingMethod?: {
     methodType: string;
     details?: {
-      cardNumber?: string;
+      token?: string;
+      last4?: string;
       expiryDate?: string;
       cardholderName?: string;
     };

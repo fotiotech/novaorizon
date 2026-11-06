@@ -5,21 +5,26 @@ import mongoose from "mongoose";
 import { revalidatePath } from "next/cache";
 import { connection } from "@/utils/connection";
 import Product from "@/models/Product";
+import { requireUser } from "@/lib/authz";
+import { consumeRateLimit } from "@/lib/rate-limit";
 
 export async function addProductReview(input: {
   productId: string;
-  userId: string;
+  userId?: string;
   rating: number;
   comment?: string;
 }) {
-  const { productId, userId, rating } = input;
+  const user = await requireUser();
+  const userId = user.id;
+  const limit = await consumeRateLimit(`review:${userId}`, 10, 60 * 60 * 1000);
+  if (!limit.ok) {
+    throw new Error("Too many reviews. Please try again later.");
+  }
+  const { productId, rating } = input;
   const comment = (input.comment ?? "").trim().slice(0, 1000);
 
   if (!mongoose.Types.ObjectId.isValid(productId)) {
     throw new Error("Invalid product id.");
-  }
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("You must be logged in to submit a review.");
   }
   if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
     throw new Error("Rating must be between 1 and 5.");

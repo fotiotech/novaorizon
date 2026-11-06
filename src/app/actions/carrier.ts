@@ -3,9 +3,11 @@ import { connection } from "@/utils/connection";
 
 import Carrier from "@/models/Carrier";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/authz";
 
 // CREATE
 export const createCarrier = async (data: any) => {
+  await requireAdmin();
   try {
     // Ensure `costPerKm` is a number
     data.costWeight = parseFloat(data.costWeight);
@@ -80,6 +82,7 @@ export async function updateCarrier(
     status: string;
   }>,
 ) {
+  await requireAdmin();
   await connection();
 
   try {
@@ -127,6 +130,7 @@ export async function updateCarrier(
 
 // DELETE
 export async function deleteCarrier(id: string) {
+  await requireAdmin();
   await connection();
   return Carrier.findByIdAndDelete(id);
 }

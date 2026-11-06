@@ -12,12 +12,9 @@ interface PaymentMethodFormProps {
 
 type MethodType = "CreditCard" | "MobileMoney" | "PayPal";
 
+// Card entry is disabled until a tokenizing/hosted payment form is
+// integrated. The app must never receive or store a raw PAN.
 const METHOD_OPTIONS: { value: MethodType; label: string; hint: string }[] = [
-  {
-    value: "CreditCard",
-    label: "Credit / Debit Card",
-    hint: "Visa, Mastercard",
-  },
   {
     value: "MobileMoney",
     label: "Mobile Money",
@@ -87,7 +84,7 @@ export default function PaymentMethodForm({
   onSuccess,
   onCancel,
 }: PaymentMethodFormProps) {
-  const [methodType, setMethodType] = useState<MethodType>("CreditCard");
+  const [methodType, setMethodType] = useState<MethodType>("MobileMoney");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -9,6 +9,8 @@ import mongoose, { Types } from "mongoose";
 import Product from "@/models/Product";
 import { isBot, detectDevice } from "../lib/events/botDetection";
 import Pusher from "pusher"; // optional — remove if not using Pusher
+import { requireUser } from "@/lib/authz";
+import { getGuestId } from "@/lib/guest";
 
 type EventType = IEvent["eventType"];
 
@@ -167,8 +169,8 @@ export async function trackEvent(params: TrackEventParams) {
   return { ok: true, id: String(event._id) } as const;
 }
 
-// ─── 2. Incremental fetch ─────────────────────────────────
-export async function getEventsSince(since: number, limit = 50) {
+// ─── 2. Incremental fetch (internal; not a public action) ─
+async function getEventsSince(since: number, limit = 50) {
   await connection();
   return Event.find({
     isBot: { $ne: true },
@@ -316,9 +318,15 @@ export async function getRecentlyViewed(limit: number = 5) {
 }
 
 // ─── 6. Merge guest events ────────────────────────────────
-export async function mergeGuestEvents(guestId: string, newUserId: string) {
+export async function mergeGuestEvents(
+  _guestId?: string,
+  _newUserId?: string,
+) {
+  const user = await requireUser();
+  const guestId = await getGuestId();
+  if (!guestId) return;
   await connection();
-  await Event.updateMany({ userId: guestId }, { $set: { userId: newUserId } });
+  await Event.updateMany({ userId: guestId }, { $set: { userId: user.id } });
 }
 
 // ─── 7. Related products ──────────────────────────────────

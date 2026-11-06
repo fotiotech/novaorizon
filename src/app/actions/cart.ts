@@ -6,6 +6,22 @@ import { revalidatePath } from "next/cache";
 import Product from "@/models/Product";
 import Cart from "@/models/Cart";
 import Order from "@/models/Order";
+import { getAuthUser, requireUser } from "@/lib/authz";
+import { getGuestId, getOrCreateGuestId } from "@/lib/guest";
+
+/**
+ * Resolve the cart owner from the request, never from a caller-supplied
+ * userId/sessionId. Signed-in users own their cart by userId; guests own
+ * theirs by the HttpOnly guestId cookie.
+ */
+async function resolveCartOwner(): Promise<{
+  userId?: mongoose.Types.ObjectId;
+  sessionId?: string;
+}> {
+  const user = await getAuthUser();
+  if (user) return { userId: new mongoose.Types.ObjectId(user.id) };
+  return { sessionId: await getOrCreateGuestId() };
+}
 
 // Types
 export interface CartItemInput {
@@ -44,27 +60,21 @@ async function populateAndLean(cart: any) {
   return cart.toObject();
 }
 
-// Retrieve current cart (by userId or sessionId)
-export async function getCart(identifier: {
+// Retrieve the current cart for the request's owner.
+export async function getCart(_identifier?: {
   userId?: string;
   sessionId?: string;
 }) {
   await connection();
-  const { userId, sessionId } = identifier;
-  if (!userId && !sessionId) return null;
+  const owner = await resolveCartOwner();
 
-  const query: any = {};
-  if (userId) query.userId = userId;
-  else query.sessionId = sessionId;
-
-  let cart: any = await Cart.findOne(query)
+  let cart: any = await Cart.findOne(owner)
     .populate("items.productId", "name images slug price")
     .lean();
 
   if (!cart) {
     cart = await Cart.create({
-      userId: userId || undefined,
-      sessionId: sessionId || undefined,
+      ...owner,
       items: [],
       subtotal: 0,
       tax: 0,
@@ -90,30 +100,24 @@ export async function getCart(identifier: {
   };
 }
 
-export async function mergeGuestSessionData({
-  guestId,
-  sessionId,
-  userId,
-}: {
+export async function mergeGuestSessionData(_args?: {
   guestId?: string;
   sessionId?: string;
-  userId: string;
+  userId?: string;
 }) {
+  const user = await requireUser();
   await connection();
 
-  const identifiers = Array.from(
-    new Set([guestId, sessionId].filter(Boolean) as string[]),
-  );
-
-  if (!identifiers.length) {
+  // Only merge the browser's own guest cart. Caller-supplied IDs are
+  // ignored so one user cannot claim another user's cart/orders.
+  const guestId = await getGuestId();
+  if (!guestId) {
     return { success: true, merged: false };
   }
 
-  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const userObjectId = new mongoose.Types.ObjectId(user.id);
   let targetCart = await Cart.findOne({ userId: userObjectId });
-  const guestCarts = await Cart.find({
-    sessionId: { $in: identifiers },
-  }).exec();
+  const guestCarts = await Cart.find({ sessionId: guestId }).exec();
 
   if (!targetCart && guestCarts.length > 0) {
     targetCart = guestCarts[0];
@@ -170,16 +174,12 @@ export async function mergeGuestSessionData({
 
   await Order.updateMany(
     {
-      $or: [
-        { guestId: { $in: identifiers } },
-        { userId: null, guestId: { $ne: null } },
-      ],
+      guestId,
+      $or: [{ userId: null }, { userId: userObjectId }],
     },
     {
-      $set: {
-        userId: userObjectId,
-        guestId: null,
-      },
+      $set: { userId: userObjectId },
+      $unset: { guestId: 1 },
     },
   );
 
@@ -189,12 +189,11 @@ export async function mergeGuestSessionData({
 
 // Add item to cart (upsert)
 export async function addToCart(
-  identifier: { userId?: string; sessionId?: string },
+  _identifier: { userId?: string; sessionId?: string },
   input: CartItemInput,
 ) {
   await connection();
-  const { userId, sessionId } = identifier;
-  if (!userId && !sessionId) throw new Error("No identifier provided");
+  const owner = await resolveCartOwner();
 
   if (input.quantity <= 0) {
     throw new Error("Quantity must be greater than zero");
@@ -208,16 +207,10 @@ export async function addToCart(
   const availableQty = product.quantity || 0;
   const price = product.price;
 
-  let cart: any = await Cart.findOne({
-    ...(userId ? { userId } : { sessionId }),
-  });
+  let cart: any = await Cart.findOne(owner);
 
   if (!cart) {
-    cart = new Cart({
-      userId: userId || undefined,
-      sessionId: sessionId || undefined,
-      items: [],
-    });
+    cart = new Cart({ ...owner, items: [] });
   }
 
   const currentQtyInCart = cart.items.reduce((sum: number, item: any) => {
@@ -266,17 +259,14 @@ export async function addToCart(
 
 // Update item quantity
 export async function updateCartItem(
-  identifier: { userId?: string; sessionId?: string },
+  _identifier: { userId?: string; sessionId?: string },
   itemId: string,
   quantity: number,
 ) {
   await connection();
-  const { userId, sessionId } = identifier;
-  if (!userId && !sessionId) throw new Error("No identifier");
+  const owner = await resolveCartOwner();
 
-  const cart = await Cart.findOne({
-    ...(userId ? { userId } : { sessionId }),
-  });
+  const cart = await Cart.findOne(owner);
   if (!cart) throw new Error("Cart not found");
 
   const item = cart.items.id(itemId);
@@ -316,17 +306,14 @@ export async function removeFromCart(
 }
 
 // Clear cart
-export async function clearCart(identifier: {
+export async function clearCart(_identifier?: {
   userId?: string;
   sessionId?: string;
 }) {
   await connection();
-  const { userId, sessionId } = identifier;
-  if (!userId && !sessionId) throw new Error("No identifier");
+  const owner = await resolveCartOwner();
 
-  const cart = await Cart.findOne({
-    ...(userId ? { userId } : { sessionId }),
-  });
+  const cart = await Cart.findOne(owner);
   if (!cart) throw new Error("Cart not found");
 
   cart.items = [];
@@ -338,36 +325,16 @@ export async function clearCart(identifier: {
   return { success: true, cart: cartObject };
 }
 
-// Apply discount/coupon
+// Promotions are validated and applied server-side at checkout. This
+// legacy action used to accept an arbitrary discount amount from the
+// browser, which allowed price tampering.
 export async function applyDiscount(
-  identifier: { userId?: string; sessionId?: string },
-  discountValue: number,
-  couponCode?: string,
-) {
-  await connection();
-  const { userId, sessionId } = identifier;
-  if (!userId && !sessionId) throw new Error("No identifier");
-
-  const cart = await Cart.findOne({
-    ...(userId ? { userId } : { sessionId }),
-  });
-  if (!cart) throw new Error("Cart not found");
-
-  // Recompute subtotal first so we can clamp against it
-  await recalculateCart(cart);
-
-  // Clamp discount between 0 and current subtotal
-  const clamped = Math.max(
-    0,
-    Math.min(Number(discountValue) || 0, cart.subtotal),
-  );
-  cart.discount = clamped;
-  if (couponCode) cart.appliedCoupon = couponCode;
-
-  await recalculateCart(cart);
-  await cart.save();
-
-  const cartObject = await populateAndLean(cart);
-  revalidatePath("/pos");
-  return { success: true, cart: cartObject };
+  _identifier?: { userId?: string; sessionId?: string },
+  _discountValue?: number,
+  _couponCode?: string,
+): Promise<{ success: boolean; cart?: any; error?: string }> {
+  return {
+    success: false,
+    error: "Discounts are applied automatically at checkout.",
+  };
 }

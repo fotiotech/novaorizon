@@ -1,5 +1,6 @@
 // app/actions/menu.ts
 "use server";
+import { requireAdmin } from "@/lib/authz";
 
 import { connection } from "@/utils/connection";
 import {
@@ -488,6 +489,7 @@ async function safeDeleteS3(key: string, label = "menu asset") {
 /* -------------------------------------------------------------------------- */
 
 export async function createMenu(menuData: any): Promise<ActionResult<any>> {
+  await requireAdmin();
   try {
     await connection();
 
@@ -517,6 +519,7 @@ export async function updateMenu(
   id: string,
   menuData: any,
 ): Promise<ActionResult<any>> {
+  await requireAdmin();
   try {
     await connection();
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -589,6 +592,7 @@ export async function updateMenu(
 }
 
 export async function deleteMenu(id: string): Promise<ActionResult<null>> {
+  await requireAdmin();
   try {
     await connection();
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -621,6 +625,7 @@ export async function deleteMenu(id: string): Promise<ActionResult<null>> {
 export async function deleteMenuBackgroundImage(
   menuId: string,
 ): Promise<ActionResult<null>> {
+  await requireAdmin();
   try {
     await connection();
     if (!mongoose.Types.ObjectId.isValid(menuId)) {
@@ -644,6 +649,7 @@ export async function deleteMenuBackgroundImage(
 export async function deleteMenuImage(
   menuId: string,
 ): Promise<ActionResult<null>> {
+  await requireAdmin();
   try {
     await connection();
     if (!mongoose.Types.ObjectId.isValid(menuId)) {

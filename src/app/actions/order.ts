@@ -11,6 +11,12 @@ import Transaction from "@/models/Transaction";
 import "@/models/Address";
 import "@/models/PaymentMethod";
 import { recordPromotionUsage } from "./promotions";
+import { requireAdmin, requireUser } from "@/lib/authz";
+import { canAccessOrder } from "@/lib/order-access";
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export async function findOrders(options?: {
   orderNumber?: string;
@@ -24,11 +30,11 @@ export async function findOrders(options?: {
   dateTo?: Date;
   carrier?: string;
 }) {
+  const user = await requireUser();
   await connection();
 
   const {
     orderNumber,
-    userId,
     page = 1,
     limit = 10,
     orderStatus,
@@ -40,14 +46,12 @@ export async function findOrders(options?: {
   } = options || {};
 
   try {
-    let query: any = {};
+    // Always scope to the session user. The `userId` option is accepted
+    // for backwards compatibility but is deliberately ignored.
+    let query: any = { userId: user.id };
 
     if (orderNumber) {
-      query.orderNumber = new RegExp(orderNumber, "i");
-    }
-
-    if (userId) {
-      query.userId = userId;
+      query.orderNumber = new RegExp(escapeRegex(orderNumber), "i");
     }
 
     if (orderStatus) {
@@ -64,7 +68,7 @@ export async function findOrders(options?: {
     }
 
     if (search) {
-      const searchRegex = new RegExp(search, "i");
+      const searchRegex = new RegExp(escapeRegex(search), "i");
       query.$or = [
         { orderNumber: searchRegex },
         { email: searchRegex },
@@ -77,14 +81,16 @@ export async function findOrders(options?: {
       query["shippingAddress.carrier"] = carrier;
     }
 
-    const skip = (page - 1) * limit;
+    const safePage = Math.max(1, Math.floor(Number(page) || 1));
+    const safeLimit = Math.min(50, Math.max(1, Math.floor(Number(limit) || 10)));
+    const skip = (safePage - 1) * safeLimit;
 
     const [orders, total] = await Promise.all([
       Order.find(query)
         .populate("billingAddressId paymentMethodId")
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
+        .limit(safeLimit)
         .lean(),
       Order.countDocuments(query),
     ]);
@@ -96,8 +102,8 @@ export async function findOrders(options?: {
         userId: order.userId ? order.userId.toString() : null,
       })),
       total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.ceil(total / safeLimit),
+      currentPage: safePage,
     };
   } catch (error: any) {
     console.error(`Error fetching orders: ${error.message}`);
@@ -112,6 +118,7 @@ export async function getOrderByNumber(orderNumber: string) {
       .populate("billingAddressId paymentMethodId")
       .lean();
     if (!order) return null;
+    if (!(await canAccessOrder(order))) return null;
     return {
       ...order,
       _id: order._id.toString(),
@@ -130,6 +137,7 @@ export async function updateOrderStatus(
     orderStatus?: OrderDocument["orderStatus"];
   },
 ): Promise<{ success: boolean; order?: any; error?: string }> {
+  await requireAdmin();
   await connection();
 
   if (!orderNumber) {
@@ -355,6 +363,9 @@ export async function requestReturn(
     if (!order) {
       return { success: false, error: "Order not found." };
     }
+    if (!(await canAccessOrder(order))) {
+      return { success: false, error: "Order not found." };
+    }
 
     if (order.paymentStatus !== "paid") {
       return {
@@ -396,7 +407,13 @@ export async function requestReturn(
   }
 }
 
-export async function createOrUpdateOrder(
+/**
+ * Legacy internal helper. It is deliberately NOT exported: exporting a
+ * function from a "use server" module makes it a publicly callable action,
+ * and this one trusts client-supplied prices/status. Checkout now uses
+ * createCheckoutOrderAction, which recomputes everything server-side.
+ */
+async function createOrUpdateOrder(
   payment_ref: string,
   data: Partial<OrderDocument>,
 ): Promise<{ success: boolean; order?: any; error?: string }> {
@@ -567,6 +584,7 @@ export async function createOrUpdateOrder(
 }
 
 export async function deleteOrder(orderNumber: string) {
+  await requireAdmin();
   await connection();
 
   if (!orderNumber) {
@@ -594,6 +612,7 @@ export async function deleteOrder(orderNumber: string) {
 export async function generateTrackingNumber(
   trackingNumber: string,
 ): Promise<string> {
+  await requireAdmin();
   const existing = await Shipping.findOne({ trackingNumber });
   if (existing) {
     return trackingNumber;

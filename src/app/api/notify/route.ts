@@ -1,9 +1,9 @@
-"use server";
-
 import Notification from "@/models/Notification";
 import User from "@/models/User";
 import { NextResponse } from "next/server";
 import Pusher from "pusher";
+import { requireAdmin } from "@/lib/authz";
+import { connection } from "@/utils/connection";
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID as string,
@@ -15,13 +15,17 @@ const pusher = new Pusher({
 
 export async function GET() {
   try {
+    const admin = await requireAdmin();
+    await connection();
     const PAGE_SIZE = 10; // Limit to avoid overloading
-    const notifications = await Notification.find()
+    const notifications = await Notification.find({ userId: admin.id })
       .sort({ timestamp: -1 })
       .limit(PAGE_SIZE);
 
     const userIds = notifications.map((notification) => notification.userId);
-    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const users = await User.find({ _id: { $in: userIds } })
+      .select("name email image role")
+      .lean();
     const userMap = Object.fromEntries(
       users.map((user: any) => [user._id.toString(), user])
     );
@@ -33,29 +37,41 @@ export async function GET() {
 
     return NextResponse.json(notificationsWithUsers);
   } catch (error: any) {
-    console.error("Error fetching notifications or users:", {
-      message: error.message,
-      stack: error.stack,
-    });
+    const status =
+      error && typeof error.status === "number" ? error.status : 500;
     return NextResponse.json(
-      { error: "Failed to fetch data." },
-      { status: 500 }
+      { error: status === 500 ? "Failed to fetch data." : error.message },
+      { status },
     );
   }
 }
 
-// Your API route that triggers the event
+// Admin-only write endpoint. Storefront actions create admin
+// notifications through notifyAdmins() in app/actions/notifications.ts.
 export async function POST(request: Request) {
-  const { userId, message } = await request.json();
+  try {
+    await requireAdmin();
+    await connection();
+    const { userId, message } = await request.json();
 
-  // Save the notification in the database
-  const notification = new Notification({ userId, message });
-  await notification.save();
+    if (typeof message !== "string" || message.trim().length === 0) {
+      return NextResponse.json({ error: "Message is required" }, { status: 400 });
+    }
 
-  // Trigger an event on a channel
-  pusher.trigger("admin-notifications", "new-notification", {
-    message,
-  });
+    const notification = new Notification({ userId, message });
+    await notification.save();
 
-  return NextResponse.json({ status: "Notification sent" });
+    await pusher.trigger("admin-notifications", "new-notification", {
+      id: notification._id.toString(),
+      message,
+    });
+
+    return NextResponse.json({ status: "Notification sent" });
+  } catch (error) {
+    const status =
+      error instanceof Error && "status" in error
+        ? (error as { status: number }).status
+        : 500;
+    return NextResponse.json({ error: "Not authorized" }, { status });
+  }
 }

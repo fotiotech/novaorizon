@@ -4,6 +4,7 @@ import { connection } from "@/utils/connection";
 import Brand from "@/models/Brand";
 import Product from "@/models/Product";
 import slugify from "slugify";
+import { requireAdmin } from "@/lib/authz";
 
 // Fetch all brands, or a single one by id
 export async function getBrands(brandId?: string) {
@@ -40,10 +41,9 @@ export async function findProductsByBrand(
     await connection();
 
     const products = await Product.find({ brand: brandId })
+      .select("-embedding -embeddingText -embeddingModel -embeddedAt -__v")
       .sort({ createdAt: -1 })
       .lean();
-
-    console.log("products", products);
 
     return {
       ok: true,
@@ -74,6 +74,7 @@ export async function createBrand(data: {
   logoUrl?: string;
   status?: "active" | "inactive";
 }) {
+  await requireAdmin();
   await connection();
 
   if (data) {
@@ -93,12 +94,14 @@ export async function updateBrand(
     status: "active" | "inactive";
   }>,
 ) {
+  await requireAdmin();
   await connection();
   await Brand.findByIdAndUpdate(id, data, { new: true });
 }
 
 // Delete a brand
 export async function deleteBrand(id: string) {
+  await requireAdmin();
   await connection();
   await Brand.findByIdAndDelete(id);
 }

@@ -44,8 +44,14 @@ export interface OrderDocument extends Document {
   returnReason?: string;
   returnRequestedAt?: Date;
   refundedAt?: Date;
+  paidAt?: Date;
   paymentMethod: string;
   transaction_id?: string;
+  paymentGateway?: string;
+  paymentReference?: string;
+  idempotencyKey?: string;
+  inventoryDeducted?: boolean;
+  inventoryStatus?: "pending" | "processing" | "deducted" | "shortage";
   billingAddressId?: mongoose.Types.ObjectId;
   paymentMethodId?: mongoose.Types.ObjectId;
   billingAddress: {
@@ -89,6 +95,16 @@ const OrderSchema = new mongoose.Schema<OrderDocument>(
   {
     orderNumber: { type: String, required: true, unique: true },
     transaction_id: { type: String },
+    paymentGateway: { type: String },
+    paymentReference: { type: String },
+    idempotencyKey: { type: String, index: true, sparse: true },
+    paidAt: { type: Date },
+    inventoryDeducted: { type: Boolean, default: false },
+    inventoryStatus: {
+      type: String,
+      enum: ["pending", "processing", "deducted", "shortage"],
+      default: "pending",
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

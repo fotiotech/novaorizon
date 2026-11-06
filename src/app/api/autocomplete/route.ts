@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { autocompleteProducts } from "@/app/actions/autocomplete";
 import { semanticSearch } from "@/app/actions/semanticSearch";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,8 +18,21 @@ const MIN_SEMANTIC_LENGTH = 4;
 const SEMANTIC_LIMIT = 6;
 
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get("q") || "";
-  const limit = parseInt(req.nextUrl.searchParams.get("limit") || "8", 10);
+  const ip = await getClientIp();
+  const rate = await consumeRateLimit(`autocomplete:${ip}`, 120, 60 * 1000);
+  if (!rate.ok) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
+  }
+
+  const rawQuery = req.nextUrl.searchParams.get("q") || "";
+  const q = rawQuery.slice(0, 100);
+  const requestedLimit = parseInt(
+    req.nextUrl.searchParams.get("limit") || "8",
+    10,
+  );
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(20, Math.max(1, requestedLimit))
+    : 8;
 
   if (!q || q.trim().length < 2) {
     return NextResponse.json([]);

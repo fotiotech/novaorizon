@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { trackEvent } from "@/app/actions/events";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const ip = await getClientIp();
+  const limit = await consumeRateLimit(`analytics:${ip}`, 60, 60 * 1000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { ok: false, error: "rate limited" },
+      { status: 429 },
+    );
+  }
+
   let body: any;
   try {
     body = await req.json();

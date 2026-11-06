@@ -3,21 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Types } from "mongoose";
-import { auth } from "@/app/auth";
-import { cookies } from "next/headers";
 
 // Import your models and connection utility
 import { connection } from "@/utils/connection"; // Adjust path to your DB connection
 import Address, { IAddress } from "@/models/Address";
 import { PaymentMethod } from "@/models/PaymentMethod";
+import { getAuthUser, requireUser } from "@/lib/authz";
+import { getOrCreateGuestId } from "@/lib/guest";
 
 // ------------------ Authentication Helper ------------------
-// Replace this with your actual auth logic (NextAuth, Clerk, etc.)
 async function getAuthenticatedUser() {
-  // Example placeholder:
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-  return session.user.id;
+  const user = await requireUser();
+  return user.id;
 }
 
 // ------------------ Validation Schemas (Zod) ------------------
@@ -38,16 +35,12 @@ const addressSchema = z.object({
 /**
  * Create a new billing address for the authenticated user.
  */
-export async function createAddress(formData: FormData, guestId?: string) {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const cookieStore = await cookies();
-  const resolvedGuestId = guestId || cookieStore.get("guestId")?.value;
+export async function createAddress(formData: FormData, _guestId?: string) {
+  const user = await getAuthUser();
+  const userId = user?.id;
+  // Never trust a caller-supplied guestId; use the HttpOnly cookie.
+  const resolvedGuestId = userId ? null : await getOrCreateGuestId();
   await connection();
-
-  if (!userId && !resolvedGuestId) {
-    throw new Error("Unauthorized or guest reference missing");
-  }
 
   // Parse form data into an object
   const rawData = {
@@ -82,24 +75,16 @@ export async function createAddress(formData: FormData, guestId?: string) {
 /**
  * Get all addresses for the authenticated user.
  */
-export async function mergeGuestAddresses({
-  guestId,
-  userId,
-}: {
+export async function mergeGuestAddresses(_args?: {
   guestId?: string;
-  userId: string;
+  userId?: string;
 }) {
+  const user = await requireUser();
   await connection();
 
-  const guestIds = guestId ? [guestId] : [];
-  if (!guestIds.length) {
-    return { success: true, merged: false };
-  }
-
-  const targetUserId = new Types.ObjectId(userId);
-  const guestAddresses = await Address.find({
-    guestId: { $in: guestIds },
-  }).lean();
+  const guestId = await getOrCreateGuestId();
+  const targetUserId = new Types.ObjectId(user.id);
+  const guestAddresses = await Address.find({ guestId }).lean();
   const existingUserAddresses = await Address.find({
     userId: targetUserId,
   }).lean();

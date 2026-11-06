@@ -6,8 +6,9 @@ import Product from "@/models/Product";
 export async function autocompleteProducts(query: string, limit = 8) {
   await connection();
 
-  const q = query?.trim() ?? "";
+  const q = query?.trim().slice(0, 100) ?? "";
   if (q.length < 2) return [];
+  const safeLimit = Math.min(20, Math.max(1, Number(limit) || 8));
 
   const results = await Product.aggregate([
     {
@@ -44,7 +45,7 @@ export async function autocompleteProducts(query: string, limit = 8) {
         score: { $meta: "searchScore" },
       },
     },
-    { $limit: limit },
+    { $limit: safeLimit },
   ]);
 
   return results;

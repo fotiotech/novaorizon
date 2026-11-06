@@ -1,5 +1,6 @@
 // app/actions/seo.ts
 "use server";
+import { requireAdmin } from "@/lib/authz";
 
 import { connection } from "@/utils/connection";
 import SeoSetting from "@/models/SeoSetting";
@@ -38,6 +39,7 @@ export async function getSeoSetting(): Promise<SeoForm> {
 }
 
 export async function saveSeoSetting(input: SeoForm) {
+  await requireAdmin();
   await connection();
   try {
     const data = {

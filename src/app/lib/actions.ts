@@ -4,8 +4,15 @@ import { FormState, SignupFormSchema } from "./definitions";
 import User from "@/models/User";
 import { connection } from "@/utils/connection";
 import crypto from "crypto";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function signup(state: FormState, formData: FormData) {
+  const ip = await getClientIp();
+  const limit = await consumeRateLimit(`signup:${ip}`, 5, 60 * 60 * 1000);
+  if (!limit.ok) {
+    return { error: "Too many sign-up attempts. Please try again later." };
+  }
+
   const validatedFields = SignupFormSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),

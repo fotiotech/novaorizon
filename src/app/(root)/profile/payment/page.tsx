@@ -30,7 +30,7 @@ function getMethodMeta(pm: any) {
             />
           </svg>
         ),
-        title: `Card •••• ${pm.details?.cardNumber?.slice(-4) || "XXXX"}`,
+        title: `Card •••• ${pm.details?.last4 || "XXXX"}`,
         subtitle: pm.details?.cardholderName || "Credit / Debit card",
         accent: "bg-blue-500/10 text-blue-600",
       };

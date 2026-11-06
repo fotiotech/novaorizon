@@ -1,5 +1,6 @@
 // app/actions/content_management.ts
 "use server";
+import { requireAdmin } from "@/lib/authz";
 
 import { connection } from "@/utils/connection";
 import HeroContent, { ITrustBadge } from "@/models/HeroContent";
@@ -167,6 +168,7 @@ export async function findHeroContentById(id: string) {
 /*  Create                                                             */
 /* ------------------------------------------------------------------ */
 export async function createHeroContent(prevState: any, formData: FormData) {
+  await requireAdmin();
   try {
     await connection();
 
@@ -225,6 +227,7 @@ export async function updateHeroContent(
   prevState: any,
   formData: FormData,
 ) {
+  await requireAdmin();
   try {
     await connection();
 
@@ -296,6 +299,7 @@ export async function updateHeroContent(
 /*  Delete                                                             */
 /* ------------------------------------------------------------------ */
 export async function deleteHeroContent(id: string) {
+  await requireAdmin();
   try {
     await connection();
 
@@ -330,6 +334,7 @@ export async function deleteHeroContent(id: string) {
 /*  Image deletion (unchanged behaviour)                               */
 /* ------------------------------------------------------------------ */
 export async function deleteHeroImage(heroId: string, fileUrl: string) {
+  await requireAdmin();
   try {
     await connection();
 

@@ -24,6 +24,7 @@ import { findProducts } from "@/app/actions/products";
 import ProductAttributes from "./ProductAttributes";
 import BottomSheet from "@/components/ux/BottomSheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { htmlToPlainText } from "@/lib/plain-text";
 
 // ---------- Types ----------
 interface Carrier {
@@ -1048,10 +1049,9 @@ export default function ProductDetailsClient({
               collapsedHeight={420}
             >
               {description ? (
-                <div
-                  className="prose prose-sm max-w-none text-foreground"
-                  dangerouslySetInnerHTML={{ __html: description }}
-                />
+                <div className="prose prose-sm max-w-none whitespace-pre-line text-foreground">
+                  {htmlToPlainText(description)}
+                </div>
               ) : (
                 <p className={TYPO.muted}>No description available.</p>
               )}

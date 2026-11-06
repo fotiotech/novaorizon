@@ -4,16 +4,27 @@
 import User from "@/models/User";
 import { connection } from "@/utils/connection";
 import crypto from "crypto";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function requestPasswordReset(prevState: any, formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
 
   if (!email) {
     return { error: "Please provide an email address." };
+  }
+
+  const ip = await getClientIp();
+  const limit = await consumeRateLimit(`reset-request:${ip}:${email}`, 5, 60 * 60 * 1000);
+  if (!limit.ok) {
+    return {
+      error: "Too many reset requests. Please try again later.",
+    };
   }
 
   try {
@@ -38,7 +49,9 @@ export async function requestPasswordReset(prevState: any, formData: FormData) {
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
 
     await resend.emails.send({
-      from: "Acme Security <fotiodev1@gmail.com>",
+      from:
+        process.env.RESEND_FROM_EMAIL ??
+        "Novaorizon Security <onboarding@resend.dev>",
       to: email,
       subject: "Reset your password",
       html: `<p>You requested a password reset. Click <a href="${resetUrl}">here</a> to choose a new password. This link expires in 1 hour.</p>`,

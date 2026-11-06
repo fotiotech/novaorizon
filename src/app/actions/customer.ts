@@ -2,9 +2,11 @@
 
 import { connection } from "@/utils/connection";
 import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/authz";
 
 // ---------- Get customer profile by user ID ----------
-export async function getCustomerProfile(userId: string) {
+export async function getCustomerProfile(_userId?: string) {
+  const user = await requireUser();
   try {
     await connection();
     // Note: Customer profile is managed in the User model
@@ -18,16 +20,21 @@ export async function getCustomerProfile(userId: string) {
 
 // ---------- Get customer reviews ----------
 export async function getCustomerReviews(
-  userId: string,
+  _userId?: string,
   options?: {
     page?: number;
     limit?: number;
   },
 ) {
+  const user = await requireUser();
+  const userId = user.id;
   try {
     await connection();
-    const page = options?.page || 1;
-    const limit = options?.limit || 10;
+    const page = Math.max(1, Math.floor(Number(options?.page) || 1));
+    const limit = Math.min(
+      50,
+      Math.max(1, Math.floor(Number(options?.limit) || 10)),
+    );
     const skip = (page - 1) * limit;
 
     const Review = (global as any).mongoose?.models?.Review;
@@ -68,7 +75,11 @@ export async function getCustomerReviews(
 }
 
 // ---------- Delete customer review ----------
-export async function deleteCustomerReview(reviewId: string, userId: string) {
+export async function deleteCustomerReview(
+  reviewId: string,
+  _userId?: string,
+) {
+  const user = await requireUser();
   try {
     await connection();
     const Review = (global as any).mongoose?.models?.Review;
@@ -82,7 +93,7 @@ export async function deleteCustomerReview(reviewId: string, userId: string) {
       return { success: false, error: "Review not found" };
     }
 
-    if (review.userId.toString() !== userId) {
+    if (review.userId.toString() !== user.id) {
       return { success: false, error: "Unauthorized" };
     }
 

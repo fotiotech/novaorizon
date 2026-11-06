@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUserData } from "@/app/context/UserDataContext";
 import OrderSummary from "@/components/cart/OrderSummary";
-import { createOrUpdateOrder } from "@/app/actions/order";
+import { createCheckoutOrderAction } from "@/app/actions/checkout";
 import { IAddress } from "@/models/Address";
 import { IPaymentMethod } from "@/models/PaymentMethod";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
@@ -15,7 +15,6 @@ import { toast } from "react-hot-toast";
 import { getCarriers, calculateShippingPrice } from "@/app/actions/carrier";
 import { findProducts } from "@/app/actions/products";
 import Spinner from "@/components/Spinner";
-import { notifyAdminsAboutNewOrder } from "@/app/actions/notifications";
 import {
   previewCartDiscounts,
   validatePromotionCode,
@@ -521,74 +520,50 @@ const CheckoutClient = () => {
     guestForm.city &&
     guestForm.country;
 
-  const buildOrderData = (
+  /**
+   * The browser only chooses what to buy, where to ship it, and how to
+   * pay. Prices, discounts, shipping and totals are recomputed on the
+   * server by createCheckoutOrderAction.
+   */
+  const buildCheckoutInput = (
     paymentMethod: string,
     paymentMethodId?: string,
-  ): any => {
-    const shippingCost = shippingPrice?.shippingPrice || 0;
-    const effectiveDiscount = discountResult?.totalDiscount ?? discount;
-    const total = Math.max(
-      0,
-      subtotal + tax - effectiveDiscount + shippingCost,
-    );
-
-    const products = items.map((item) => ({
-      productId: item.productId,
-      name: item.name,
-      imageUrl: item.image || "",
-      quantity: item.quantity,
-      price: item.price,
-    }));
-
-    return {
-      userId: (user as any)?.id || null,
-      email: user?.email || guestForm.email || "",
-      firstName:
-        user?.firstName ||
-        (user as any)?.name?.split(" ")[0] ||
-        guestForm.firstName ||
-        "",
-      lastName:
-        user?.lastName ||
-        (user as any)?.name?.split(" ").slice(1).join(" ") ||
-        guestForm.lastName ||
-        "",
-      products,
-      subtotal,
-      tax,
-      discount: effectiveDiscount,
-      shippingCost,
-      total,
-      paymentStatus: "pending",
-      paymentMethod,
-      paymentMethodId: paymentMethodId || null,
-      billingAddressId: selectedAddressId || null,
-      billingAddress: {
-        street: addressData.street,
-        city: addressData.city,
-        region: addressData.region,
-        address: addressData.address,
-        country: addressData.country,
-      },
-      shippingAddress: {
-        street: addressData.street,
-        city: addressData.city,
-        region: addressData.region,
-        address: addressData.address,
-        country: addressData.country,
-        carrier: shippingPrice?.carrierName || "",
-      },
-      carrierId: selectedCarrierId,
-      orderStatus: "pending",
-      appliedPromotions: (discountResult?.applied ?? []).map((a) => ({
-        promotionId: a._id,
-        name: a.name,
-        code: a.code,
-        discount: a.discount,
-        calculationType: a.calculationType,
-      })),
-    };
-  };
+    keyOverride?: string,
+  ) => ({
+    idempotencyKey: keyOverride || orderNumber || undefined,
+    items: items.map((item) => ({
+      productId: String(item.productId),
+      quantity: Number(item.quantity),
+      variant: item.variant ? String(item.variant) : undefined,
+    })),
+    appliedCodes,
+    carrierId: selectedCarrierId || undefined,
+    shippingAddress: {
+      street: addressData.street,
+      city: addressData.city,
+      region: addressData.region,
+      address: addressData.address,
+      country: addressData.country,
+      carrier: shippingPrice?.carrierName || "",
+    },
+    billingAddress: {
+      street: addressData.street,
+      city: addressData.city,
+      region: addressData.region,
+      address: addressData.address,
+      country: addressData.country,
+    },
+    billingAddressId: selectedAddressId || null,
+    paymentMethod,
+    paymentMethodId: paymentMethodId || null,
+    guest: !user
+      ? {
+          firstName: guestForm.firstName,
+          lastName: guestForm.lastName,
+          email: guestForm.email,
+        }
+      : undefined,
+  });
 
   const selectedPaymentMethod = paymentMethods.find(
     (pm: any) => pm._id?.toString() === selectedPaymentMethodId,
@@ -682,26 +657,21 @@ const CheckoutClient = () => {
     }
 
     try {
-      const orderData = buildOrderData(
-        selectedPaymentMethod.methodType,
-        selectedPaymentMethodId,
+      const result = await createCheckoutOrderAction(
+        buildCheckoutInput(
+          selectedPaymentMethod.methodType,
+          selectedPaymentMethodId,
+          finalOrderNumber,
+        ),
       );
-      const result = await createOrUpdateOrder(finalOrderNumber, orderData);
       if (!result.success) {
         throw new Error(result.error || "Failed to create order");
       }
 
-      void notifyAdminsAboutNewOrder({
-        orderNumber: finalOrderNumber,
-        customerName:
-          user?.firstName ||
-          user?.fullName?.split(" ")[0] ||
-          guestForm.firstName ||
-          "",
-        total: orderData.total,
-      });
-
-      openPaymentModal(selectedPaymentMethod.methodType, finalOrderNumber);
+      const created = result.order;
+      setOrderNumber(created.orderNumber);
+      setRoomId(created.orderNumber);
+      openPaymentModal(selectedPaymentMethod.methodType, created.orderNumber);
     } catch (error: any) {
       console.error("Pay Now error:", error.message || error);
       toast.error(error.message || "Failed to proceed to payment");
@@ -744,24 +714,17 @@ const CheckoutClient = () => {
     }
 
     try {
-      const orderData = buildOrderData("CashOnDelivery", undefined);
-      orderData.paymentStatus = "pending";
-      const result = await createOrUpdateOrder(finalOrderNumber, orderData);
+      const result = await createCheckoutOrderAction(
+        buildCheckoutInput("CashOnDelivery", undefined, finalOrderNumber),
+      );
       if (!result.success) {
         throw new Error(result.error || "Failed to create order");
       }
 
-      void notifyAdminsAboutNewOrder({
-        orderNumber: finalOrderNumber,
-        customerName:
-          user?.firstName ||
-          user?.fullName?.split(" ")[0] ||
-          guestForm.firstName ||
-          "",
-        total: orderData.total,
-      });
-
-      openPaymentModal("CashOnDelivery", finalOrderNumber);
+      const created = result.order;
+      setOrderNumber(created.orderNumber);
+      setRoomId(created.orderNumber);
+      openPaymentModal("CashOnDelivery", created.orderNumber);
     } catch (error: any) {
       console.error("COD order error:", error.message || error);
       toast.error(error.message || "Failed to place order");
@@ -1047,7 +1010,7 @@ const CheckoutClient = () => {
                         >
                           {pm.methodType} –{" "}
                           {pm.methodType === "CreditCard"
-                            ? `•••• ${pm.details.cardNumber?.slice(-4) || "XXXX"}`
+                            ? `•••• ${pm.details.last4 || "XXXX"}`
                             : pm.methodType === "MobileMoney"
                               ? `${pm.details.provider} ${pm.details.phoneNumber}`
                               : pm.details.email || ""}

@@ -17,6 +17,8 @@ export async function searchProducts(
   size = 20,
 ) {
   await connection();
+  const safePage = Math.max(1, Math.floor(Number(page) || 1));
+  const safeSize = Math.min(50, Math.max(1, Math.floor(Number(size) || 20)));
 
   // ----- 1. Build the $search stage -----
   const searchStage: any = { index: SEARCH_INDEX };
@@ -127,8 +129,8 @@ export async function searchProducts(
       $facet: {
         hits: [
           { $addFields: { score: { $meta: "searchScore" } } },
-          { $skip: (page - 1) * size },
-          { $limit: size },
+          { $skip: (safePage - 1) * safeSize },
+          { $limit: safeSize },
           {
             $project: {
               variants: 0,

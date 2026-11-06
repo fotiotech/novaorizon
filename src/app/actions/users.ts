@@ -2,7 +2,7 @@
 
 import { connection } from "@/utils/connection";
 import User from "@/models/User";
-import { auth } from "../auth";
+import { requireAdmin, requireUser } from "@/lib/authz";
 
 /* -------------------------------------------------------------------------- */
 /*                             Lean return shapes                             */
@@ -42,6 +42,7 @@ type LeanProfileDoc = {
 /* -------------------------------------------------------------------------- */
 
 export async function findUsers(_id?: string) {
+  await requireAdmin();
   await connection();
   if (_id) {
     const data = await User.findOne({ _id });
@@ -63,9 +64,8 @@ export async function findUsers(_id?: string) {
 }
 
 export async function getUserProfile() {
-  const session = await auth();
-  const userId = (session?.user as any)?.id;
-  if (!userId) return null;
+  const session = await requireUser();
+  const userId = session.id;
 
   await connection();
 
@@ -119,9 +119,8 @@ export async function updateUserProfile(payload: {
     newsletter?: boolean;
   };
 }) {
-  const session = await auth();
-  const userId = (session?.user as any)?.id;
-  if (!userId) return { error: "Not authenticated" };
+  const session = await requireUser();
+  const userId = session.id;
 
   await connection();
 

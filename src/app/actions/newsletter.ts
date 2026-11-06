@@ -8,6 +8,8 @@ import { connection } from "@/utils/connection";
 import NewsletterSubscriber from "@/models/NewsletterSubscriber";
 import User from "@/models/User";
 import { EMAIL_REGEX } from "@/app/lib/definitions";
+import { requireAdmin } from "@/lib/authz";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 function makeToken() {
   return crypto.randomBytes(24).toString("hex");
@@ -20,10 +22,15 @@ export async function subscribeToNewsletter(payload: {
   source?: string;
   userId?: string | null;
 }): Promise<{ success: boolean; error?: string; message?: string }> {
+  const ip = await getClientIp();
+  const limit = await consumeRateLimit(`newsletter:${ip}`, 10, 60 * 60 * 1000);
+  if (!limit.ok) {
+    return { success: false, error: "Too many requests. Please try again later." };
+  }
   await connection();
 
   try {
-    const email = payload.email?.trim().toLowerCase();
+    const email = payload.email?.trim().toLowerCase().slice(0, 200);
 
     if (!email) {
       return { success: false, error: "Please enter your email address." };
@@ -152,6 +159,7 @@ export async function getNewsletterSubscribers(options?: {
   currentPage: number;
   counts: Record<string, number>;
 }> {
+  await requireAdmin();
   await connection();
 
   const { status, search, page = 1, limit = 20 } = options || {};
@@ -201,6 +209,7 @@ export async function getNewsletterSubscribers(options?: {
 export async function deleteNewsletterSubscriber(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
   await connection();
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return { success: false, error: "Invalid id." };
@@ -222,6 +231,7 @@ export async function exportNewsletterCsv(): Promise<{
   csv?: string;
   error?: string;
 }> {
+  await requireAdmin();
   await connection();
   try {
     const subs = await NewsletterSubscriber.find({ status: "subscribed" })
