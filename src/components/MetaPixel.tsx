@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 declare global {
   interface Window {
@@ -15,12 +15,19 @@ const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
 export default function MetaPixel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isInitialPageView = useRef(true);
 
   useEffect(() => {
-    if (!PIXEL_ID || !window.fbq) return;
+    if (!PIXEL_ID) return;
 
-    // Track standard pageview on route changes
-    window.fbq("track", "PageView");
+    // The base pixel script below already fires the initial PageView.
+    // Only fire PageView for subsequent client-side navigations.
+    if (isInitialPageView.current) {
+      isInitialPageView.current = false;
+      return;
+    }
+
+    window.fbq?.("track", "PageView");
   }, [pathname, searchParams]);
 
   if (!PIXEL_ID) return null;
@@ -37,20 +44,20 @@ export default function MetaPixel() {
           n.queue=[];t=b.createElement(e);t.async=!0;
           t.src=v;s=b.getElementsByTagName(e)[0];
           s.parentNode.insertBefore(t,s)}(window, document,'script',
-          'https://facebook.net');
-          fbq('init', '${PIXEL_ID}');
+          'https://connect.facebook.net/en_US/fbevents.js');
+          fbq('init', ${JSON.stringify(PIXEL_ID)});
           fbq('track', 'PageView');
         `}
       </Script>
+
       {/* Fallback for users with JavaScript disabled */}
       <noscript>
         <img
-          className="hidden"
           height="1"
           width="1"
           style={{ display: "none" }}
-          src={`https://facebook.com{PIXEL_ID}&ev=PageView&noscript=1`}
-          alt="pixel-fallback"
+          src={`https://www.facebook.com/tr?id=${PIXEL_ID}&ev=PageView&noscript=1`}
+          alt=""
         />
       </noscript>
     </>
