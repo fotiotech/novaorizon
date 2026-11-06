@@ -4,8 +4,8 @@
 import { connection } from "@/utils/connection";
 import mongoose from "mongoose";
 import Product from "@/models/Product";
-import Brand from "@/models/Brand";
-import Category from "@/models/Category";
+import "@/models/Brand";
+import "@/models/Category";
 import "@/models/User";
 import "@/models/Attribute";
 import { requireAdmin } from "@/lib/authz";
