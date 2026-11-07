@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/authz";
 import { connection } from "@/utils/connection";
 import HeroContent, { ITrustBadge } from "@/models/HeroContent";
 import TrustBadge from "@/models/TrustBadge";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { deleteS3Object } from "./s3";
 import mongoose from "mongoose";
 
@@ -202,10 +202,9 @@ export async function createHeroContent(prevState: any, formData: FormData) {
 
     await newHeroContent.save();
     revalidatePath("/");
-    revalidatePath("/content-management/app/hero_content");
+    revalidatePath("/channels/store/content/hero");
     // Library usage counts change → refresh the badges admin page too.
-    revalidatePath("/content-management/trust-badges");
-
+    revalidatePath("/channels/store/content/trust_badges");
     return {
       success: true,
       message: "Hero content created successfully",
@@ -279,8 +278,9 @@ export async function updateHeroContent(
     }
 
     revalidatePath("/");
-    revalidatePath("/content-management/app/hero_content");
-    revalidatePath("/content-management/trust-badges");
+    revalidatePath("/channels/store/content/hero");
+    // Library usage counts change → refresh the badges admin page too.
+    revalidatePath("/channels/store/content/trust_badges");
 
     return {
       success: true,
@@ -321,8 +321,9 @@ export async function deleteHeroContent(id: string) {
     await hero.deleteOne();
 
     revalidatePath("/");
-    revalidatePath("/content-management/app/hero_content");
-    revalidatePath("/content-management/trust-badges");
+    revalidatePath("/channels/store/content/hero");
+    // Library usage counts change → refresh the badges admin page too.
+    revalidatePath("/channels/store/content/trust_badges");
     return { success: true, message: "Hero content deleted successfully" };
   } catch (error) {
     console.error("Error deleting hero content:", error);

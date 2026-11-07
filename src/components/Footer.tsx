@@ -13,7 +13,7 @@ import {
 import NewsletterForm from "./NewsletterForm";
 import { PAYMENT_LOGOS } from "./PaymentLogos";
 
-const Footer = () => {
+const Footer = async () => {
   return (
     <footer className="bg-primary text-primary-foreground border-t border-white/20 w-full">
       <div className="px-4 lg:px-10 py-12 max-w-7xl mx-auto">
