@@ -1,10 +1,17 @@
-// components/content/CarouselRail.tsx
+// components/content/Carousel.tsx
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ContentCard } from "./ContentCard";
 import type { NormalizedContentItem } from "@/lib/content/resolve";
-import type { CardSize, CardVariant, CardShape } from "@/lib/content/constants";
+import type {
+  CardSize,
+  CardVariant,
+  CardShape,
+  CardRatio,
+  TitlePosition,
+  ImagePosition,
+} from "@/lib/content/constants";
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -14,6 +21,10 @@ export interface CardOverride {
   size?: CardSize;
   variant?: CardVariant;
   shape?: CardShape;
+  ratio?: CardRatio;
+  titlePosition?: TitlePosition;
+  imagePosition?: ImagePosition;
+  textColor?: string;
 }
 
 interface CarouselRailProps {
@@ -102,6 +113,15 @@ export function CarouselRail({
 
   if (!items.length) return null;
 
+  // Width of each rail slide follows `cardSize` so small cards fit more
+  // in view and large cards feel bigger.
+  const slideWidthCls =
+    cardOverride?.size === "sm"
+      ? "w-32 sm:w-40 md:w-44"
+      : cardOverride?.size === "lg"
+        ? "w-48 sm:w-56 md:w-64"
+        : "w-40 sm:w-48 md:w-56";
+
   const btnCls =
     "absolute top-1/2 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-foreground shadow-md backdrop-blur transition hover:bg-background hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1";
 
@@ -127,7 +147,7 @@ export function CarouselRail({
         {items.map((item) => (
           <div
             key={`${item.contentType}:${item._id}`}
-            className="w-40 shrink-0 snap-start sm:w-48 md:w-56"
+            className={`${slideWidthCls} shrink-0 snap-start`}
           >
             <ContentCard
               item={item}
@@ -135,6 +155,10 @@ export function CarouselRail({
               size={cardOverride?.size}
               variant={cardOverride?.variant}
               shape={cardOverride?.shape}
+              ratio={cardOverride?.ratio}
+              titlePosition={cardOverride?.titlePosition}
+              imagePosition={cardOverride?.imagePosition}
+              textColor={cardOverride?.textColor}
             />
           </div>
         ))}
