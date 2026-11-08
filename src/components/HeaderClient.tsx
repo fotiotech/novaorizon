@@ -33,7 +33,7 @@ import ProfilePopover from "@/app/(root)/profile/components/ux/ProfilePopover";
 export type { NavItem, NavMenu, NavMenuConfig };
 
 // ---------- Logo sources ----------
-const LOGO_DARK = "/novaorizon.png";
+const LOGO_DARK = "/logo2.png";
 
 interface HeaderClientProps {
   navMenu: NavMenu | null;
