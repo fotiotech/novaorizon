@@ -52,8 +52,8 @@ const Logo = React.memo(() => (
   >
     <Image
       src={LOGO_DARK}
-      width={100}
-      height={100}
+      width={124}
+      height={124}
       alt="Novaorizon"
       priority
       className="h-auto w-auto"
@@ -88,7 +88,7 @@ const UserProfile = React.memo(() => {
       <Link
         href="/profile"
         onClick={togglePopover}
-        className="flex items-center gap-1.5 rounded-md text-sm text-primary-foreground transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-ring"
+        className="flex items-center gap-1.5 rounded-md text-base text-primary-foreground transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-ring"
         aria-label="Profile"
         aria-haspopup="dialog"
         aria-expanded={isPopoverOpen}
@@ -97,7 +97,7 @@ const UserProfile = React.memo(() => {
         <div className="relative">
           {unreadCount > 0 && (
             <span
-              className="absolute -right-1 -top-1 z-10 min-w-[18px] rounded-full bg-destructive px-1.5 text-center text-[10px] font-bold leading-5 text-destructive-foreground"
+              className="absolute -right-1 -top-1 z-10 min-w-[20px] rounded-full bg-destructive px-1.5 text-center text-[11px] font-bold leading-[20px] text-destructive-foreground"
               aria-label={`${unreadCount} unread messages`}
             >
               {unreadCount}
@@ -107,11 +107,11 @@ const UserProfile = React.memo(() => {
             <img
               src={user.image}
               alt={user?.name ?? "Profile"}
-              className="h-7 w-7 rounded-full object-cover border border-primary-foreground/30 transition-transform hover:scale-110"
+              className="h-9 w-9 rounded-full object-cover border border-primary-foreground/30 transition-transform hover:scale-110"
             />
           ) : (
             <Person
-              style={{ fontSize: 28 }}
+              style={{ fontSize: 32 }}
               className="text-primary-foreground transition-transform hover:scale-110"
             />
           )}
@@ -152,7 +152,7 @@ const CartIcon = React.memo(() => {
     <div ref={wrapperRef} className="relative">
       {itemCount > 0 && (
         <span
-          className="absolute -right-1 -top-1 z-10 min-w-[18px] rounded-full bg-destructive px-1.5 text-center text-[10px] font-bold leading-5 text-destructive-foreground"
+          className="absolute -right-1 -top-1 z-10 min-w-[20px] rounded-full bg-destructive px-1.5 text-center text-[11px] font-bold leading-[20px] text-destructive-foreground"
           aria-label={`${itemCount} items in cart`}
         >
           {itemCount}
@@ -166,7 +166,7 @@ const CartIcon = React.memo(() => {
         aria-label="Shopping cart"
       >
         <ShoppingCart
-          style={{ fontSize: 28 }}
+          style={{ fontSize: 32 }}
           className="text-primary-foreground"
         />
       </Link>
@@ -233,7 +233,7 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
                 className="rounded-full p-2 transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <Menu
-                  style={{ fontSize: 28 }}
+                  style={{ fontSize: 32 }}
                   className="text-primary-foreground"
                 />
               </button>
@@ -258,10 +258,10 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
               type="button"
               onClick={openSearch}
               aria-label="Open search"
-              className="flex w-full items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-left text-sm transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex w-full items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-left text-base transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <Search
-                style={{ fontSize: 20 }}
+                style={{ fontSize: 22 }}
                 className="shrink-0 text-primary-foreground"
               />
               <span className="truncate text-primary-foreground/90">

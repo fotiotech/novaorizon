@@ -74,7 +74,9 @@ const MAX_ITEMS = 50;
 const MAX_QTY = 99;
 
 function clean(value: unknown, max = 200): string {
-  return String(value ?? "").trim().slice(0, max);
+  return String(value ?? "")
+    .trim()
+    .slice(0, max);
 }
 
 type CompleteAddress = Required<Omit<CheckoutAddress, "carrier">>;
@@ -182,14 +184,20 @@ export async function createCheckoutOrder(
 
     const shippingAddress = normalizeAddress(input.shippingAddress ?? {});
     if (!isCompleteAddress(shippingAddress)) {
-      return { success: false, error: "A complete shipping address is required." };
+      return {
+        success: false,
+        error: "A complete shipping address is required.",
+      };
     }
 
     const billingAddress = input.billingAddress
       ? normalizeAddress(input.billingAddress)
       : shippingAddress;
     if (!isCompleteAddress(billingAddress)) {
-      return { success: false, error: "A complete billing address is required." };
+      return {
+        success: false,
+        error: "A complete billing address is required.",
+      };
     }
 
     if (!user) {
@@ -205,7 +213,8 @@ export async function createCheckoutOrder(
     }
 
     const idempotencyKey =
-      clean(input.idempotencyKey, 120) || `srv-${randomBytes(16).toString("hex")}`;
+      clean(input.idempotencyKey, 120) ||
+      `srv-${randomBytes(16).toString("hex")}`;
     const ownerFilter = user
       ? { userId: new mongoose.Types.ObjectId(user.id) }
       : { guestId };
@@ -233,9 +242,7 @@ export async function createCheckoutOrder(
       )
       .lean();
 
-    const productMap = new Map(
-      products.map((p: any) => [String(p._id), p]),
-    );
+    const productMap = new Map(products.map((p: any) => [String(p._id), p]));
 
     const orderProducts: Array<{
       productId: mongoose.Types.ObjectId;
@@ -267,8 +274,7 @@ export async function createCheckoutOrder(
         };
       }
 
-      let unitPrice =
-        Number(product.price) || Number(product.listPrice) || 0;
+      let unitPrice = Number(product.price) || Number(product.listPrice) || 0;
       if (item.variant && Array.isArray(product.variants)) {
         const variant = product.variants.find(
           (v: any) =>
@@ -340,7 +346,10 @@ export async function createCheckoutOrder(
 
     const discount = Math.max(
       0,
-      Math.min(Number(discountResult.totalDiscount) || 0, subtotal + shippingCost),
+      Math.min(
+        Number(discountResult.totalDiscount) || 0,
+        subtotal + shippingCost,
+      ),
     );
     const total = Math.max(0, subtotal + shippingCost - discount);
 
@@ -371,7 +380,10 @@ export async function createCheckoutOrder(
       "Customer";
     const lastName =
       clean(input.guest?.lastName, 80) ||
-      clean(user?.name ?? "", 80).split(/\s+/).slice(1).join(" ") ||
+      clean(user?.name ?? "", 80)
+        .split(/\s+/)
+        .slice(1)
+        .join(" ") ||
       "Customer";
 
     let orderNumber = makeOrderNumber();
@@ -425,7 +437,11 @@ export async function createCheckoutOrder(
       })),
     });
 
-    return { success: true, order: toSummary(created.toObject()), reused: false };
+    return {
+      success: true,
+      order: toSummary(created.toObject()),
+      reused: false,
+    };
   } catch (error: any) {
     console.error("[createCheckoutOrder] failed:", error?.message ?? error);
     return { success: false, error: "Unable to create the order." };
