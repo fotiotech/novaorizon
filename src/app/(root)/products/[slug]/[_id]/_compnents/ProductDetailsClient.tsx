@@ -25,6 +25,8 @@ import ProductAttributes from "./ProductAttributes";
 import BottomSheet from "@/components/ux/BottomSheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { htmlToPlainText } from "@/lib/plain-text";
+import { LikeButton } from "@/components/content/LikeButton";
+import { ShareButton } from "@/components/content/ShareButton";
 
 // ---------- Types ----------
 interface Carrier {
@@ -144,11 +146,6 @@ function doesCarrierServeAddress(carrier: Carrier, address: any): boolean {
 }
 
 // ---------- Fade-preview section ----------
-// Shows a clipped preview of its children with a gradient fade at the bottom
-// and an "Expand all" pill centered over the fade. Expanding reveals the full
-// content and swaps the pill for a "Show less" link. The fade + pill are only
-// rendered when the content actually overflows the collapsed height, so short
-// sections don't get a pointless toggle.
 function FadePreview({
   id,
   title,
@@ -674,7 +671,6 @@ export default function ProductDetailsClient({
   const [isReviewSheetOpen, setIsReviewSheetOpen] = useState(false);
   const initialLoadComplete = useRef(false);
 
-  // Independent preview/expanded state for the two fade sections.
   const [specsExpanded, setSpecsExpanded] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
@@ -910,9 +906,16 @@ export default function ProductDetailsClient({
 
           {/* Row 1 / Col 2 — transactional info */}
           <div className="text-foreground lg:pt-6">
-            <h1 className={`${TYPO.pageTitle} mb-2`}>
-              <ProductTitle name={name} brand={brand} />
-            </h1>
+            {/* Title row — like + share live at the right edge */}
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <h1 className={TYPO.pageTitle}>
+                <ProductTitle name={name} brand={brand} />
+              </h1>
+              <div className="flex flex-shrink-0 items-center gap-2">
+                <LikeButton itemId={_id} size="md" />
+                <ShareButton title={name} productId={_id} size="md" />
+              </div>
+            </div>
 
             <div className="mb-2 flex items-baseline gap-3">
               <p className={TYPO.price}>
@@ -1021,10 +1024,8 @@ export default function ProductDetailsClient({
           <div className="border-t border-border md:col-span-2">
             {!isMobile && (
               <>
-                {/* Plain key features — no fade */}
                 <ProductAttributes product={product} variant="keyFeatures" />
 
-                {/* Fade-preview specifications */}
                 <FadePreview
                   id="product-specifications-section"
                   title="Specifications"
@@ -1040,7 +1041,6 @@ export default function ProductDetailsClient({
               </>
             )}
 
-            {/* Fade-preview description */}
             <FadePreview
               id="product-description-section"
               title="Description"
@@ -1059,7 +1059,6 @@ export default function ProductDetailsClient({
           </div>
         </div>
 
-        {/* Related products (server-rendered slot) */}
         {relatedSlot ? (
           <div className="mt-6 border-t border-border pt-4">{relatedSlot}</div>
         ) : null}

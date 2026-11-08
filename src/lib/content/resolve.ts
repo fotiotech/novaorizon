@@ -26,6 +26,12 @@ export interface NormalizedContentItem {
   badge?: string | null;
   subline?: string | null;
   meta?: { code?: string };
+
+  /** Only set on items that carry reviews (currently: Products with at
+   *  least one `reviewsRatings` entry). 0..5, snapped at display time. */
+  averageRating?: number;
+  /** Number of reviews contributing to `averageRating`. */
+  reviewCount?: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -52,6 +58,30 @@ function buildHref(
 }
 
 /* -------------------------------------------------------------------------- */
+/*                             Rating derivation                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Derive `{ averageRating, reviewCount }` from a raw doc's `reviewsRatings`.
+ * Returns `{}` when there are no reviews so callers can spread the result and
+ * keep both fields optional on the normalized item.
+ */
+function ratingFields(
+  doc: any,
+): Pick<NormalizedContentItem, "averageRating" | "reviewCount"> {
+  const reviews = Array.isArray(doc?.reviewsRatings) ? doc.reviewsRatings : [];
+  if (reviews.length === 0) return {};
+  const sum = reviews.reduce(
+    (s: number, r: any) => s + (Number(r?.rating) || 0),
+    0,
+  );
+  return {
+    averageRating: sum / reviews.length,
+    reviewCount: reviews.length,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /*                                Normalizers                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -71,6 +101,7 @@ function normalizeProduct(doc: any): NormalizedContentItem {
     contentType: "Product",
     price: typeof doc.price === "number" ? doc.price : null,
     listPrice: typeof doc.listPrice === "number" ? doc.listPrice : null,
+    ...ratingFields(doc),
   };
 }
 

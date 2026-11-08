@@ -1,3 +1,4 @@
+// app/actions/events.ts
 "use server";
 
 import { connection } from "@/utils/connection";
@@ -11,6 +12,9 @@ import { isBot, detectDevice } from "../lib/events/botDetection";
 import Pusher from "pusher"; // optional — remove if not using Pusher
 import { requireUser } from "@/lib/authz";
 import { getGuestId } from "@/lib/guest";
+import { EventRollup } from "@/models/EventRollup";
+import { DailyStats } from "@/models/DailyStats";
+import { VisitorDay } from "@/models/VisitorDay";
 
 type EventType = IEvent["eventType"];
 
@@ -79,6 +83,8 @@ export async function trackEvent(params: TrackEventParams) {
     cart_add: 3,
     purchase: 5,
     like: 2,
+    unlike: -2,
+    share: 3,
     page_view: 1,
   };
 
@@ -162,7 +168,11 @@ export async function trackEvent(params: TrackEventParams) {
     timestamp: event.timestamp,
   });
 
-  if (eventType === "purchase" || eventType === "like") {
+  if (
+    eventType === "purchase" ||
+    eventType === "like" ||
+    eventType === "unlike"
+  ) {
     revalidatePath("/");
   }
 
@@ -318,10 +328,7 @@ export async function getRecentlyViewed(limit: number = 5) {
 }
 
 // ─── 6. Merge guest events ────────────────────────────────
-export async function mergeGuestEvents(
-  _guestId?: string,
-  _newUserId?: string,
-) {
+export async function mergeGuestEvents(_guestId?: string, _newUserId?: string) {
   const user = await requireUser();
   const guestId = await getGuestId();
   if (!guestId) return;
@@ -383,10 +390,6 @@ export async function getRelatedProducts(
 }
 
 // ─── 8. Rollup-backed fast trending (over 7d) ─────────────
-import { EventRollup } from "@/models/EventRollup";
-import { DailyStats } from "@/models/DailyStats";
-import { VisitorDay } from "@/models/VisitorDay";
-
 export async function getTrendingItemsFast(days = 7, limit = 10) {
   await connection();
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -407,4 +410,118 @@ export async function getTrendingItemsFast(days = 7, limit = 10) {
     { $match: { "product.status": "active" } },
     { $replaceRoot: { newRoot: "$product" } },
   ]);
+}
+
+// ─── 9. Likes ─────────────────────────────────────────────
+
+export interface LikeState {
+  liked: boolean;
+  count: number;
+}
+
+/**
+ * Batch "did I like this?" + public "how many users currently like this"
+ * for a set of products.
+ *
+ * Both values are derived from the latest like/unlike event per
+ * `(itemId, userId)` — a `like` event means "liked", an `unlike` event
+ * means "not liked". The `$sort` + `$group` + `$first` pattern is the
+ * "last event wins" fold.
+ *
+ * Bots never reach the `Event` collection (trackEvent() rejects them at
+ * the door), so no `isBot` filter is required here.
+ */
+export async function getLikeStates(
+  itemIds: string[],
+): Promise<Record<string, LikeState>> {
+  if (!Array.isArray(itemIds) || itemIds.length === 0) return {};
+  const validIds = itemIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+  if (validIds.length === 0) return {};
+
+  await connection();
+  const objIds = validIds.map((id) => new Types.ObjectId(id));
+  const userId = await getCurrentUserId();
+
+  const [counts, mine] = await Promise.all([
+    Event.aggregate<{ _id: Types.ObjectId; count: number }>([
+      {
+        $match: {
+          itemId: { $in: objIds },
+          eventType: { $in: ["like", "unlike"] },
+        },
+      },
+      { $sort: { timestamp: -1, _id: -1 } },
+      {
+        $group: {
+          _id: { itemId: "$itemId", userId: "$userId" },
+          lastType: { $first: "$eventType" },
+        },
+      },
+      { $match: { lastType: "like" } },
+      { $group: { _id: "$_id.itemId", count: { $sum: 1 } } },
+    ]),
+    userId
+      ? Event.aggregate<{ _id: Types.ObjectId }>([
+          {
+            $match: {
+              userId,
+              itemId: { $in: objIds },
+              eventType: { $in: ["like", "unlike"] },
+            },
+          },
+          { $sort: { timestamp: -1, _id: -1 } },
+          {
+            $group: { _id: "$itemId", lastType: { $first: "$eventType" } },
+          },
+          { $match: { lastType: "like" } },
+        ])
+      : Promise.resolve([] as { _id: Types.ObjectId }[]),
+  ]);
+
+  const countMap = new Map(counts.map((c) => [String(c._id), c.count]));
+  const likedSet = new Set(mine.map((m) => String(m._id)));
+
+  const out: Record<string, LikeState> = {};
+  for (const id of validIds) {
+    out[id] = { liked: likedSet.has(id), count: countMap.get(id) ?? 0 };
+  }
+  return out;
+}
+
+/**
+ * Flip the current user's like state for `itemId` by appending a
+ * `like`/`unlike` event. Returns `null` when the caller isn't
+ * authenticated so the client can revert its optimistic update.
+ *
+ * The write goes through `trackEvent()` so we inherit bot filtering,
+ * request headers, Pusher publishing, and `DailyStats` counters.
+ */
+export async function toggleLike(itemId: string): Promise<LikeState | null> {
+  if (!mongoose.Types.ObjectId.isValid(itemId)) {
+    throw new Error("Invalid itemId");
+  }
+  const userId = await getCurrentUserId();
+  if (!userId) return null;
+
+  await connection();
+  const _id = new Types.ObjectId(itemId);
+
+  const last = await Event.findOne({
+    userId,
+    itemId: _id,
+    eventType: { $in: ["like", "unlike"] },
+  })
+    .sort({ timestamp: -1, _id: -1 })
+    .select("eventType")
+    .lean();
+
+  const currentlyLiked = last?.eventType === "like";
+  const nextType: "like" | "unlike" = currentlyLiked ? "unlike" : "like";
+
+  await trackEvent({ itemId, eventType: nextType });
+
+  // Re-derive from the source of truth so the caller gets the truth even
+  // if `trackEvent` skipped the write (e.g. bot UA).
+  const states = await getLikeStates([itemId]);
+  return states[itemId] ?? { liked: false, count: 0 };
 }
