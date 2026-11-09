@@ -335,18 +335,20 @@ export function ContentCard({
       ) : null}
 
       {showTextBlock ? (
-        <div
-          className={`flex flex-1 flex-col ${paddingCls} ${
-            canBuy && variant === "card" ? "pr-12" : ""
-          }`}
-        >
+        <div className={`flex flex-1 flex-col ${paddingCls}`}>
+          {/*
+            Name is full-width. The cart button (when shown) is anchored
+            bottom-right inside the card, so only the price row reserves
+            space for it — not the name, rating, description, or subline.
+          */}
           <p
-            className={`line-clamp-2 font-semibold text-muted-foreground ${textCls}`}
+            className={`line-clamp-2 font-semibold text-gray-800 ${textCls}`}
             style={textStyle}
           >
             {item.name}
           </p>
 
+          {/* Rating when present, description otherwise — never both. */}
           {rating ? (
             <RatingRow
               rating={rating.average}
@@ -355,7 +357,7 @@ export function ContentCard({
             />
           ) : item.description ? (
             <p
-              className="mt-1 line-clamp-2 text-xs text-muted-foreground"
+              className="mt-1 line-clamp-1 text-xs text-muted-foreground"
               style={textStyle}
             >
               {item.description}
@@ -369,7 +371,11 @@ export function ContentCard({
           ) : null}
 
           {price ? (
-            <div className="mt-auto flex items-baseline gap-2 pt-2">
+            <div
+              className={`mt-auto flex items-baseline gap-2 pt-2 ${
+                canBuy && variant === "card" ? "pr-12" : ""
+              }`}
+            >
               <span
                 className="text-sm font-bold text-foreground"
                 style={textStyle}

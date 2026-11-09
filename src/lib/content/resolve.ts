@@ -26,12 +26,9 @@ export interface NormalizedContentItem {
   badge?: string | null;
   subline?: string | null;
   meta?: { code?: string };
-
-  /** Only set on items that carry reviews (currently: Products with at
-   *  least one `reviewsRatings` entry). 0..5, snapped at display time. */
-  averageRating?: number;
-  /** Number of reviews contributing to `averageRating`. */
-  reviewCount?: number;
+  /** Product rating summary — nullable when the product has no reviews. */
+  averageRating?: number | null;
+  reviewCount?: number | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -58,30 +55,6 @@ function buildHref(
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             Rating derivation                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Derive `{ averageRating, reviewCount }` from a raw doc's `reviewsRatings`.
- * Returns `{}` when there are no reviews so callers can spread the result and
- * keep both fields optional on the normalized item.
- */
-function ratingFields(
-  doc: any,
-): Pick<NormalizedContentItem, "averageRating" | "reviewCount"> {
-  const reviews = Array.isArray(doc?.reviewsRatings) ? doc.reviewsRatings : [];
-  if (reviews.length === 0) return {};
-  const sum = reviews.reduce(
-    (s: number, r: any) => s + (Number(r?.rating) || 0),
-    0,
-  );
-  return {
-    averageRating: sum / reviews.length,
-    reviewCount: reviews.length,
-  };
-}
-
-/* -------------------------------------------------------------------------- */
 /*                                Normalizers                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -92,16 +65,63 @@ function firstImage(doc: any): string | null {
   return doc.image ?? doc.mainImage ?? doc.logoUrl ?? null;
 }
 
+/**
+ * Computes the rating summary once at resolve time so cards receive the
+ * precomputed values and never need to fold the raw reviews array.
+ *
+ * Two paths, checked in order:
+ *   1. Product has precomputed `averageRating` / `reviewCount` fields
+ *   2. Product has a raw `reviewsRatings` array → fold to an average
+ *
+ * Returns null when neither yields a positive rating.
+ */
+function computeRating(
+  doc: any,
+): { averageRating: number; reviewCount: number } | null {
+  if (typeof doc.averageRating === "number" && doc.averageRating > 0) {
+    return {
+      averageRating: doc.averageRating,
+      reviewCount: Math.max(0, Number(doc.reviewCount) || 0),
+    };
+  }
+
+  if (Array.isArray(doc.reviewsRatings) && doc.reviewsRatings.length > 0) {
+    const sum = doc.reviewsRatings.reduce(
+      (s: number, r: any) => s + (Number(r?.rating) || 0),
+      0,
+    );
+    return {
+      averageRating: sum / doc.reviewsRatings.length,
+      reviewCount: doc.reviewsRatings.length,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Products carry two description fields:
+ *   - `shortDescription` — plain text, safe to render as-is
+ *   - `description`      — rich HTML, would render as raw markup if
+ *                          dropped into a card's text node
+ *
+ * Only `shortDescription` goes into `item.description`. The rating
+ * summary is folded here so cards can show stars without the raw
+ * reviews array crossing the RSC boundary.
+ */
 function normalizeProduct(doc: any): NormalizedContentItem {
+  const rating = computeRating(doc);
   return {
     _id: String(doc._id),
     name: doc.name || "Untitled",
     image: firstImage(doc),
+    description: doc.shortDescription ?? null,
     href: buildHref("Product", String(doc._id), pickSlug(doc) || null),
     contentType: "Product",
     price: typeof doc.price === "number" ? doc.price : null,
     listPrice: typeof doc.listPrice === "number" ? doc.listPrice : null,
-    ...ratingFields(doc),
+    averageRating: rating?.averageRating ?? null,
+    reviewCount: rating?.reviewCount ?? null,
   };
 }
 
@@ -189,16 +209,6 @@ export function normalizeContentItem(
 /*                            Collection resolver                             */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Resolves a single Collection into display-ready items. Handles all three
- * types the unified model supports:
- *
- *   rule           → compiled from `collection.rules` via the entity registry
- *   manual         → hydrated from `collection.items` in the order stored
- *   recommendation → delegated to `RECOMMENDATION_RESOLVERS[targetType]`
- *
- * Inactive collections always return `[]`.
- */
 export async function resolveCollection(
   collectionId: string | mongoose.Types.ObjectId,
   ctx: ResolveContext = {},
