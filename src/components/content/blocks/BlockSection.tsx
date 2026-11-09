@@ -67,10 +67,6 @@ function sectionStyle(dc: ResolvedDisplayConfig): React.CSSProperties {
 /*                              Section header                                */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Section heading typography is fixed — it is not affected by `cardSize`.
- * `cardSize` is only meaningful for the content cards themselves.
- */
 function SectionHeading({ data }: { data: ResolvedBlock }) {
   const { block } = data;
   const hasTitle = block.heading.title;
@@ -82,7 +78,7 @@ function SectionHeading({ data }: { data: ResolvedBlock }) {
   if (!hasTitle && !hasSubtitle && !hasCta) return null;
 
   return (
-    <div className="mb-6 flex items-end justify-between gap-4">
+    <div className="mb-4 flex items-end justify-between gap-4">
       <div>
         {hasTitle && (
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
@@ -141,16 +137,6 @@ function SectionHeading({ data }: { data: ResolvedBlock }) {
 /*                            Banner slide                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Banner hero is a full-bleed slide, not a card — so `cardSize` and
- * `cardRatio` don't apply. Typography is fixed for the hero treatment,
- * aspect ratio is fixed at 21:9, and only `imagePosition` (crop focus),
- * `theme`, `rounded`, `backgroundColor`, and `textColor` are respected.
- *
- * CTA: `link` is required when a style is set. `text` is optional —
- * the button falls back to an arrow-only pill, the link falls back to
- * "Learn more".
- */
 function BannerSlide({
   banner,
   dc,
@@ -166,7 +152,6 @@ function BannerSlide({
     .slice(0, 2);
 
   const cta = banner.cta;
-  // Link is required when a style is set; text is optional.
   const hasCta = cta.style !== "none" && Boolean(cta.link);
 
   return (
@@ -282,7 +267,7 @@ function BannerDisplay({ data }: { data: ResolvedBlock }) {
 
   return (
     <section
-      className={`py-8 ${themeWrapCls(dc.theme)}`}
+      className={`py-4 ${themeWrapCls(dc.theme)}`}
       style={sectionStyle(dc)}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -393,7 +378,7 @@ function CardBlock({ data }: { data: ResolvedBlock }) {
 
   return (
     <section
-      className={`py-8 ${themeWrapCls(dc.theme)}`}
+      className={`py-4 ${themeWrapCls(dc.theme)}`}
       style={sectionStyle(dc)}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
