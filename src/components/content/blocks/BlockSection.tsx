@@ -97,7 +97,7 @@ function SectionHeading({
 }) {
   const { block, editorial } = data;
   const dc = block.displayConfig;
-  const sizeText = SIZE_TEXT[dc.cardSize] ?? SIZE_TEXT.md;
+  const sizeText = SIZE_TEXT.sm;
   const hasEyebrow = editorial?.eyebrow;
   const hasTitle = block.heading.title;
   const hasSubtitle = block.heading.subtitle;
@@ -171,7 +171,7 @@ function FeatureEditorialSection({ data }: { data: ResolvedBlock }) {
   const imgPos = IMG_POS_CLS[dc.imagePosition] ?? IMG_POS_CLS.center;
   const rounded = dc.rounded ? "rounded-2xl" : "";
   const ratioCls = RATIO_CLS[dc.cardRatio] ?? RATIO_CLS["4:3"];
-  const sizeText = SIZE_TEXT[dc.cardSize] ?? SIZE_TEXT.md;
+  const sizeText = SIZE_TEXT[dc.cardSize] ?? SIZE_TEXT.sm;
   const gapStyle = { gap: `${dc.gap}px` };
   const display = block.display;
 
