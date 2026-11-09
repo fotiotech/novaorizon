@@ -1,19 +1,22 @@
 // components/content/blocks/BlockSection.tsx
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ContentCard } from "@/components/content/ContentCard";
 import { CarouselRail } from "@/components/content/Carousel";
 import type {
   ResolvedBlock,
   ResolvedDisplayConfig,
+  ResolvedBanner,
 } from "@/lib/content/blocks/resolve";
 import type { NormalizedContentItem } from "@/lib/content/resolve";
-import {
-  isFeatureDisplay,
-  type CardRatio,
-  type CardShape,
-  type CardSize,
-  type ImagePosition,
-  type TitlePosition,
+import type {
+  CardRatio,
+  CardShape,
+  CardSize,
+  ImagePosition,
+  TitlePosition,
 } from "@/lib/content/constants";
 
 const GRID_COLS: Record<number, string> = {
@@ -43,30 +46,6 @@ const RATIO_CLS: Record<CardRatio, string> = {
   "2:3": "aspect-[2/3]",
 };
 
-const SIZE_TEXT: Record<
-  CardSize,
-  { heading: string; subtitle: string; body: string; eyebrow: string }
-> = {
-  sm: {
-    heading: "text-xl sm:text-2xl",
-    subtitle: "text-sm sm:text-base",
-    body: "text-sm",
-    eyebrow: "text-[10px]",
-  },
-  md: {
-    heading: "text-2xl sm:text-3xl lg:text-4xl",
-    subtitle: "text-base sm:text-lg",
-    body: "text-sm sm:text-base",
-    eyebrow: "text-[11px]",
-  },
-  lg: {
-    heading: "text-3xl sm:text-4xl lg:text-5xl",
-    subtitle: "text-lg sm:text-xl",
-    body: "text-base sm:text-lg",
-    eyebrow: "text-xs",
-  },
-};
-
 function themeWrapCls(theme: string): string {
   if (theme === "dark") return "bg-neutral-950 text-white";
   if (theme === "light") return "bg-white";
@@ -88,57 +67,37 @@ function sectionStyle(dc: ResolvedDisplayConfig): React.CSSProperties {
 /*                              Section header                                */
 /* -------------------------------------------------------------------------- */
 
-function SectionHeading({
-  data,
-  align = "left",
-}: {
-  data: ResolvedBlock;
-  align?: "left" | "center";
-}) {
-  const { block, editorial } = data;
-  const dc = block.displayConfig;
-  const sizeText = SIZE_TEXT.sm;
-  const hasEyebrow = editorial?.eyebrow;
+/**
+ * Section heading typography is fixed — it is not affected by `cardSize`.
+ * `cardSize` is only meaningful for the content cards themselves.
+ */
+function SectionHeading({ data }: { data: ResolvedBlock }) {
+  const { block } = data;
   const hasTitle = block.heading.title;
   const hasSubtitle = block.heading.subtitle;
   const cta = block.cta;
-  const hasCta = cta.style !== "none" && cta.text && cta.link;
+  const hasCta = cta.style !== "none" && Boolean(cta.link);
 
-  if (!hasEyebrow && !hasTitle && !hasSubtitle && !hasCta) return null;
-
-  const alignCls = align === "center" ? "text-center" : "";
-  const ctaAlignCls = align === "center" ? "mx-auto" : "";
+  if (!block.heading.showHeading && !hasCta) return null;
+  if (!hasTitle && !hasSubtitle && !hasCta) return null;
 
   return (
-    <div
-      className={`mb-6 ${
-        align === "center"
-          ? "flex flex-col items-center"
-          : "flex items-end justify-between gap-4"
-      }`}
-    >
-      <div className={alignCls}>
-        {hasEyebrow && (
-          <p
-            className={`mb-3 font-semibold uppercase tracking-[0.16em] text-muted-foreground ${sizeText.eyebrow}`}
-          >
-            {editorial!.eyebrow}
-          </p>
-        )}
+    <div className="mb-6 flex items-end justify-between gap-4">
+      <div>
         {hasTitle && (
-          <h2 className={`font-bold tracking-tight ${sizeText.heading}`}>
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
             {block.heading.title}
           </h2>
         )}
         {hasSubtitle && (
-          <p className={`mt-1 text-muted-foreground ${sizeText.subtitle}`}>
+          <p className="mt-1 text-sm text-muted-foreground">
             {block.heading.subtitle}
           </p>
         )}
       </div>
-      {hasCta && (
-        <div className={ctaAlignCls}>
-          {cta.style === "button" ? (
+      {hasCta &&
+        (cta.style === "button" ? (
+          cta.text ? (
             <Link
               href={ctaHrefSafe(cta.link)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
@@ -148,322 +107,256 @@ function SectionHeading({
           ) : (
             <Link
               href={ctaHrefSafe(cta.link)}
-              className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition hover:underline"
+              aria-label="Open link"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90"
             >
-              {cta.text}
-              <span aria-hidden>→</span>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+                aria-hidden
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
             </Link>
-          )}
-        </div>
-      )}
+          )
+        ) : (
+          <Link
+            href={ctaHrefSafe(cta.link)}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition hover:underline"
+          >
+            {cta.text || "Learn more"}
+            <span aria-hidden>→</span>
+          </Link>
+        ))}
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                          Feature editorial renderer                        */
+/*                            Banner slide                                    */
 /* -------------------------------------------------------------------------- */
 
-function FeatureEditorialSection({ data }: { data: ResolvedBlock }) {
-  if (!data.editorial) return null;
-  const { block, editorial } = data;
-  const dc = block.displayConfig;
+/**
+ * Banner hero is a full-bleed slide, not a card — so `cardSize` and
+ * `cardRatio` don't apply. Typography is fixed for the hero treatment,
+ * aspect ratio is fixed at 21:9, and only `imagePosition` (crop focus),
+ * `theme`, `rounded`, `backgroundColor`, and `textColor` are respected.
+ *
+ * CTA: `link` is required when a style is set. `text` is optional —
+ * the button falls back to an arrow-only pill, the link falls back to
+ * "Learn more".
+ */
+function BannerSlide({
+  banner,
+  dc,
+}: {
+  banner: ResolvedBanner;
+  dc: ResolvedDisplayConfig;
+}) {
   const imgPos = IMG_POS_CLS[dc.imagePosition] ?? IMG_POS_CLS.center;
-  const rounded = dc.rounded ? "rounded-2xl" : "";
-  const ratioCls = RATIO_CLS[dc.cardRatio] ?? RATIO_CLS["4:3"];
-  const sizeText = SIZE_TEXT[dc.cardSize] ?? SIZE_TEXT.sm;
-  const gapStyle = { gap: `${dc.gap}px` };
-  const display = block.display;
-
-  const eyebrowNode = editorial.eyebrow ? (
-    <p
-      className={`mb-3 font-semibold uppercase tracking-[0.16em] text-muted-foreground ${sizeText.eyebrow}`}
-    >
-      {editorial.eyebrow}
-    </p>
-  ) : null;
-
-  const headlineNode = block.heading.title ? (
-    <h2
-      className={`font-bold leading-tight tracking-tight ${sizeText.heading}`}
-    >
-      {block.heading.title}
-    </h2>
-  ) : null;
-
-  const subtitleNode = block.heading.subtitle ? (
-    <p className={`mt-3 text-muted-foreground ${sizeText.subtitle}`}>
-      {block.heading.subtitle}
-    </p>
-  ) : null;
-
-  const paragraphs = editorial.body
+  const paragraphs = banner.body
     .split(/\n{2,}/)
     .map((p) => p.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, 2);
 
-  const bodyNode =
-    paragraphs.length > 0 ? (
-      <div
-        className={`mt-5 space-y-3 leading-relaxed text-muted-foreground ${sizeText.body}`}
-      >
-        {paragraphs.map((p, i) => (
-          <p key={i}>{p}</p>
-        ))}
-      </div>
-    ) : null;
+  const cta = banner.cta;
+  // Link is required when a style is set; text is optional.
+  const hasCta = cta.style !== "none" && Boolean(cta.link);
 
-  const cta = block.cta;
-  const hasCta = cta.style !== "none" && cta.text && cta.link;
-  const ctaNode = hasCta ? (
-    cta.style === "button" ? (
-      <Link
-        href={ctaHrefSafe(cta.link)}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-      >
-        {cta.text}
-        <span aria-hidden>→</span>
-      </Link>
-    ) : (
-      <Link
-        href={ctaHrefSafe(cta.link)}
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition hover:underline"
-      >
-        {cta.text}
-        <span aria-hidden>→</span>
-      </Link>
-    )
-  ) : null;
-
-  /* ────── banner ─────────────────────────────────────── */
-  if (display === "banner") {
-    return (
-      <section
-        className={`py-8 ${themeWrapCls(dc.theme)}`}
-        style={sectionStyle(dc)}
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div
-            className={`relative overflow-hidden ${
-              dc.rounded ? "rounded-2xl" : ""
-            }`}
-          >
-            {editorial.image ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={editorial.image}
-                  alt={block.heading.title || ""}
-                  className={`${ratioCls} w-full object-cover ${imgPos}`}
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent" />
-              </>
-            ) : (
-              <div className={`${ratioCls} w-full bg-neutral-900`} />
-            )}
-            <div className="absolute inset-0 flex flex-col justify-center p-6 sm:p-10">
-              <div
-                className="max-w-lg text-white [&_*]:text-white"
-                style={gapStyle}
-              >
-                {eyebrowNode}
-                {headlineNode}
-                {subtitleNode}
-                {hasCta && <div className="mt-5">{ctaNode}</div>}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  /* ────── feature-split-left / feature-split-right ────── */
-  if (display === "feature-split-left" || display === "feature-split-right") {
-    const imageFirst = display === "feature-split-left";
-
-    const imageCol = (
-      <div className="relative">
-        {editorial.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
+  return (
+    <div
+      className={`relative h-full overflow-hidden ${
+        dc.rounded ? "rounded-2xl" : ""
+      }`}
+    >
+      {banner.image ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={editorial.image}
-            alt={block.heading.title || ""}
-            className={`${ratioCls} w-full object-cover ${imgPos} ${rounded}`}
+            src={banner.image}
+            alt={banner.heading.title || banner.name}
+            className={`aspect-[21/9] w-full object-cover ${imgPos}`}
           />
-        ) : (
-          <div className={`${ratioCls} w-full bg-muted ${rounded}`} />
-        )}
-      </div>
-    );
+          <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-transparent" />
+        </>
+      ) : (
+        <div className="aspect-[21/9] w-full bg-neutral-900" />
+      )}
 
-    const textCol = (
-      <div className="flex items-center">
-        <div>
-          {eyebrowNode}
-          {headlineNode}
-          {subtitleNode}
-          {bodyNode}
-          {hasCta && <div className="mt-6">{ctaNode}</div>}
-        </div>
-      </div>
-    );
-
-    return (
-      <section
-        className={`py-10 sm:py-14 ${themeWrapCls(dc.theme)}`}
-        style={sectionStyle(dc)}
-      >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center lg:grid-cols-2" style={gapStyle}>
-            {imageFirst ? (
-              <>
-                {imageCol}
-                {textCol}
-              </>
-            ) : (
-              <>
-                {textCol}
-                {imageCol}
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  /* ────── feature-overlay ────────────────────────────── */
-  if (display === "feature-overlay") {
-    return (
-      <section
-        className={`py-8 ${themeWrapCls(dc.theme)}`}
-        style={sectionStyle(dc)}
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div
-            className={`relative overflow-hidden ${
-              dc.rounded ? "rounded-2xl" : ""
-            }`}
-          >
-            {editorial.image ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={editorial.image}
-                  alt={block.heading.title || ""}
-                  className={`${ratioCls} w-full object-cover ${imgPos}`}
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/20" />
-              </>
-            ) : (
-              <div className={`${ratioCls} w-full bg-neutral-900`} />
-            )}
-            <div className="absolute inset-0 flex flex-col justify-center p-6 sm:p-10 lg:p-16">
-              <div
-                className="max-w-2xl text-white [&_*]:text-white"
-                style={gapStyle}
-              >
-                {eyebrowNode}
-                {headlineNode}
-                {subtitleNode}
-                {bodyNode && (
-                  <div className="[&_p]:text-white/80 [&_p]:text-sm [&_p]:sm:text-base">
-                    {bodyNode}
-                  </div>
-                )}
-                {hasCta && <div className="mt-6">{ctaNode}</div>}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  /* ────── feature-stacked ────────────────────────────── */
-  if (display === "feature-stacked") {
-    return (
-      <section
-        className={`py-10 sm:py-14 ${themeWrapCls(dc.theme)}`}
-        style={sectionStyle(dc)}
-      >
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col" style={gapStyle}>
-            {editorial.image && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={editorial.image}
-                alt={block.heading.title || ""}
-                className={`${ratioCls} w-full object-cover ${imgPos} ${rounded}`}
-              />
-            )}
-            <div className="mx-auto max-w-2xl text-center">
-              {eyebrowNode}
-              {headlineNode}
-              {subtitleNode}
-              {bodyNode}
-              {hasCta && <div className="mt-6">{ctaNode}</div>}
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  /* ────── feature-duo ────────────────────────────────── */
-  if (display === "feature-duo") {
-    return (
-      <section
-        className={`py-10 sm:py-14 ${themeWrapCls(dc.theme)}`}
-        style={sectionStyle(dc)}
-      >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col" style={gapStyle}>
-            <div className="grid grid-cols-2" style={gapStyle}>
-              <div className="relative">
-                {editorial.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={editorial.image}
-                    alt={block.heading.title || ""}
-                    className={`${ratioCls} w-full object-cover ${imgPos} ${rounded}`}
-                  />
+      <div className="absolute inset-0 flex flex-col justify-center p-6 sm:p-10 lg:p-16">
+        <div className="max-w-2xl text-white [&_*]:text-white">
+          {banner.eyebrow && (
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
+              {banner.eyebrow}
+            </p>
+          )}
+          {banner.heading.title && (
+            <h2 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl lg:text-4xl">
+              {banner.heading.title}
+            </h2>
+          )}
+          {banner.heading.subtitle && (
+            <p className="mt-3 text-base text-white/80 sm:text-lg">
+              {banner.heading.subtitle}
+            </p>
+          )}
+          {paragraphs.map((p, i) => (
+            <p
+              key={i}
+              className="mt-3 max-w-lg text-sm leading-relaxed text-white/80 sm:text-base"
+            >
+              {p}
+            </p>
+          ))}
+          {hasCta && (
+            <div className="mt-6">
+              {cta.style === "button" ? (
+                cta.text ? (
+                  <Link
+                    href={ctaHrefSafe(cta.link)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+                  >
+                    {cta.text}
+                    <span aria-hidden>→</span>
+                  </Link>
                 ) : (
-                  <div className={`${ratioCls} w-full bg-muted ${rounded}`} />
-                )}
-              </div>
-              <div className="relative">
-                {editorial.secondaryImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={editorial.secondaryImage}
-                    alt=""
-                    className={`${ratioCls} w-full object-cover ${imgPos} ${rounded}`}
-                  />
-                ) : (
-                  <div className={`${ratioCls} w-full bg-muted ${rounded}`} />
-                )}
-              </div>
+                  <Link
+                    href={ctaHrefSafe(cta.link)}
+                    aria-label="Open link"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                      aria-hidden
+                    >
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                )
+              ) : (
+                <Link
+                  href={ctaHrefSafe(cta.link)}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition hover:underline"
+                >
+                  {cta.text || "Learn more"}
+                  <span aria-hidden>→</span>
+                </Link>
+              )}
             </div>
-            <div className="mx-auto max-w-2xl text-center">
-              {eyebrowNode}
-              {headlineNode}
-              {subtitleNode}
-              {bodyNode}
-              {hasCta && <div className="mt-6">{ctaNode}</div>}
-            </div>
-          </div>
+          )}
         </div>
-      </section>
-    );
-  }
-
-  return null;
+      </div>
+    </div>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                        Collection editorial renderer                       */
+/*                          Banner display — carousel                         */
+/* -------------------------------------------------------------------------- */
+
+function BannerDisplay({ data }: { data: ResolvedBlock }) {
+  const { block, banners = [] } = data;
+  const dc = block.displayConfig;
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (index >= banners.length) setIndex(0);
+  }, [banners.length, index]);
+
+  if (banners.length === 0) return null;
+
+  const total = banners.length;
+  const current = banners[Math.min(index, total - 1)];
+
+  return (
+    <section
+      className={`py-8 ${themeWrapCls(dc.theme)}`}
+      style={sectionStyle(dc)}
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading data={data} />
+
+        <div className="relative">
+          <BannerSlide banner={current} dc={dc} />
+
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIndex((index - 1 + total) % total)}
+                aria-label="Previous banner"
+                className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white shadow-md backdrop-blur transition hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4"
+                  aria-hidden
+                >
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIndex((index + 1) % total)}
+                aria-label="Next banner"
+                className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white shadow-md backdrop-blur transition hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4"
+                  aria-hidden
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+
+              <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+                {banners.map((b, i) => (
+                  <button
+                    key={b._id}
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    aria-label={`Go to banner ${i + 1}`}
+                    className={`h-2.5 w-2.5 rounded-full transition-all ${
+                      i === index
+                        ? "scale-125 bg-white shadow-lg"
+                        : "bg-white/40 hover:bg-white/70"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Card-based displays                               */
 /* -------------------------------------------------------------------------- */
 
 interface SharedCardProps {
@@ -491,7 +384,7 @@ function buildCardProps(
   };
 }
 
-function EditorialCollectionSection({ data }: { data: ResolvedBlock }) {
+function CardBlock({ data }: { data: ResolvedBlock }) {
   const { block, items } = data;
   const dc = block.displayConfig;
   const ss = block.sourceStyles;
@@ -505,7 +398,7 @@ function EditorialCollectionSection({ data }: { data: ResolvedBlock }) {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading data={data} />
-        {renderBody(block.display, items, dc, ss)}
+        {renderCardBody(block.display, items, dc, ss)}
       </div>
     </section>
   );
@@ -516,42 +409,17 @@ function EditorialCollectionSection({ data }: { data: ResolvedBlock }) {
 /* -------------------------------------------------------------------------- */
 
 export function BlockSection({ data }: { data: ResolvedBlock }) {
-  if (data.editorial) {
-    // Feature displays render the editorial's story.
-    if (
-      isFeatureDisplay(data.block.display) ||
-      data.block.display === "banner"
-    ) {
-      return <FeatureEditorialSection data={data} />;
-    }
-    // Grid / carousel / list / hero use the editorial's images as cards.
-    return <EditorialCollectionSection data={data} />;
+  if (data.block.display === "banner" && data.banners) {
+    return <BannerDisplay data={data} />;
   }
-
-  const { block, items } = data;
-  const dc = block.displayConfig;
-  const ss = block.sourceStyles;
-
-  if (items.length === 0) return null;
-
-  return (
-    <section
-      className={`py-8 ${themeWrapCls(dc.theme)}`}
-      style={sectionStyle(dc)}
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading data={data} />
-        {renderBody(block.display, items, dc, ss)}
-      </div>
-    </section>
-  );
+  return <CardBlock data={data} />;
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               Layouts                                      */
+/*                               Card layouts                                 */
 /* -------------------------------------------------------------------------- */
 
-function renderBody(
+function renderCardBody(
   display: string,
   items: NormalizedContentItem[],
   dc: ResolvedDisplayConfig,
@@ -582,15 +450,6 @@ function renderBody(
 
     case "hero":
       return <HeroLayout items={items} gap={dc.gap} cardProps={cardProps} />;
-
-    case "banner":
-      return (
-        <BannerLayout
-          item={items[0]}
-          imagePosition={dc.imagePosition}
-          textColor={cardProps.textColor}
-        />
-      );
 
     case "grid":
     default:
@@ -700,44 +559,6 @@ function HeroLayout({
         ))}
       </div>
     </div>
-  );
-}
-
-function BannerLayout({
-  item,
-  imagePosition,
-  textColor,
-}: {
-  item: NormalizedContentItem;
-  imagePosition: ImagePosition;
-  textColor?: string;
-}) {
-  if (!item) return null;
-  const imgPos = IMG_POS_CLS[imagePosition] ?? IMG_POS_CLS.center;
-  return (
-    <Link
-      href={item.href}
-      className="relative block overflow-hidden rounded-2xl bg-muted"
-    >
-      {item.image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={item.image}
-          alt=""
-          className={`aspect-[21/9] w-full object-cover ${imgPos}`}
-        />
-      ) : (
-        <div className="aspect-[21/9] w-full" />
-      )}
-      <div className="absolute inset-0 flex flex-col justify-center bg-gradient-to-r from-black/70 to-transparent p-8">
-        <h3
-          className="text-2xl font-bold text-white sm:text-3xl"
-          style={textColor ? { color: textColor } : undefined}
-        >
-          {item.name}
-        </h3>
-      </div>
-    </Link>
   );
 }
 
