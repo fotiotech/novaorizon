@@ -74,7 +74,7 @@ const HeaderScroll: React.FC = () => {
         aria-label="Hero carousel loading"
         className="relative overflow-hidden bg-black m-1 lg:mx-8 lg:my-3 rounded-lg"
       >
-        <div className="relative grid grid-cols-2 items-stretch min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
+        <div className="relative grid grid-cols-[45%_55%] sm:grid-cols-[2fr_3fr] lg:grid-cols-2 items-stretch min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
           {/* Text panel skeleton — left */}
           <div className="relative flex items-center justify-center px-3 py-3 sm:px-6 lg:px-12 lg:py-10 bg-black">
             <div className="relative z-10 w-full max-w-xl space-y-3 sm:space-y-4 text-center lg:text-left">
@@ -91,7 +91,7 @@ const HeaderScroll: React.FC = () => {
           <div className="relative h-full bg-neutral-900">
             <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 animate-pulse" />
             <div className="absolute inset-0 bg-black/40" />
-            <div className="absolute inset-y-0 left-0 w-[30%] sm:w-[40%] bg-gradient-to-r from-black via-black/40 to-transparent" />
+            <div className="absolute inset-y-0 left-0 w-[45%] sm:w-[55%] lg:w-[60%] bg-gradient-to-r from-black via-black/40 to-transparent" />
           </div>
         </div>
       </section>
@@ -127,10 +127,12 @@ const HeaderScroll: React.FC = () => {
                   tabIndex={isActive ? 0 : -1}
                 >
                   {/*
-                    Layout — image always on the RIGHT at every breakpoint.
-                    Text (left) and image (right) share the row.
+                    Layout — image on the RIGHT, but wider than the text panel.
+                    Mobile: 45/55 · Tablet: 40/60 · Desktop: 50/50
+                    The image's left edge reaches further toward the text,
+                    and the fade band (45% → 55% → 60%) spans further right.
                   */}
-                  <div className="relative grid grid-cols-2 items-stretch min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
+                  <div className="relative grid grid-cols-[45%_55%] sm:grid-cols-[2fr_3fr] lg:grid-cols-2 items-stretch min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
                     {/* Text panel — LEFT */}
                     <div className="relative flex items-center justify-center px-3 py-3 sm:px-6 lg:px-12 lg:py-10 bg-black">
                       <div className="relative z-10 w-full max-w-xl text-center lg:text-left">
@@ -165,7 +167,7 @@ const HeaderScroll: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Image panel — RIGHT */}
+                    {/* Image panel — RIGHT (wider) */}
                     <div className="relative h-full min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
                       <Image
                         src={imageUrl}
@@ -173,12 +175,17 @@ const HeaderScroll: React.FC = () => {
                         fill
                         className="object-cover"
                         priority={index === 0}
-                        sizes="(max-width: 1024px) 50vw, 50vw"
+                        sizes="(max-width: 640px) 55vw, (max-width: 1024px) 60vw, 50vw"
                       />
                       {/* Base scrim */}
                       <div className="absolute inset-0 bg-black/40" />
-                      {/* Left-to-right fade — 30% band on mobile, 40% on desktop */}
-                      <div className="absolute inset-y-0 left-0 w-[30%] sm:w-[40%] bg-gradient-to-r from-black via-black/40 to-transparent" />
+                      {/*
+                        Left-to-right fade — band widens as screens grow:
+                        mobile 45% · tablet 55% · desktop 60%
+                        This lets the overlay span further right into the
+                        image while the image itself occupies more space.
+                      */}
+                      <div className="absolute inset-y-0 left-0 w-[45%] sm:w-[55%] lg:w-[60%] bg-gradient-to-r from-black via-black/40 to-transparent" />
                     </div>
                   </div>
                 </Link>

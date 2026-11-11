@@ -9,19 +9,17 @@ import type {
   CardVariant,
   CardShape,
   CardRatio,
+  CardLayout,
   TitlePosition,
   ImagePosition,
 } from "@/lib/content/constants";
-
-/* -------------------------------------------------------------------------- */
-/*                                    Types                                   */
-/* -------------------------------------------------------------------------- */
 
 export interface CardOverride {
   size?: CardSize;
   variant?: CardVariant;
   shape?: CardShape;
   ratio?: CardRatio;
+  layout?: CardLayout;
   titlePosition?: TitlePosition;
   imagePosition?: ImagePosition;
   textColor?: string;
@@ -33,10 +31,6 @@ interface CarouselRailProps {
   gap: number;
   cardOverride?: CardOverride;
 }
-
-/* -------------------------------------------------------------------------- */
-/*                                   Icons                                    */
-/* -------------------------------------------------------------------------- */
 
 function ChevronLeft() {
   return (
@@ -71,10 +65,6 @@ function ChevronRight() {
     </svg>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*                                 CarouselRail                               */
-/* -------------------------------------------------------------------------- */
 
 export function CarouselRail({
   items,
@@ -113,10 +103,18 @@ export function CarouselRail({
 
   if (!items.length) return null;
 
-  // Width of each rail slide follows `cardSize` so small cards fit more
-  // in view and large cards feel bigger.
-  const slideWidthCls =
-    cardOverride?.size === "sm"
+  // Side-by-side cards need extra horizontal room so the text column
+  // doesn't collapse. Stacked cards keep the default rail widths.
+  const isSide =
+    cardOverride?.layout === "image-left" ||
+    cardOverride?.layout === "image-right";
+  const slideWidthCls = isSide
+    ? cardOverride?.size === "sm"
+      ? "w-56 sm:w-64 md:w-72"
+      : cardOverride?.size === "lg"
+        ? "w-72 sm:w-80 md:w-96"
+        : "w-64 sm:w-72 md:w-80"
+    : cardOverride?.size === "sm"
       ? "w-32 sm:w-40 md:w-44"
       : cardOverride?.size === "lg"
         ? "w-48 sm:w-56 md:w-64"
@@ -156,6 +154,7 @@ export function CarouselRail({
               variant={cardOverride?.variant}
               shape={cardOverride?.shape}
               ratio={cardOverride?.ratio}
+              layout={cardOverride?.layout}
               titlePosition={cardOverride?.titlePosition}
               imagePosition={cardOverride?.imagePosition}
               textColor={cardOverride?.textColor}

@@ -8,15 +8,12 @@ import type {
   CardRatio,
   CardSize,
   CardVariant,
+  CardLayout,
   TitlePosition,
   ImagePosition,
 } from "@/lib/content/constants";
 import { CardAddToCart } from "./CardAddToCart";
 import { LikeButton } from "./LikeButton";
-
-/* -------------------------------------------------------------------------- */
-/*                                    Types                                   */
-/* -------------------------------------------------------------------------- */
 
 interface ContentCardProps {
   item: NormalizedContentItem;
@@ -25,9 +22,9 @@ interface ContentCardProps {
   variant?: CardVariant;
   shape?: CardShape;
   ratio?: CardRatio;
+  layout?: CardLayout;
   titlePosition?: TitlePosition;
   imagePosition?: ImagePosition;
-  /** Optional text color override — applied to title/description/price. */
   textColor?: string;
 }
 
@@ -36,18 +33,22 @@ interface RatingData {
   count: number;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                              Class mappings                                */
-/* -------------------------------------------------------------------------- */
+/* ---------------------------- class mappings ----------------------------- */
 
 const RATIO_CLS: Record<CardRatio, string> = {
-  "1:1": "aspect-square",
-  "4:3": "aspect-[4/3]",
-  "3:4": "aspect-[3/4]",
-  "16:9": "aspect-[16/9]",
+  "9:21": "aspect-[9/21]",
+  "1:2": "aspect-[1/2]",
   "9:16": "aspect-[9/16]",
-  "3:2": "aspect-[3/2]",
   "2:3": "aspect-[2/3]",
+  "3:4": "aspect-[3/4]",
+  "4:5": "aspect-[4/5]",
+  "1:1": "aspect-square",
+  "5:4": "aspect-[5/4]",
+  "4:3": "aspect-[4/3]",
+  "3:2": "aspect-[3/2]",
+  "16:9": "aspect-[16/9]",
+  "2:1": "aspect-[2/1]",
+  "21:9": "aspect-[21/9]",
 };
 
 const IMG_POS_CLS: Record<ImagePosition, string> = {
@@ -58,18 +59,14 @@ const IMG_POS_CLS: Record<ImagePosition, string> = {
   right: "object-right",
 };
 
-/* -------------------------------------------------------------------------- */
-/*                              Price formatting                              */
-/* -------------------------------------------------------------------------- */
+/* ---------------------------- price formatting --------------------------- */
 
 function formatPrice(amount: number | null | undefined): string | null {
   if (amount == null || typeof amount !== "number") return null;
   return `${amount.toLocaleString("en-US")} F`;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                              Rating helpers                                */
-/* -------------------------------------------------------------------------- */
+/* ----------------------------- rating helpers ---------------------------- */
 
 function getRating(item: NormalizedContentItem): RatingData | null {
   const anyItem = item as any;
@@ -166,9 +163,7 @@ export function RatingRow({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                 ContentCard                                */
-/* -------------------------------------------------------------------------- */
+/* -------------------------------- card ----------------------------------- */
 
 export function ContentCard({
   item,
@@ -177,6 +172,7 @@ export function ContentCard({
   variant = "card",
   shape = "default",
   ratio = "1:1",
+  layout = "stacked",
   titlePosition = "below",
   imagePosition = "center",
   textColor,
@@ -198,7 +194,8 @@ export function ContentCard({
   const imgPosCls = IMG_POS_CLS[imagePosition] ?? IMG_POS_CLS.center;
   const textStyle = textColor ? { color: textColor } : undefined;
 
-  /* ----------------------------- Circle mode ----------------------------- */
+  /* ----------------------------- circle mode ----------------------------- */
+  // Circle ignores `layout` — it's a self-contained arrangement.
   if (shape === "circle") {
     const maxW =
       size === "sm"
@@ -270,8 +267,7 @@ export function ContentCard({
     );
   }
 
-  /* ---------------------------- Default mode ----------------------------- */
-  const paddingCls = size === "sm" ? "py-2" : "py-3";
+  const paddingCls = size === "sm" ? "p-2" : "p-3";
   const textCls = size === "sm" ? "text-xs" : "text-sm";
 
   const cardCls =
@@ -279,6 +275,145 @@ export function ContentCard({
       ? "group flex h-full flex-col overflow-hidden rounded-xl bg-card transition"
       : "group flex h-full flex-col";
 
+  /* ------------------------- side-by-side mode --------------------------- */
+  // Image sits on one side, text on the other. Aspect ratio is ignored —
+  // the image column uses a fixed width, and the card height follows the
+  // text content. Title-position overlays are ignored too (there's no
+  // overlay space in side-by-side).
+  if (layout === "image-left" || layout === "image-right") {
+    const isLeft = layout === "image-left";
+    const sideImgWidth =
+      size === "sm"
+        ? "w-20 sm:w-24"
+        : size === "lg"
+          ? "w-28 sm:w-32 md:w-40"
+          : "w-24 sm:w-28 md:w-32";
+
+    const rowCls =
+      variant === "card"
+        ? "group flex h-full overflow-hidden rounded-xl bg-card transition"
+        : "group flex h-full";
+
+    const sideImage = (
+      <div
+        className={`relative shrink-0 overflow-hidden bg-muted ${sideImgWidth}`}
+      >
+        {showImage && item.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.image}
+            alt={item.name}
+            loading="lazy"
+            className={`h-full w-full object-cover ${imgPosCls} transition-transform duration-300 group-hover:scale-105`}
+          />
+        ) : null}
+        {item.badge ? (
+          <span className="absolute left-2 top-2 z-10 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+            {item.badge}
+          </span>
+        ) : null}
+      </div>
+    );
+
+    const sideText = (
+      <div className={`flex min-w-0 flex-1 flex-col ${paddingCls}`}>
+        {titlePosition !== "hidden" && (
+          <p
+            className={`line-clamp-2 font-semibold text-muted-foreground ${textCls}`}
+            style={textStyle}
+          >
+            {item.name}
+          </p>
+        )}
+
+        {titlePosition !== "hidden" &&
+          (rating ? (
+            <RatingRow
+              rating={rating.average}
+              count={rating.count}
+              size={size === "lg" ? "md" : "sm"}
+            />
+          ) : item.description ? (
+            <p
+              className="mt-1 line-clamp-2 text-xs text-muted-foreground"
+              style={textStyle}
+            >
+              {item.description}
+            </p>
+          ) : null)}
+
+        {titlePosition !== "hidden" && item.subline ? (
+          <p className="mt-1 text-xs text-muted-foreground" style={textStyle}>
+            {item.subline}
+          </p>
+        ) : null}
+
+        {titlePosition !== "hidden" && price ? (
+          <div
+            className={`mt-auto flex items-baseline gap-2 pt-2 ${
+              canBuy && variant === "card" ? "pr-12" : ""
+            }`}
+          >
+            <span
+              className="text-sm font-bold text-foreground"
+              style={textStyle}
+            >
+              {price}
+            </span>
+            {hasDiscount ? (
+              <span className="hidden text-xs text-muted-foreground line-through sm:inline">
+                {listPrice}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+
+    const cardNode = (
+      <Link
+        href={item.href}
+        className={`${rowCls} ${isLeft ? "flex-row" : "flex-row-reverse"}`}
+      >
+        {sideImage}
+        {sideText}
+      </Link>
+    );
+
+    const showLike = item.contentType === "Product";
+    const showCart = canBuy && variant === "card";
+
+    if (!showLike && !showCart) return cardNode;
+
+    return (
+      <div className="relative h-full">
+        {cardNode}
+
+        {showLike ? (
+          <div className="pointer-events-none absolute right-2 top-2 z-10">
+            <div className="pointer-events-auto">
+              <LikeButton itemId={item._id} size="sm" />
+            </div>
+          </div>
+        ) : null}
+
+        {showCart ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-end p-2">
+            <div className="pointer-events-auto">
+              <CardAddToCart
+                productId={item._id}
+                name={item.name}
+                image={item.image as any}
+                price={item.price as number}
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  /* ---------------------------- stacked mode ----------------------------- */
   const isOverlay =
     titlePosition === "overlay-top" || titlePosition === "overlay-bottom";
   const isHidden = titlePosition === "hidden";
@@ -335,20 +470,16 @@ export function ContentCard({
       ) : null}
 
       {showTextBlock ? (
-        <div className={`flex flex-1 flex-col ${paddingCls}`}>
-          {/*
-            Name is full-width. The cart button (when shown) is anchored
-            bottom-right inside the card, so only the price row reserves
-            space for it — not the name, rating, description, or subline.
-          */}
+        <div
+          className={`flex flex-1 flex-col ${size === "sm" ? "py-2" : "py-3"}`}
+        >
           <p
-            className={`line-clamp-2 font-semibold text-gray-800 ${textCls}`}
+            className={`line-clamp-2 font-semibold text-muted-foreground ${textCls}`}
             style={textStyle}
           >
             {item.name}
           </p>
 
-          {/* Rating when present, description otherwise — never both. */}
           {rating ? (
             <RatingRow
               rating={rating.average}
@@ -357,7 +488,7 @@ export function ContentCard({
             />
           ) : item.description ? (
             <p
-              className="mt-1 line-clamp-1 text-xs text-muted-foreground"
+              className="mt-1 line-clamp-2 text-xs text-muted-foreground"
               style={textStyle}
             >
               {item.description}

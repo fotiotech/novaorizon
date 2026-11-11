@@ -15,6 +15,7 @@ import type {
   CardRatio,
   CardShape,
   CardSize,
+  CardLayout,
   ImagePosition,
   TitlePosition,
 } from "@/lib/content/constants";
@@ -37,13 +38,19 @@ const IMG_POS_CLS: Record<ImagePosition, string> = {
 };
 
 const RATIO_CLS: Record<CardRatio, string> = {
-  "1:1": "aspect-square",
-  "4:3": "aspect-[4/3]",
-  "3:4": "aspect-[3/4]",
-  "16:9": "aspect-[16/9]",
+  "9:21": "aspect-[9/21]",
+  "1:2": "aspect-[1/2]",
   "9:16": "aspect-[9/16]",
-  "3:2": "aspect-[3/2]",
   "2:3": "aspect-[2/3]",
+  "3:4": "aspect-[3/4]",
+  "4:5": "aspect-[4/5]",
+  "1:1": "aspect-square",
+  "5:4": "aspect-[5/4]",
+  "4:3": "aspect-[4/3]",
+  "3:2": "aspect-[3/2]",
+  "16:9": "aspect-[16/9]",
+  "2:1": "aspect-[2/1]",
+  "21:9": "aspect-[21/9]",
 };
 
 function themeWrapCls(theme: string): string {
@@ -62,10 +69,6 @@ function sectionStyle(dc: ResolvedDisplayConfig): React.CSSProperties {
   if (dc.textColor) style.color = dc.textColor;
   return style;
 }
-
-/* -------------------------------------------------------------------------- */
-/*                              Section header                                */
-/* -------------------------------------------------------------------------- */
 
 function SectionHeading({ data }: { data: ResolvedBlock }) {
   const { block } = data;
@@ -132,10 +135,6 @@ function SectionHeading({ data }: { data: ResolvedBlock }) {
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*                            Banner slide                                    */
-/* -------------------------------------------------------------------------- */
 
 function BannerSlide({
   banner,
@@ -247,10 +246,6 @@ function BannerSlide({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                          Banner display — carousel                         */
-/* -------------------------------------------------------------------------- */
-
 function BannerDisplay({ data }: { data: ResolvedBlock }) {
   const { block, banners = [] } = data;
   const dc = block.displayConfig;
@@ -340,15 +335,12 @@ function BannerDisplay({ data }: { data: ResolvedBlock }) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                          Card-based displays                               */
-/* -------------------------------------------------------------------------- */
-
 interface SharedCardProps {
   size: CardSize;
   variant: "card" | "bare";
   shape: CardShape;
   ratio: CardRatio;
+  layout: CardLayout;
   titlePosition: TitlePosition;
   imagePosition: ImagePosition;
   textColor: string | undefined;
@@ -363,6 +355,7 @@ function buildCardProps(
     variant: (ss.manualCardVariant as "card" | "bare") ?? "card",
     shape: dc.cardShape,
     ratio: dc.cardRatio,
+    layout: dc.cardLayout,
     titlePosition: dc.titlePosition,
     imagePosition: dc.imagePosition,
     textColor: dc.textColor || undefined,
@@ -378,10 +371,10 @@ function CardBlock({ data }: { data: ResolvedBlock }) {
 
   return (
     <section
-      className={` p-2 bg-background rounded-lg m-1 sm:mx-6 lg:mx-8 ${themeWrapCls(dc.theme)}`}
+      className={`p-2 bg-background rounded-lg m-1 sm:mx-6 lg:mx-8 ${themeWrapCls(dc.theme)}`}
       style={sectionStyle(dc)}
     >
-      <div className="">
+      <div>
         <SectionHeading data={data} />
         {renderCardBody(block.display, items, dc, ss)}
       </div>
@@ -389,20 +382,12 @@ function CardBlock({ data }: { data: ResolvedBlock }) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                          Public dispatcher                                 */
-/* -------------------------------------------------------------------------- */
-
 export function BlockSection({ data }: { data: ResolvedBlock }) {
   if (data.block.display === "banner" && data.banners) {
     return <BannerDisplay data={data} />;
   }
   return <CardBlock data={data} />;
 }
-
-/* -------------------------------------------------------------------------- */
-/*                               Card layouts                                 */
-/* -------------------------------------------------------------------------- */
 
 function renderCardBody(
   display: string,
