@@ -90,7 +90,7 @@ const BAR_JUSTIFY_CLS: Record<string, string> = {
 };
 
 const THEME_CLS: Record<string, string> = {
-  light: "bg-white text-neutral-900 border-neutral-200",
+  light: "bg-card text-foreground border-border",
   dark: "bg-neutral-900 text-neutral-100 border-neutral-700",
   inherit: "border-current/20",
 };
@@ -136,7 +136,7 @@ export function NavTree({
         const linkCls = isGridRoot
           ? "flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-6 text-center transition hover:border-primary hover:shadow-md"
           : isRoot
-            ? "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-base font-medium text-primary-foreground transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-ring"
+            ? "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
             : "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring";
 
         return (
@@ -165,7 +165,7 @@ export function NavTree({
                 {item.label}
               </span>
               {item.badge ? (
-                <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
+                <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
                   {item.badge}
                 </span>
               ) : null}
@@ -287,7 +287,7 @@ function NavSubmenu({
               <div key={child._id ?? child.label} className="min-w-0">
                 <Link
                   href={resolveHref(child)}
-                  className="block text-sm font-semibold hover:text-indigo-600"
+                  className="block text-sm font-semibold text-foreground hover:text-primary"
                 >
                   {child.label}
                 </Link>
@@ -299,7 +299,7 @@ function NavSubmenu({
                         <li key={grand._id ?? grand.label}>
                           <Link
                             href={resolveHref(grand)}
-                            className="text-sm opacity-70 hover:opacity-100 hover:text-indigo-600"
+                            className="text-sm text-muted-foreground hover:text-primary"
                           >
                             {grand.label}
                           </Link>
@@ -314,7 +314,7 @@ function NavSubmenu({
           {item.featured?.image ? (
             <Link
               href={item.featured.href || "#"}
-              className="hidden w-56 shrink-0 overflow-hidden rounded-lg border border-current/10 lg:block"
+              className="hidden w-56 shrink-0 overflow-hidden rounded-lg border border-border bg-card lg:block"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -325,15 +325,17 @@ function NavSubmenu({
               />
               <div className="p-3">
                 {item.featured.badge ? (
-                  <span className="mb-1 inline-block rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
+                  <span className="mb-1 inline-block rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
                     {item.featured.badge}
                   </span>
                 ) : null}
                 {item.featured.title ? (
-                  <p className="text-sm font-semibold">{item.featured.title}</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {item.featured.title}
+                  </p>
                 ) : null}
                 {item.featured.ctaText ? (
-                  <p className="mt-1 text-xs text-indigo-600">
+                  <p className="mt-1 text-xs text-primary">
                     {item.featured.ctaText} →
                   </p>
                 ) : null}

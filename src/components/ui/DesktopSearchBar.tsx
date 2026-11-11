@@ -1,3 +1,4 @@
+// components/ui/DesktopSearchBar.tsx
 "use client";
 
 import React, { useCallback, useRef, useState } from "react";
@@ -97,18 +98,18 @@ const DesktopSearchBar: React.FC<DesktopSearchBarProps> = ({
     }
   };
 
-  // Theme tokens based on header state
+  // Theme tokens based on header surface
   const wrapClass = isTransparent
-    ? "border-white/25 bg-white/15 focus-within:bg-white/20 focus-within:border-white/40"
-    : "border-white/20 bg-white/10 focus-within:bg-white/15 focus-within:border-white/40";
+    ? "border-white/30 bg-white/10 focus-within:bg-white/20 focus-within:border-white/50"
+    : "border-border bg-muted/60 focus-within:bg-background focus-within:border-ring";
 
-  const textClass = isTransparent ? "text-white/90" : "text-primary-foreground";
+  const textClass = isTransparent ? "text-white" : "text-foreground";
 
   const placeholderClass = isTransparent
     ? "placeholder:text-white/70"
-    : "placeholder:text-primary-foreground/80";
+    : "placeholder:text-muted-foreground";
 
-  const iconClass = isTransparent ? "text-white/80" : "text-white/80";
+  const iconClass = isTransparent ? "text-white/80" : "text-muted-foreground";
 
   return (
     <div ref={dropdownRef} className="relative w-full">
@@ -128,7 +129,7 @@ const DesktopSearchBar: React.FC<DesktopSearchBarProps> = ({
             if (searchInput.trim().length >= 2) setShowSuggestions(true);
           }}
           placeholder="Search Novaorizon…"
-          className={`h-full flex-1 border-none bg-transparent px-3 py-2 text-sm focus:outline-none ${textClass} ${placeholderClass}`}
+          className={`h-full flex-1 border-none bg-transparent px-3 py-2 text-sm shadow-none focus:outline-none focus:ring-0 focus:border-transparent ${textClass} ${placeholderClass}`}
           aria-label="Search for products"
           autoComplete="off"
         />
@@ -137,7 +138,7 @@ const DesktopSearchBar: React.FC<DesktopSearchBarProps> = ({
             type="button"
             onClick={handleClear}
             aria-label="Clear search"
-            className={`p-2 transition-colors ${iconClass} hover:opacity-80`}
+            className={`p-2 transition-colors ${iconClass} hover:text-foreground`}
           >
             <Close style={{ fontSize: 18 }} />
           </button>

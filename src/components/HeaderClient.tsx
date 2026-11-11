@@ -47,7 +47,7 @@ interface HeaderClientProps {
 const Logo = React.memo(() => (
   <Link
     href="/"
-    className="relative flex-shrink-0 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+    className="relative flex-shrink-0 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-foreground/60"
     aria-label="Homepage"
   >
     <Image
@@ -88,7 +88,7 @@ const UserProfile = React.memo(() => {
       <Link
         href="/profile"
         onClick={togglePopover}
-        className="flex items-center gap-1.5 rounded-md text-base text-primary-foreground transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-ring"
+        className="flex items-center gap-1.5 rounded-md text-base text-primary-foreground transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60"
         aria-label="Profile"
         aria-haspopup="dialog"
         aria-expanded={isPopoverOpen}
@@ -149,7 +149,7 @@ const CartIcon = React.memo(() => {
   const closePopover = () => setIsPopoverOpen(false);
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative ">
       {itemCount > 0 && (
         <span
           className="absolute -right-1 -top-1 z-10 min-w-[20px] rounded-full bg-destructive px-1.5 text-center text-[11px] font-bold leading-[20px] text-destructive-foreground"
@@ -162,7 +162,7 @@ const CartIcon = React.memo(() => {
       <Link
         href="/cart"
         onClick={handleCartClick}
-        className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring"
+        className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary-foreground/60"
         aria-label="Shopping cart"
       >
         <ShoppingCart
@@ -220,9 +220,9 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
     <>
       <header
         role="banner"
-        className="sticky top-0 z-50 bg-primary-600 text-primary-foreground shadow-sm"
+        className="sticky top-0 z-50 p-1 pr-2 m-1 lg:mx-6 lg:px-2 lg:my-2 border border-primary-700/40 rounded-lg bg-primary text-primary-foreground shadow-sm"
       >
-        <div className="mx-auto max-w-7xl px-2 md:px-6 lg:px-8">
+        <div className=" ">
           <div className="flex items-center justify-between gap-3 py-1">
             {/* Left: menu + logo */}
             <div className="flex items-center gap-2">
@@ -230,7 +230,7 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
                 type="button"
                 onClick={toggleSidebar}
                 aria-label="Toggle navigation menu"
-                className="rounded-full p-2 transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-ring"
+                className="rounded-full p-2 transition-colors hover:bg-primary-foreground/10 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60"
               >
                 <Menu
                   style={{ fontSize: 32 }}
@@ -240,42 +240,45 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
               <Logo />
             </div>
 
-            {/* Middle: desktop inline search */}
+            {/* Middle: desktop inline search — uses the on-primary variant */}
             <div className="hidden lg:block flex-1 max-w-2xl mx-8">
-              <DesktopSearchBar isTransparent={false} />
+              <DesktopSearchBar isTransparent />
             </div>
 
-            {/* Right: user, cart */}
-            <div className="flex items-center gap-2 lg:gap-3">
+            {/* Right: search (mobile), user, cart */}
+            <div className="flex items-center gap-1 lg:gap-3">
+              {/* Mobile-only search icon — opens the search modal */}
+              <button
+                type="button"
+                onClick={openSearch}
+                aria-label="Open search"
+                className="rounded-full p-2 transition-colors hover:bg-primary-foreground/10 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60 lg:hidden"
+              >
+                <Search
+                  style={{ fontSize: 32 }}
+                  className="text-primary-foreground"
+                />
+              </button>
+
               <UserProfile />
               <CartIcon />
             </div>
           </div>
 
-          {/* Mobile full-width search bar — tappable, opens the modal */}
-          <div className="lg:hidden pb-2">
-            <button
-              type="button"
-              onClick={openSearch}
-              aria-label="Open search"
-              className="flex w-full items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-left text-base transition-colors hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <Search
-                style={{ fontSize: 22 }}
-                className="shrink-0 text-primary-foreground"
-              />
-              <span className="truncate text-primary-foreground/90">
-                Search products…
-              </span>
-            </button>
-          </div>
-
-          {/* Nav menu — home page only, and only while at the top */}
+          {/* Nav menu — home page only, and only while at the top.
+              Root links are forced to primary-foreground via arbitrary
+              variants so they remain legible on the navy header. Dropdown
+              panels (nested `ul`s) are untouched and keep their light card
+              styling. */}
           {showNav ? (
             <div className="relative w-full overflow-x-auto md:overflow-visible scrollbar-hide">
               <nav
                 aria-label="Main navigation"
-                className="w-max min-w-full md:w-full"
+                className="w-max min-w-full md:w-full
+                  [&>ul>li>a]:text-primary-foreground
+                  [&>ul>li>a:hover]:bg-primary-foreground/10
+                  [&>ul>li>a:hover]:text-primary-foreground
+                  [&>ul>li>a:focus-visible]:ring-primary-foreground/60"
               >
                 <NavTree
                   items={navMenu.items}

@@ -378,10 +378,10 @@ function CardBlock({ data }: { data: ResolvedBlock }) {
 
   return (
     <section
-      className={`py-4 ${themeWrapCls(dc.theme)}`}
+      className={` p-2 bg-background rounded-lg m-1 sm:mx-6 lg:mx-8 ${themeWrapCls(dc.theme)}`}
       style={sectionStyle(dc)}
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="">
         <SectionHeading data={data} />
         {renderCardBody(block.display, items, dc, ss)}
       </div>
