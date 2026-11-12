@@ -24,7 +24,6 @@ import { findProducts } from "@/app/actions/products";
 import ProductAttributes from "./ProductAttributes";
 import BottomSheet from "@/components/ux/BottomSheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { htmlToPlainText } from "@/lib/plain-text";
 import { LikeButton } from "@/components/content/LikeButton";
 import { ShareButton } from "@/components/content/ShareButton";
 
@@ -1049,9 +1048,10 @@ export default function ProductDetailsClient({
               collapsedHeight={420}
             >
               {description ? (
-                <div className="prose prose-sm max-w-none whitespace-pre-line text-foreground">
-                  {htmlToPlainText(description)}
-                </div>
+                <div
+                  className="prose prose-sm max-w-none text-foreground [&_a]:text-primary [&_a]:underline [&_img]:rounded-md [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_p]:my-2"
+                  dangerouslySetInnerHTML={{ __html: description }}
+                />
               ) : (
                 <p className={TYPO.muted}>No description available.</p>
               )}
