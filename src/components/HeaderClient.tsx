@@ -220,7 +220,7 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
     <>
       <header
         role="banner"
-        className="sticky top-0 z-50 m-1 p-2 lg:mx-6 lg:p-3 border border-primary-700/40 rounded-xl bg-primary-600 text-primary-foreground shadow-sm"
+        className="sticky top-0 z-50 m-1 pr-2 lg:mx-6 lg:p-3 border border-primary-700/40 rounded-xl bg-primary-600 text-primary-foreground shadow-sm"
       >
         <div className=" ">
           <div className="flex items-center justify-between gap-3 py-1">
