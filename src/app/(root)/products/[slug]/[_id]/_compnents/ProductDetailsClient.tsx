@@ -888,7 +888,7 @@ export default function ProductDetailsClient({
   const stockStatus = inStock ? "In Stock" : "Out of Stock";
 
   return (
-    <div className="w-full border-b-2 border-border bg-background px-3 py-2 md:px-8 md:py-4">
+    <div className="m-1 p-2 lg:mx-6 mb-2 lg:p-3 bg-background rounded-xl border border-border">
       <ProductViewAnalytics productId={productId} />
 
       <div className="mx-auto max-w-7xl">

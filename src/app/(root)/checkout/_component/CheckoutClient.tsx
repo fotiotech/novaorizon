@@ -738,15 +738,17 @@ const CheckoutClient = () => {
   // ---------- Render ----------
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Spinner size={40} />
+      <div className="m-1 p-2 lg:mx-6 lg:p-3 bg-background rounded-xl border border-border">
+        <div className="flex h-64 items-center justify-center">
+          <Spinner size={40} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-6xl p-3 md:py-8">
+    <div className="m-1 p-2 lg:mx-6 lg:p-3 bg-background rounded-xl border border-border">
+      <div className="mx-auto max-w-6xl">
         <h1 className="mb-6 text-2xl font-bold text-foreground md:text-3xl">
           Checkout
         </h1>

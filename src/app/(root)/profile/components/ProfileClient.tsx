@@ -39,8 +39,10 @@ const ProfileClient = () => {
 
   if (status === "loading") {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Spinner />
+      <div className="m-1 p-2 lg:m-6 lg:p-3 bg-background rounded-xl border border-border">
+        <div className="flex h-64 items-center justify-center">
+          <Spinner />
+        </div>
       </div>
     );
   }
@@ -61,26 +63,24 @@ const ProfileClient = () => {
   const avatarUrl = profile?.image || user.image;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className=" px-3 lg:px-10 py-4 flex justify-between items-center">
-          <div className="font-semibold text-xl text-gray-800">Profile</div>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setPrefsOpen(true)}
-              className="hidden sm:block px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm transition-colors"
-            >
-              {preferences?.currency ?? "Currency"} ·{" "}
-              {(preferences?.language ?? "en").toUpperCase()}
-            </button>
-          </div>
+    <div className="m-1 p-2 lg:mx-6 lg:p-3 bg-background rounded-xl border border-border">
+      <div className="mx-auto max-w-2xl">
+        {/* Heading row */}
+        <div className="mb-6 flex justify-between items-center">
+          <h1 className="font-bold text-xl md:text-2xl text-foreground">
+            Profile
+          </h1>
+          <button
+            type="button"
+            onClick={() => setPrefsOpen(true)}
+            className="hidden sm:block px-3 py-1 bg-muted hover:bg-muted/80 rounded-full text-sm text-foreground transition-colors"
+          >
+            {preferences?.currency ?? "Currency"} ·{" "}
+            {(preferences?.language ?? "en").toUpperCase()}
+          </button>
         </div>
-      </div>
 
-      <div className="container mx-auto px-4 mt-6">
-        <div className="max-w-2xl mx-auto space-y-4">
+        <div className="space-y-4">
           {/* Completion banner */}
           {!profileLoading && !profileCompletion.completed && (
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
@@ -124,7 +124,7 @@ const ProfileClient = () => {
           )}
 
           {/* User card */}
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
             <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center min-w-0">
@@ -169,11 +169,11 @@ const ProfileClient = () => {
               {/* Edit Profile */}
               <Link
                 href="/profile/edit"
-                className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                  className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -185,7 +185,7 @@ const ProfileClient = () => {
                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                   />
                 </svg>
-                <span className="text-gray-700 group-hover:text-blue-600">
+                <span className="text-foreground group-hover:text-blue-600">
                   Edit Profile
                 </span>
                 {!profileCompletion.completed && (
@@ -199,11 +199,11 @@ const ProfileClient = () => {
               <button
                 type="button"
                 onClick={() => setPrefsOpen(true)}
-                className="w-full flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group text-left"
+                className="w-full flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group text-left"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                  className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -216,10 +216,10 @@ const ProfileClient = () => {
                   />
                 </svg>
                 <div className="flex-1">
-                  <span className="text-gray-700 group-hover:text-blue-600 block">
+                  <span className="text-foreground group-hover:text-blue-600 block">
                     Language, Currency & Theme
                   </span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-muted-foreground">
                     {(preferences?.language ?? "en").toUpperCase()} ·{" "}
                     {preferences?.currency ?? "XAF"} ·{" "}
                     {preferences?.theme ?? "system"}
@@ -227,7 +227,7 @@ const ProfileClient = () => {
                 </div>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 text-gray-400 group-hover:text-blue-500"
+                  className="h-4 w-4 text-muted-foreground group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -245,11 +245,11 @@ const ProfileClient = () => {
               <button
                 type="button"
                 onClick={() => setPermsOpen(true)}
-                className="w-full flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group text-left"
+                className="w-full flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group text-left"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                  className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -262,16 +262,16 @@ const ProfileClient = () => {
                   />
                 </svg>
                 <div className="flex-1">
-                  <span className="text-gray-700 group-hover:text-blue-600 block">
+                  <span className="text-foreground group-hover:text-blue-600 block">
                     Notifications & Permissions
                   </span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-muted-foreground">
                     Order updates, marketing & alerts
                   </span>
                 </div>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 text-gray-400 group-hover:text-blue-500"
+                  className="h-4 w-4 text-muted-foreground group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -288,11 +288,11 @@ const ProfileClient = () => {
               {/* My Orders */}
               <Link
                 href="/profile/myorders"
-                className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                  className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -304,7 +304,7 @@ const ProfileClient = () => {
                     d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
                   />
                 </svg>
-                <span className="text-gray-700 group-hover:text-blue-600">
+                <span className="text-foreground group-hover:text-blue-600">
                   My Orders
                 </span>
               </Link>
@@ -312,11 +312,11 @@ const ProfileClient = () => {
               {/* Addresses */}
               <Link
                 href="/profile/address"
-                className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                  className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -328,7 +328,7 @@ const ProfileClient = () => {
                     d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
                   />
                 </svg>
-                <span className="text-gray-700 group-hover:text-blue-600">
+                <span className="text-foreground group-hover:text-blue-600">
                   Addresses
                 </span>
               </Link>
@@ -336,11 +336,11 @@ const ProfileClient = () => {
               {/* Payment Methods */}
               <Link
                 href="/profile/payment"
-                className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                  className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -352,7 +352,7 @@ const ProfileClient = () => {
                     d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
                   />
                 </svg>
-                <span className="text-gray-700 group-hover:text-blue-600">
+                <span className="text-foreground group-hover:text-blue-600">
                   Payment Methods
                 </span>
               </Link>
@@ -360,11 +360,11 @@ const ProfileClient = () => {
               {/* My Reviews */}
               <Link
                 href="/profile/myreviews"
-                className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                  className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -376,7 +376,7 @@ const ProfileClient = () => {
                     d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
                   />
                 </svg>
-                <span className="text-gray-700 group-hover:text-blue-600">
+                <span className="text-foreground group-hover:text-blue-600">
                   My Reviews
                 </span>
               </Link>
@@ -385,11 +385,11 @@ const ProfileClient = () => {
               {user.role === "seller" ? (
                 <Link
                   href="https://novaorizon-seller.vercel.app"
-                  className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                  className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                    className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -407,18 +407,18 @@ const ProfileClient = () => {
                       d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                   </svg>
-                  <span className="text-gray-700 group-hover:text-blue-600">
+                  <span className="text-foreground group-hover:text-blue-600">
                     Seller Account
                   </span>
                 </Link>
               ) : (
                 <Link
                   href="https://novaorizon-seller.vercel.app/auth/sign_up"
-                  className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                  className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors group"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 text-gray-400 mr-3 group-hover:text-blue-500"
+                    className="h-5 w-5 text-muted-foreground mr-3 group-hover:text-blue-500"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -436,15 +436,15 @@ const ProfileClient = () => {
                       d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                   </svg>
-                  <span className="text-gray-700 group-hover:text-blue-600">
+                  <span className="text-foreground group-hover:text-blue-600">
                     Become Seller
                   </span>
                 </Link>
               )}
 
               {/* Sign out */}
-              <div className="pt-4 mt-4 border-t border-gray-100">
-                <div className="p-3 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-red-700">
+              <div className="pt-4 mt-4 border-t border-border">
+                <div className="p-3 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg transition-colors text-red-700 dark:text-red-400">
                   <SignOut />
                 </div>
               </div>
