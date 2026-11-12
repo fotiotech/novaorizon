@@ -24,9 +24,11 @@ const Footer = async () => {
             <Link href="/" className="mb-4">
               <div className="w-32 h-32 lg:w-40 lg:h-40 relative">
                 <Image
-                  src="/logoc1.png"
-                  alt="Dyfk Logo"
+                  src="/novaorizon.png"
+                  alt="Novaorizon Logo"
                   fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  style={{ objectFit: "contain" }}
                   className="object-contain"
                   priority
                 />

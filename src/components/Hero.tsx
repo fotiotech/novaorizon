@@ -83,7 +83,7 @@ const HeaderScroll: React.FC = () => {
                 <div className="h-3 sm:h-4 w-full rounded bg-white/10 animate-pulse" />
                 <div className="h-3 sm:h-4 w-5/6 mx-auto lg:mx-0 rounded bg-white/10 animate-pulse" />
               </div>
-              <div className="mt-3 sm:mt-4 h-6 sm:h-9 w-20 sm:w-32 mx-auto lg:mx-0 rounded-full bg-white/10 animate-pulse" />
+              <div className="mt-3 sm:mt-4 h-7 sm:h-10 w-24 sm:w-36 mx-auto lg:mx-0 rounded-full bg-white/10 animate-pulse" />
             </div>
           </div>
 
@@ -147,10 +147,10 @@ const HeaderScroll: React.FC = () => {
                         )}
 
                         {hero.cta_text && (
-                          <span className="mt-2 sm:mt-5 inline-flex items-center gap-1 sm:gap-2 rounded-full bg-primary px-2.5 sm:px-6 py-1 sm:py-2.5 text-xs sm:text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                          <span className="mt-3 sm:mt-6 inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-primary px-4 sm:px-7 py-1.5 sm:py-3 text-sm sm:text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                             {hero.cta_text}
                             <svg
-                              className="h-2.5 w-2.5 sm:h-4 sm:w-4"
+                              className="h-3 w-3 sm:h-4 sm:w-4"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
