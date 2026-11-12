@@ -107,7 +107,7 @@ const UserProfile = React.memo(() => {
             <img
               src={user.image}
               alt={user?.name ?? "Profile"}
-              className="h-9 w-9 rounded-full object-cover border border-primary-foreground/30 transition-transform hover:scale-110"
+              className="h-8 w-8 rounded-full object-cover border border-primary-foreground/30 transition-transform hover:scale-110"
             />
           ) : (
             <Person
@@ -260,8 +260,10 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
                 />
               </button>
 
-              <UserProfile />
-              <CartIcon />
+              <div className="flex items-center gap-3">
+                <UserProfile />
+                <CartIcon />
+              </div>
             </div>
           </div>
 
