@@ -262,7 +262,7 @@ function BannerDisplay({ data }: { data: ResolvedBlock }) {
 
   return (
     <section
-      className={`py-4 ${themeWrapCls(dc.theme)}`}
+      className={`m-1 p-2 lg:m-6 lg:p-3 ${themeWrapCls(dc.theme)}`}
       style={sectionStyle(dc)}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -371,7 +371,7 @@ function CardBlock({ data }: { data: ResolvedBlock }) {
 
   return (
     <section
-      className={`p-2 bg-background rounded-lg m-1 sm:mx-6 lg:mx-8 ${themeWrapCls(dc.theme)}`}
+      className={`m-1 p-2 lg:mx-6 lg:p-3 bg-background rounded-xl ${themeWrapCls(dc.theme)}`}
       style={sectionStyle(dc)}
     >
       <div>

@@ -72,18 +72,18 @@ const HeaderScroll: React.FC = () => {
     return (
       <section
         aria-label="Hero carousel loading"
-        className="relative overflow-hidden bg-black m-1 lg:mx-8 lg:my-3 rounded-lg"
+        className="relative overflow-hidden bg-black m-1 my-2 lg:mx-6 rounded-xl"
       >
         <div className="relative grid grid-cols-[45%_55%] sm:grid-cols-[2fr_3fr] lg:grid-cols-2 items-stretch min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
           {/* Text panel skeleton — left */}
           <div className="relative flex items-center justify-center px-3 py-3 sm:px-6 lg:px-12 lg:py-10 bg-black">
             <div className="relative z-10 w-full max-w-xl space-y-3 sm:space-y-4 text-center lg:text-left">
-              <div className="h-4 sm:h-9 lg:h-10 xl:h-12 w-3/4 mx-auto lg:mx-0 rounded-md bg-white/10 animate-pulse" />
+              <div className="h-5 sm:h-9 lg:h-10 xl:h-12 w-3/4 mx-auto lg:mx-0 rounded-md bg-white/10 animate-pulse" />
               <div className="space-y-1.5 sm:space-y-2">
-                <div className="h-2.5 sm:h-4 w-full rounded bg-white/10 animate-pulse" />
-                <div className="h-2.5 sm:h-4 w-5/6 mx-auto lg:mx-0 rounded bg-white/10 animate-pulse" />
+                <div className="h-3 sm:h-4 w-full rounded bg-white/10 animate-pulse" />
+                <div className="h-3 sm:h-4 w-5/6 mx-auto lg:mx-0 rounded bg-white/10 animate-pulse" />
               </div>
-              <div className="mt-3 sm:mt-4 h-7 sm:h-9 w-20 sm:w-32 mx-auto lg:mx-0 rounded-full bg-white/10 animate-pulse" />
+              <div className="mt-3 sm:mt-4 h-6 sm:h-9 w-20 sm:w-32 mx-auto lg:mx-0 rounded-full bg-white/10 animate-pulse" />
             </div>
           </div>
 
@@ -101,7 +101,7 @@ const HeaderScroll: React.FC = () => {
   return (
     <section
       aria-label="Hero carousel"
-      className="relative overflow-hidden bg-black mx-3 lg:mx-8 lg:my-3 rounded-lg"
+      className="relative overflow-hidden bg-black m-1 my-2 lg:mx-6 rounded-xl"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -136,18 +136,18 @@ const HeaderScroll: React.FC = () => {
                     {/* Text panel — LEFT */}
                     <div className="relative flex items-center justify-center px-3 py-3 sm:px-6 lg:px-12 lg:py-10 bg-black">
                       <div className="relative z-10 w-full max-w-xl text-center lg:text-left">
-                        <h1 className="text-sm sm:text-2xl lg:text-4xl xl:text-5xl font-extrabold text-white leading-tight line-clamp-2 drop-shadow-lg">
+                        <h1 className="text-base sm:text-2xl lg:text-4xl xl:text-5xl font-extrabold text-white leading-tight line-clamp-2 drop-shadow-lg">
                           {title}
                         </h1>
 
                         {hero.description && (
-                          <p className="mt-1.5 text-[10px] leading-snug sm:mt-2 sm:text-sm lg:text-lg text-white/80 line-clamp-2 lg:line-clamp-3">
+                          <p className="mt-1.5 text-xs leading-snug sm:mt-2 sm:text-sm lg:text-lg text-white/80 line-clamp-2 lg:line-clamp-3">
                             {hero.description}
                           </p>
                         )}
 
                         {hero.cta_text && (
-                          <span className="mt-2 sm:mt-5 inline-flex items-center gap-1 sm:gap-2 rounded-full bg-primary px-2.5 sm:px-6 py-1 sm:py-2.5 text-[10px] sm:text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                          <span className="mt-2 sm:mt-5 inline-flex items-center gap-1 sm:gap-2 rounded-full bg-primary px-2.5 sm:px-6 py-1 sm:py-2.5 text-xs sm:text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                             {hero.cta_text}
                             <svg
                               className="h-2.5 w-2.5 sm:h-4 sm:w-4"

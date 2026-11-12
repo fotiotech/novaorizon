@@ -474,7 +474,7 @@ export function ContentCard({
           className={`flex flex-1 flex-col ${size === "sm" ? "py-2" : "py-3"}`}
         >
           <p
-            className={`line-clamp-2 font-semibold text-muted-foreground ${textCls}`}
+            className={`line-clamp-2 font-semibold text-neutral-900 ${textCls}`}
             style={textStyle}
           >
             {item.name}
@@ -488,7 +488,7 @@ export function ContentCard({
             />
           ) : item.description ? (
             <p
-              className="mt-1 line-clamp-2 text-xs text-muted-foreground"
+              className="mt-1 line-clamp-1 text-xs text-muted-foreground"
               style={textStyle}
             >
               {item.description}

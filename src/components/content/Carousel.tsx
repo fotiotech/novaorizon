@@ -120,6 +120,11 @@ export function CarouselRail({
         ? "w-48 sm:w-56 md:w-64"
         : "w-40 sm:w-48 md:w-56";
 
+  // NOTE: buttons stay inside the rail's padding box.
+  // The section that wraps this rail only has m-1 + p-2 on mobile (≈12px
+  // of side buffer), so buttons using `-translate-x-1/2` would poke ~6px
+  // past the viewport and trigger horizontal page scroll. Using `-left-2`
+  // / `-right-2` keeps the "peek outside" look while staying in-bounds.
   const btnCls =
     "absolute top-1/2 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-foreground shadow-md backdrop-blur transition hover:bg-background hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1";
 
@@ -130,7 +135,7 @@ export function CarouselRail({
           type="button"
           onClick={() => scrollByAmount(-1)}
           aria-label="Scroll left"
-          className={`${btnCls} left-0 -translate-x-1/2`}
+          className={`${btnCls} -left-2`}
         >
           <ChevronLeft />
         </button>
@@ -168,7 +173,7 @@ export function CarouselRail({
           type="button"
           onClick={() => scrollByAmount(1)}
           aria-label="Scroll right"
-          className={`${btnCls} right-0 translate-x-1/2`}
+          className={`${btnCls} -right-2`}
         >
           <ChevronRight />
         </button>
