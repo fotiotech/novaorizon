@@ -225,7 +225,7 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
         <div className=" ">
           <div className="flex items-center justify-between gap-3 py-1">
             {/* Left: menu + logo */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center lg:gap-2">
               <button
                 type="button"
                 onClick={toggleSidebar}
