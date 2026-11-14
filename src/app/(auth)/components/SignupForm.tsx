@@ -68,13 +68,11 @@ export default function SignupForm() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
       <Link href={"/"} className="mb-8">
-        <Image
+        <img
           title="logo"
-          src="/logo.png"
-          width={80}
-          height={40}
+          src="/novaorizon-dark.png"
           alt="logo"
-          className="p-2 hover:opacity-80 transition-opacity"
+          className="h-16 w-40"
         />
       </Link>
 
