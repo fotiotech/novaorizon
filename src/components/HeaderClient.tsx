@@ -218,80 +218,92 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
 
   return (
     <>
-      <header
-        role="banner"
-        className="sticky top-0 z-50 m-1 pr-2 lg:mx-6 lg:p-3 border border-primary-700/40 rounded-xl bg-primary-600 text-primary-foreground shadow-sm"
-      >
-        <div className=" ">
-          <div className="flex items-center justify-between gap-3 py-1">
-            {/* Left: menu + logo */}
-            <div className="flex items-center lg:gap-2">
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                aria-label="Toggle navigation menu"
-                className="rounded-full p-2 transition-colors hover:bg-primary-foreground/10 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60"
-              >
-                <Menu
-                  style={{ fontSize: 32 }}
-                  className="text-primary-foreground"
-                />
-              </button>
-              <Logo />
-            </div>
+      {/*
+        Sticky wrapper:
+        - Owns `sticky top-0 z-50` so we can drop the top margin from
+          the <header> (margin on a sticky element causes its margin-box
+          to be pinned to `top: 0`, leaving an unpainted strip above the
+          header where page content visibly scrolls through).
+        - `pt-1` reproduces the original 4px top inset visually.
+        - `bg-background` masks whatever scrolls behind that inset strip
+          so it reads as page background, not page content.
+      */}
+      <div className="sticky top-0 z-50 pt-1 bg-background">
+        <header
+          role="banner"
+          className="mx-1 mb-1 pr-2 lg:mx-6 lg:p-3 border border-primary-700/40 rounded-xl bg-primary-600 text-primary-foreground shadow-sm"
+        >
+          <div className=" ">
+            <div className="flex items-center justify-between gap-3 py-1">
+              {/* Left: menu + logo */}
+              <div className="flex items-center lg:gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  aria-label="Toggle navigation menu"
+                  className="rounded-full p-2 transition-colors hover:bg-primary-foreground/10 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60"
+                >
+                  <Menu
+                    style={{ fontSize: 32 }}
+                    className="text-primary-foreground"
+                  />
+                </button>
+                <Logo />
+              </div>
 
-            {/* Middle: desktop inline search — uses the on-primary variant */}
-            <div className="hidden lg:block flex-1 max-w-2xl mx-8">
-              <DesktopSearchBar isTransparent />
-            </div>
+              {/* Middle: desktop inline search — uses the on-primary variant */}
+              <div className="hidden lg:block flex-1 max-w-2xl mx-8">
+                <DesktopSearchBar isTransparent />
+              </div>
 
-            {/* Right: search (mobile), user, cart */}
-            <div className="flex items-center gap-1 lg:gap-3">
-              {/* Mobile-only search icon — opens the search modal */}
-              <button
-                type="button"
-                onClick={openSearch}
-                aria-label="Open search"
-                className="rounded-full p-2 transition-colors hover:bg-primary-foreground/10 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60 lg:hidden"
-              >
-                <Search
-                  style={{ fontSize: 32 }}
-                  className="text-primary-foreground"
-                />
-              </button>
+              {/* Right: search (mobile), user, cart */}
+              <div className="flex items-center gap-1 lg:gap-3">
+                {/* Mobile-only search icon — opens the search modal */}
+                <button
+                  type="button"
+                  onClick={openSearch}
+                  aria-label="Open search"
+                  className="rounded-full p-2 transition-colors hover:bg-primary-foreground/10 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60 lg:hidden"
+                >
+                  <Search
+                    style={{ fontSize: 32 }}
+                    className="text-primary-foreground"
+                  />
+                </button>
 
-              <div className="flex items-center gap-3">
-                <UserProfile />
-                <CartIcon />
+                <div className="flex items-center gap-3">
+                  <UserProfile />
+                  <CartIcon />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Nav menu — home page only, and only while at the top.
-              Root links are forced to primary-foreground via arbitrary
-              variants so they remain legible on the navy header. Dropdown
-              panels (nested `ul`s) are untouched and keep their light card
-              styling. */}
-          {showNav ? (
-            <div className="relative w-full overflow-x-auto md:overflow-visible scrollbar-hide">
-              <nav
-                aria-label="Main navigation"
-                className="w-max min-w-full md:w-full
-                  [&>ul>li>a]:text-primary-foreground
-                  [&>ul>li>a:hover]:bg-primary-foreground/10
-                  [&>ul>li>a:hover]:text-primary-foreground
-                  [&>ul>li>a:focus-visible]:ring-primary-foreground/60"
-              >
-                <NavTree
-                  items={navMenu.items}
-                  config={displayConfig}
-                  menuDisplay={navMenu.display ?? "horizontal"}
-                />
-              </nav>
-            </div>
-          ) : null}
-        </div>
-      </header>
+            {/* Nav menu — home page only, and only while at the top.
+                Root links are forced to primary-foreground via arbitrary
+                variants so they remain legible on the navy header. Dropdown
+                panels (nested `ul`s) are untouched and keep their light card
+                styling. */}
+            {showNav ? (
+              <div className="relative w-full overflow-x-auto md:overflow-visible scrollbar-hide">
+                <nav
+                  aria-label="Main navigation"
+                  className="w-max min-w-full md:w-full
+                    [&>ul>li>a]:text-primary-foreground
+                    [&>ul>li>a:hover]:bg-primary-foreground/10
+                    [&>ul>li>a:hover]:text-primary-foreground
+                    [&>ul>li>a:focus-visible]:ring-primary-foreground/60"
+                >
+                  <NavTree
+                    items={navMenu.items}
+                    config={displayConfig}
+                    menuDisplay={navMenu.display ?? "horizontal"}
+                  />
+                </nav>
+              </div>
+            ) : null}
+          </div>
+        </header>
+      </div>
 
       <Sidebar
         isOpen={isSidebarOpen}
