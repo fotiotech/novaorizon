@@ -22,9 +22,10 @@ export default async function MenuRenderer({
   className = "",
   as = "section",
 }: MenuRendererProps) {
-  const menus = await apiData<any[]>(`/menus/location/${encodeURIComponent(location)}`, {
-    cache: "force-cache",
-  });
+  const menus = await apiData<any[]>(
+    `/menus/location/${encodeURIComponent(location)}`,
+    { revalidate: 300 },
+  );
   if (!Array.isArray(menus) || menus.length === 0) return null;
 
   // Skip menus where every item is hidden — nothing to draw.

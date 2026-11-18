@@ -12,10 +12,7 @@ import { cookies } from "next/headers";
  */
 
 const BASE = (
-  process.env.SERVER_API_URL ||
-  process.env.NEXT_PUBLIC_SERVER_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:3000"
+  process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000"
 ).replace(/\/+$/, "");
 
 const API_PREFIX = process.env.SERVER_API_PREFIX || "/api";
@@ -63,6 +60,11 @@ export interface ApiRequestOptions {
   headers?: Record<string, string>;
   /** Next.js cache behaviour. Defaults to "no-store". */
   cache?: RequestCache;
+  /**
+   * Next.js data-cache lifetime in seconds (maps to `next.revalidate`).
+   * Ignored when `cache` is explicitly "no-store".
+   */
+  revalidate?: number | false;
   /** Explicit bearer token (defaults to none — the cookie is forwarded). */
   token?: string;
   /** Query string parameters; `undefined`/`null` values are dropped. */
@@ -95,11 +97,15 @@ export async function apiRequest(
     formData,
     headers = {},
     cache = "no-store",
+    revalidate,
     token,
     query,
   } = options;
 
-  const finalHeaders: Record<string, string> = { Accept: "application/json", ...headers };
+  const finalHeaders: Record<string, string> = {
+    Accept: "application/json",
+    ...headers,
+  };
 
   const cookieHeader = await buildCookieHeader();
   if (cookieHeader) finalHeaders.Cookie = cookieHeader;
@@ -113,11 +119,18 @@ export async function apiRequest(
     payload = JSON.stringify(body);
   }
 
+  // `next.revalidate` and `cache` are mutually exclusive in Next.js: when a
+  // revalidation window is requested we let the Data Cache own freshness.
+  const cacheOptions: RequestInit =
+    revalidate !== undefined
+      ? ({ next: { revalidate } } as RequestInit)
+      : ({ cache } as RequestInit);
+
   const res = await fetch(buildUrl(path, query), {
     method,
     headers: finalHeaders,
     body: payload,
-    cache,
+    ...cacheOptions,
     // Server-to-server: send the forwarded cookies, never the Next.js ones.
     credentials: "omit",
     // Never let a build-time or SSR request hang when the API is down.
