@@ -1,21 +1,28 @@
+// app/api/payments/monetbil/route.ts
+//
+// Public webhook. The Express backend verifies the transaction with Monetbil
+// and owns the order state machine; this route only forwards the params
+// (Monetbil calls whichever URL is configured, and this one already has been
+// registered with the gateway).
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
-import { connection } from "@/utils/connection";
-import Order from "@/models/Order";
-import { checkMonetbilPayment } from "@/lib/monetbil";
-import { markOrderFailed, markOrderPaid } from "@/lib/order-service";
 import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function safeEqual(a: string, b: string): boolean {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  return left.length === right.length && timingSafeEqual(left, right);
-}
+const API_BASE = (
+  process.env.SERVER_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:3000"
+).replace(/\/+$/, "");
 
-async function readParams(req: NextRequest): Promise<Record<string, string>> {
+async function handle(req: NextRequest) {
+  const ip = await getClientIp();
+  const limit = await consumeRateLimit(`monetbil-notify:${ip}`, 120, 60 * 1000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
+  }
+
   const params: Record<string, string> = {};
   req.nextUrl.searchParams.forEach((value, key) => {
     params[key] = value;
@@ -37,81 +44,27 @@ async function readParams(req: NextRequest): Promise<Record<string, string>> {
       });
     }
   }
-  return params;
-}
 
-async function handle(req: NextRequest) {
-  const ip = await getClientIp();
-  const limit = await consumeRateLimit(`monetbil-notify:${ip}`, 120, 60 * 1000);
-  if (!limit.ok) {
-    return NextResponse.json({ error: "rate limited" }, { status: 429 });
+  try {
+    const res = await fetch(`${API_BASE}/api/monetbil/notify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(params),
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    const text = await res.text();
+    return new NextResponse(text, {
+      status: res.status,
+      headers: {
+        "content-type": res.headers.get("content-type") ?? "application/json",
+      },
+    });
+  } catch (error) {
+    console.error("[monetbil webhook] proxy failed:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 502 });
   }
-
-  const params = await readParams(req);
-
-  const notifyToken = process.env.MONETBIL_NOTIFY_TOKEN;
-  if (notifyToken) {
-    const supplied = params.token ?? params.key ?? "";
-    if (!supplied || !safeEqual(supplied, notifyToken)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
-
-  const paymentId =
-    params.paymentId ??
-    params.payment_id ??
-    params.transaction_id ??
-    params.transactionId;
-  const orderNumber =
-    params.payment_ref ?? params.item_ref ?? params.orderNumber ?? "";
-
-  if (!paymentId || !orderNumber) {
-    return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
-  }
-
-  await connection();
-  const order = await Order.findOne({ orderNumber }).lean();
-  if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
-
-  const transaction = await checkMonetbilPayment(paymentId);
-  if (!transaction) {
-    return NextResponse.json(
-      { error: "Payment could not be verified" },
-      { status: 502 },
-    );
-  }
-
-  if (transaction.status !== 1) {
-    if (transaction.status === 0 || transaction.status === -1) {
-      await markOrderFailed(orderNumber, "Monetbil payment failed or cancelled");
-    }
-    return NextResponse.json({ ok: false, status: transaction.status });
-  }
-
-  if (
-    transaction.payment_ref &&
-    transaction.payment_ref !== order.orderNumber
-  ) {
-    return NextResponse.json(
-      { error: "Payment reference mismatch" },
-      { status: 400 },
-    );
-  }
-
-  const result = await markOrderPaid(orderNumber, {
-    gateway: "monetbil",
-    transactionId: paymentId,
-    amount: transaction.amount,
-    currency: transaction.currency,
-  });
-
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
-  }
-
-  return NextResponse.json({ ok: true, alreadyPaid: result.alreadyPaid });
 }
 
 export async function GET(req: NextRequest) {

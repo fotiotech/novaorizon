@@ -9,8 +9,8 @@ import type {
   ResolvedBlock,
   ResolvedDisplayConfig,
   ResolvedBanner,
-} from "@/lib/content/blocks/resolve";
-import type { NormalizedContentItem } from "@/lib/content/resolve";
+  NormalizedContentItem,
+} from "@/lib/content/types";
 import type {
   CardRatio,
   CardShape,

@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { submitContactMessage } from "@/app/actions/contact";
+import { submitContactMessage } from "@/lib/api/contact";
 import { useSearchParams } from "next/navigation";
 
 const SUBJECT_OPTIONS = [

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getUserPaymentMethods,
   deletePaymentMethod,
-} from "@/app/actions/payment";
-import { getUserAddresses } from "@/app/actions/address";
+} from "@/lib/api/payment";
+import { getUserAddresses } from "@/lib/api/address";
 import { toast } from "react-hot-toast";
 import Modal from "@/components/ui/Modal";
 import PaymentMethodForm from "../components/PaymentMethodForm";

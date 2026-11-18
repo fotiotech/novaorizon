@@ -1,5 +1,5 @@
 import { useAppDispatch } from "@/app/hooks";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { useEffect } from "react";
 
 export default function ProductViewAnalytics({ productId }: { productId: string }) {

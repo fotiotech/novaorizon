@@ -1,7 +1,6 @@
 // app/api/autocomplete/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { autocompleteProducts } from "@/app/actions/autocomplete";
-import { semanticSearch } from "@/app/actions/semanticSearch";
+import { autocompleteProducts, semanticSearch } from "@/lib/api/search";
 import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createPaymentMethod } from "@/app/actions/payment";
-import type { IAddress } from "@/models/Address";
+import { createPaymentMethod } from "@/lib/api/payment";
+import type { IAddress } from "@/app/context/UserDataContext";
 
 interface PaymentMethodFormProps {
   addresses: IAddress[];

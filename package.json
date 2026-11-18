@@ -10,7 +10,6 @@
     "purge:cards": "node ../scripts/purge-card-data.mjs"
   },
   "dependencies": {
-    "@auth/mongodb-adapter": "^3.9.1",
     "@aws-sdk/client-s3": "^3.1131.0",
     "@aws-sdk/s3-request-presigner": "^3.1131.0",
     "@base-ui/react": "^1.7.0",
@@ -44,9 +43,7 @@
     "lucide-react": "^0.542.0",
     "mime": "^4.0.4",
     "mongodb": "^7.5.0",
-    "mongoose": "^8.5.3",
     "next": "16.3.2",
-    "next-auth": "5.0.0-beta.32",
     "next-i18next": "^15.4.0",
     "next-seo": "^6.6.0",
     "normalizr": "^3.6.2",

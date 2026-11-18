@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { addProductReview } from "@/app/actions/review";
+import { addProductReview } from "@/lib/api/review";
 import { useRouter } from "next/navigation";
 
 type ReviewFormProps = {

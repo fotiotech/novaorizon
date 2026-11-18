@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { connection } from "@/utils/connection";
-import Product from "@/models/Product";
+import { apiData } from "@/lib/server-api";
 
 export const revalidate = 300; // ISR: rebuild every 5 minutes
 
@@ -41,12 +40,15 @@ function pickPrice(...candidates: any[]): number {
 }
 
 export default async function ProductsPage() {
-  await connection();
-
-  const products = await Product.find({})
-    .select("_id name images price listPrice")
-    .lean()
-    .exec();
+  const { products } = await apiData<{
+    products: Array<{
+      _id: string;
+      name: string;
+      images?: string[];
+      price?: number;
+      listPrice?: number;
+    }>;
+  }>("/catalog/products", { query: { pageSize: 100 } });
 
   if (products.length === 0) {
     return (

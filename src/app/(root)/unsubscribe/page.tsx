@@ -1,6 +1,36 @@
 // app/(legal)/unsubscribe/page.tsx
 import Link from "next/link";
-import { unsubscribeFromNewsletter } from "@/app/actions/newsletter";
+import { ApiError, apiFetch } from "@/lib/server-api";
+
+/**
+ * GET /api/newsletter/unsubscribe/:token — public.
+ *
+ * Never throws: a bad/expired token (or an unreachable API during a build)
+ * degrades to the same inline error message the page has always shown.
+ */
+async function unsubscribeFromNewsletter(
+  token: string,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await apiFetch<{ success?: boolean; message?: string }>(
+      `/newsletter/unsubscribe/${encodeURIComponent(token)}`,
+    );
+
+    return {
+      success: true,
+      message: res?.message || "You've been unsubscribed.",
+    };
+  } catch (error) {
+    console.error("[unsubscribeFromNewsletter] Error:", error);
+    return {
+      success: false,
+      message:
+        error instanceof ApiError
+          ? error.message
+          : "Unable to unsubscribe.",
+    };
+  }
+}
 
 export default async function UnsubscribePage({
   searchParams,
@@ -15,7 +45,7 @@ export default async function UnsubscribePage({
   if (token) {
     const res = await unsubscribeFromNewsletter(token);
     ok = res.success;
-    message = res.message || res.error || "Unknown error.";
+    message = res.message;
   }
 
   return (

@@ -1,11 +1,11 @@
 // components/SessionObserver.tsx (add to layout)
 "use client";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { useEffect } from "react";
-import { mergeGuestEvents } from "@/app/actions/events";
-import { mergeGuestSessionData } from "@/app/actions/cart";
-import { mergeGuestAddresses } from "@/app/actions/address";
-import { mergeGuestPaymentMethods } from "@/app/actions/payment";
+import { mergeGuestEvents } from "@/lib/api/events";
+import { mergeGuestSessionData } from "@/lib/api/cart";
+import { mergeGuestAddresses } from "@/lib/api/address";
+import { mergeGuestPaymentMethods } from "@/lib/api/payment";
 
 export function SessionObserver() {
   const { data: session, status } = useSession();

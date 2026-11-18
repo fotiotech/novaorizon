@@ -1,6 +1,6 @@
 "use client";
 
-import { findProductsByBrand, getBrands } from "@/app/actions/brand";
+import api from "@/lib/api";
 import { Prices } from "@/components/cart/Prices";
 import ImageRenderer from "@/components/ImageRenderer";
 import { Brand } from "@/constant/types";
@@ -8,6 +8,32 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import React, { useState, useEffect, memo } from "react";
 import { Inventory2, SearchOff, Storefront } from "@mui/icons-material";
+
+/* ------------------------------------------------------------------ */
+/* Data access — public catalogue API                                  */
+/* ------------------------------------------------------------------ */
+async function getBrands(brandId?: string) {
+  const res = await api.get<{ data: any[] | any }>("/catalog/brands");
+  const brands = Array.isArray(res.data?.data) ? res.data.data : [];
+  if (!brandId) return brands;
+  return brands.find((b: any) => String(b._id) === String(brandId)) ?? null;
+}
+
+async function findProductsByBrand(brandId: string) {
+  if (!brandId) return { ok: false as const, error: "Missing brandId" };
+  try {
+    const res = await api.get<{ data: any[] }>(
+      `/catalog/brands/${encodeURIComponent(brandId)}/products`,
+    );
+    return { ok: true as const, products: Array.isArray(res.data?.data) ? res.data.data : [] };
+  } catch (error: any) {
+    console.error("[findProductsByBrand] Error:", error);
+    return {
+      ok: false as const,
+      error: error?.message || "Failed to load brand products",
+    };
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */

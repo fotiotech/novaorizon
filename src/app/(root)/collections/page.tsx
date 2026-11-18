@@ -1,5 +1,4 @@
-import { connection } from "@/utils/connection";
-import { Collection } from "@/models/Collection";
+import { apiData } from "@/lib/server-api";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +23,18 @@ function getTargetTypeLabel(targetType: string): string {
 }
 
 export default async function CollectionsPage() {
-  await connection();
-
-  const collections = await Collection.find({ status: "active" })
-    .select("_id name description imageUrl targetType")
-    .sort({ order: 1, createdAt: -1 })
-    .lean();
+  let collections: any[] = [];
+  try {
+    const rows = await apiData<any[]>("/catalog/collections", {
+      query: { status: "active" },
+      cache: "force-cache",
+    });
+    collections = (Array.isArray(rows) ? rows : [])
+      .map((row) => row?.collection)
+      .filter(Boolean);
+  } catch (error) {
+    console.error("[collections page] failed to load collections:", error);
+  }
 
   if (collections.length === 0) {
     return (

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { Close } from "@mui/icons-material";
 import { SignOut } from "@/app/(auth)/components/auth/SignInButton";
 import { useUnreadMessages } from "@/app/(root)/checkout/chat/_component/useUnreadMessages";

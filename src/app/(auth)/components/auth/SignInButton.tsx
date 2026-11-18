@@ -1,5 +1,5 @@
 "use client";
-import { signIn, signOut } from "next-auth/react";
+import { signIn, signOut } from "@/lib/session";
 
 export function SignIn() {
   return (

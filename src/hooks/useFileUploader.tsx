@@ -1,16 +1,38 @@
 // hooks/useFileUploader.tsx
+"use client";
+
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
-  getPresignedUploadUrl,
   deleteS3Object,
-  deleteMultipleS3Objects,
-  listS3Objects,
-  getPresignedUpdateUrl,
-} from "@/app/actions/s3";
+  deleteS3Objects,
+  uploadFile,
+} from "@/lib/api/upload";
 
 type FailedUpload = { file: File; error: string };
 export type InFlightUpload = { url: string; progress: number };
 
+/**
+ * Uploads files through `POST /api/upload/s3` (multipart to the API server,
+ * which pushes them to S3) and cleans them up through
+ * `DELETE /api/upload/s3?key=…`.
+ *
+ * The S3 key layout is decided by the backend from `instanceId`/`subfolder`:
+ *
+ *   {instanceId}/{subfolder}/uploads/{uuid}-{filename}
+ *
+ * Both are optional; missing segments are dropped on the server side. The
+ * caller passes them positionally:
+ *
+ *   useFileUploader(instanceId?, initialFiles?, subfolder?)
+ *
+ * Notes on parity with the previous presigned-URL flow:
+ *
+ *  - `updateFile` uploads a NEW object and swaps the URL in local state — the
+ *    backend has no presigned-overwrite endpoint anymore.
+ *
+ *  - `listFiles` returns the current in-memory list; the backend exposes no
+ *    generic S3 listing endpoint.
+ */
 export const useFileUploader = (
   instanceId?: string,
   initialFiles: string[] = [],
@@ -26,8 +48,6 @@ export const useFileUploader = (
     {},
   );
   // In-flight NEW uploads, shown as tiles until they land in `files`.
-  // Updates (overwrites) don't appear here — their URL is already in
-  // `files`, and progress is tracked via `progressByName` on that tile.
   const [inFlightUploads, setInFlightUploads] = useState<InFlightUpload[]>([]);
 
   const mountedRef = useRef(true);
@@ -71,136 +91,53 @@ export const useFileUploader = (
     };
   }, []);
 
-  const makeFilename = (file: File) =>
-    `${Date.now()}-${Math.floor(Math.random() * 1e6)}-${file.name.replace(/\s+/g, "_")}`;
-
   const uploadFiles = useCallback(
-    async (toUpload: File[], updateKey?: string) => {
+    async (toUpload: File[]) => {
       if (!toUpload.length) return;
       setLoading(true);
       const uploadedUrls: string[] = [];
-      // Every URL we START uploading in this batch (success or fail).
-      // Used to remove placeholder tiles from inFlightUploads atomically
-      // at the end of the batch.
-      const startedUrls: string[] = [];
+      // Synthetic progress keys for this batch. They drive the placeholder
+      // tiles and the per-file progress entries; both are cleared at the end
+      // of the batch.
+      const startedKeys: string[] = [];
 
       for (const file of toUpload) {
         if (!mountedRef.current) break;
 
-        const filename = updateKey
-          ? updateKey.split("/").pop() || makeFilename(file)
-          : makeFilename(file);
+        const progressKey = `uploading-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 10)}`;
 
-        // progressKey MUST equal the S3 object's basename so that
-        // FilesUploader's `getProgress(url)` — which does
-        // `url.split("/").pop()` — finds the right entry.
-        let progressKey: string | undefined;
+        startedKeys.push(progressKey);
+
+        if (mountedRef.current) {
+          setInFlightUploads((prev) => [
+            ...prev,
+            { url: progressKey, progress: 0 },
+          ]);
+          setProgressByName((prev) => ({ ...prev, [progressKey]: 0 }));
+        }
 
         try {
-          let uploadUrl: string;
-          let fileKey: string;
-
-          if (updateKey) {
-            const result = await getPresignedUpdateUrl(updateKey, file.type);
-            uploadUrl = result.uploadUrl;
-            fileKey = updateKey;
-          } else {
-            const result = await getPresignedUploadUrl(
-              filename,
-              file.type,
-              instanceId,
-              undefined,
-              subfolder,
-            );
-            uploadUrl = result.uploadUrl;
-            fileKey = result.fileKey;
-          }
-
-          progressKey = fileKey.split("/").pop() || filename;
-          const publicUrl = `https://${process.env.NEXT_PUBLIC_AWS_BUCKET_NAME}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com/${fileKey}`;
-
-          // Track NEW uploads (not updates) so the UI can render a
-          // placeholder tile with a live progress bar.
-          if (!updateKey && mountedRef.current) {
-            startedUrls.push(publicUrl);
-            setInFlightUploads((prev) => [
-              ...prev,
-              { url: publicUrl, progress: 0 },
-            ]);
-          }
-
-          if (mountedRef.current) {
-            setProgressByName((prev) => ({ ...prev, [progressKey!]: 0 }));
-          }
-
-          await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("PUT", uploadUrl, true);
-            xhr.setRequestHeader(
-              "Content-Type",
-              file.type || "application/octet-stream",
-            );
-            xhr.timeout = 120_000;
-
-            xhr.upload.addEventListener("progress", (event) => {
-              if (!event.lengthComputable || !mountedRef.current) return;
-              const pct = Math.round((event.loaded / event.total) * 100);
-
-              // Updates: progress shown on the existing tile via progressByName
-              if (progressKey) {
-                setProgressByName((prev) => ({ ...prev, [progressKey!]: pct }));
-              }
-              // New uploads: progress shown on the placeholder tile
-              if (!updateKey) {
-                setInFlightUploads((prev) =>
-                  prev.map((u) =>
-                    u.url === publicUrl ? { ...u, progress: pct } : u,
-                  ),
-                );
-              }
-            });
-
-            xhr.onload = () => {
-              // S3 returns 200; some S3-compatible providers return 201/204.
-              if (xhr.status >= 200 && xhr.status < 300) {
-                uploadedUrls.push(publicUrl);
-                resolve();
-              } else {
-                reject(
-                  new Error(
-                    `Upload rejected: HTTP ${xhr.status} ${xhr.statusText || ""}`.trim(),
-                  ),
-                );
-              }
-            };
-
-            xhr.onerror = () => {
-              // Only fires when the browser blocks the request before it
-              // reaches a readable response — CSP, CORS, DNS, offline,
-              // mixed content, or a cross-region 301 without CORS headers.
-              const origin =
-                typeof window !== "undefined"
-                  ? window.location.origin
-                  : "your origin";
-              reject(
-                new Error(
-                  `Network error uploading "${filename}" (status=${xhr.status}). ` +
-                    `Browser blocked the request before it reached S3 — check ` +
-                    `CSP connect-src allows https://*.amazonaws.com from ` +
-                    `${origin}, and that AWS_REGION matches the bucket region.`,
+          const result = await uploadFile(file, {
+            instanceId,
+            subfolder,
+            onProgress: (pct) => {
+              if (!mountedRef.current) return;
+              setProgressByName((prev) => ({
+                ...prev,
+                [progressKey]: pct,
+              }));
+              setInFlightUploads((prev) =>
+                prev.map((u) =>
+                  u.url === progressKey ? { ...u, progress: pct } : u,
                 ),
               );
-            };
-
-            xhr.ontimeout = () =>
-              reject(new Error(`Upload timed out: "${filename}"`));
-            xhr.onabort = () =>
-              reject(new Error(`Upload aborted: "${filename}"`));
-
-            xhr.send(file);
+            },
           });
+          uploadedUrls.push(result.url);
         } catch (error) {
-          console.error("Upload error for", filename, error);
+          console.error("Upload error for", file.name, error);
           if (mountedRef.current) {
             // Keep failed uploads around so callers can surface / retry
             // them instead of silently dropping them.
@@ -210,15 +147,10 @@ export const useFileUploader = (
             ]);
           }
         } finally {
-          // Clear the per-file progress entry. For updates this is the
-          // only tracking mechanism. For new uploads we don't delete here
-          // because the tile lives in inFlightUploads and its progress
-          // is tracked there — deleting here would clear the bar before
-          // the placeholder is removed at end of batch.
-          if (mountedRef.current && progressKey && updateKey) {
+          if (mountedRef.current) {
             setProgressByName((prev) => {
               const updated = { ...prev };
-              delete updated[progressKey!];
+              delete updated[progressKey];
               return updated;
             });
           }
@@ -226,25 +158,15 @@ export const useFileUploader = (
       }
 
       if (mountedRef.current) {
-        // Batch the `files` addition and `inFlightUploads` cleanup
-        // together so the placeholder tile is replaced by the real image
-        // in one render — no flicker between 100% and "image loaded".
-        if (!updateKey && uploadedUrls.length > 0) {
+        // Batch the `files` addition and `inFlightUploads` cleanup together
+        // so the placeholder tile is replaced by the real image in one
+        // render — no flicker between 100% and "image loaded".
+        if (uploadedUrls.length > 0) {
           setFiles((prev) => [...prev, ...uploadedUrls]);
         }
-        if (!updateKey && startedUrls.length > 0) {
+        if (startedKeys.length > 0) {
           setInFlightUploads((prev) =>
-            prev.filter((u) => !startedUrls.includes(u.url)),
-          );
-        }
-        // On failure, remove placeholder tiles for the failed files so
-        // they don't linger at some stale progress %.
-        const failedInBatch = startedUrls.filter(
-          (url) => !uploadedUrls.includes(url),
-        );
-        if (!updateKey && failedInBatch.length > 0) {
-          setInFlightUploads((prev) =>
-            prev.filter((u) => !failedInBatch.includes(u.url)),
+            prev.filter((u) => !startedKeys.includes(u.url)),
           );
         }
 
@@ -277,33 +199,24 @@ export const useFileUploader = (
   const clearFailed = useCallback(() => setFailedFiles([]), []);
 
   const listFiles = useCallback(async () => {
-    setLoading(true);
-    try {
-      const objects = await listS3Objects(instanceId, subfolder);
-      const urls = objects.map((obj) => obj.url);
-      if (mountedRef.current) {
-        setFiles(urls);
-      }
-      return urls;
-    } catch (error) {
-      console.error("Error listing files:", error);
-      return [];
-    } finally {
-      if (mountedRef.current) setLoading(false);
-    }
-  }, [instanceId, subfolder]);
+    // No server-side listing endpoint — return the hook's current list.
+    return files;
+  }, [files]);
 
   const updateFile = useCallback(
     async (index: number, newFile: File) => {
       if (index < 0 || index >= files.length) {
         return { success: false, message: "Index out of bounds" };
       }
-      const oldUrl = files[index];
-      const key = oldUrl.split("/").slice(3).join("/");
-      await uploadFiles([newFile], key);
-      return { success: true };
+      try {
+        const result = await uploadFile(newFile, { instanceId, subfolder });
+        setFiles((prev) => prev.map((u, i) => (i === index ? result.url : u)));
+        return { success: true };
+      } catch (error) {
+        return { success: false, message: (error as Error).message };
+      }
     },
-    [files, uploadFiles],
+    [files, instanceId, subfolder],
   );
 
   const removeFile = useCallback(
@@ -313,11 +226,7 @@ export const useFileUploader = (
       }
       const url = fileUrl || files[index];
       try {
-        const urlObj = new URL(url);
-        const fileKey = urlObj.pathname.startsWith("/")
-          ? urlObj.pathname.slice(1)
-          : urlObj.pathname;
-        await deleteS3Object(fileKey);
+        await deleteS3Object(url);
         setFiles((prev) => prev.filter((_, i) => i !== index));
         return { success: true };
       } catch (error) {
@@ -336,7 +245,7 @@ export const useFileUploader = (
         return { success: false, message: "No valid files to remove" };
       }
       try {
-        await deleteMultipleS3Objects(toRemove);
+        await deleteS3Objects(toRemove);
         setFiles((prev) => prev.filter((_, i) => !indices.includes(i)));
         return { success: true, deleted: toRemove.length };
       } catch (error) {
@@ -349,7 +258,7 @@ export const useFileUploader = (
   const clearFiles = useCallback(async () => {
     if (!files.length) return;
     try {
-      await deleteMultipleS3Objects(files);
+      await deleteS3Objects(files);
       setFiles([]);
       setPendingFiles([]);
       setFailedFiles([]);

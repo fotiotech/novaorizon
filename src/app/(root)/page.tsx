@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import Hero from "@/components/Hero";
 import TrustBadgeStrip from "@/components/trust/TrustBadgeStrip";
-import { listActiveTrustBadges } from "@/app/actions/trust_badge";
+import { listActiveTrustBadges } from "@/lib/api/trust-badge";
 import { BlockRenderer } from "@/components/content/blocks/BlockRenderer";
 import { getCachedBlocksForLocation } from "@/lib/content/blocks/getBlocksForLocation";
 

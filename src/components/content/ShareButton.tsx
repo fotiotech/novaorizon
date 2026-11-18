@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { trackEvent } from "@/app/actions/events";
+import { trackEvent } from "@/lib/api/events";
 
 type ShareMethod =
   | "native"
@@ -62,8 +62,8 @@ export function ShareButton({
   const track = useCallback(
     (method: ShareMethod) => {
       if (!productId) return;
-      // Fire-and-forget. `trackEvent` is a server action; swallowing here
-      // keeps the UI responsive even if tracking is unavailable (guest,
+      // Fire-and-forget. `trackEvent` is a client-side API call; swallowing
+      // here keeps the UI responsive even if tracking is unavailable (guest,
       // offline, bot UA — all handled server-side).
       trackEvent({
         itemId: productId,

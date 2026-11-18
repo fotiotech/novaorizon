@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getCategoryAttributeSets } from "@/app/actions/category";
+import { getCategoryAttributeSets } from "@/lib/api/category";
 
 type Variant = "both" | "keyFeatures" | "specifications";
 

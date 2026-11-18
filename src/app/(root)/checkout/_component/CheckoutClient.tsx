@@ -6,14 +6,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUserData } from "@/app/context/UserDataContext";
 import OrderSummary from "@/components/cart/OrderSummary";
-import { createCheckoutOrderAction } from "@/app/actions/checkout";
-import { IAddress } from "@/models/Address";
-import { IPaymentMethod } from "@/models/PaymentMethod";
+import { createCheckoutOrderAction } from "@/lib/api/checkout";
+import type {
+  IAddress,
+  IPaymentMethod,
+} from "@/app/context/UserDataContext";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/utils/firebaseConfig";
 import { toast } from "react-hot-toast";
-import { getCarriers, calculateShippingPrice } from "@/app/actions/carrier";
-import { findProducts } from "@/app/actions/products";
+import { getCarriers, calculateShippingPrice } from "@/lib/api/carrier";
+import { findProducts } from "@/lib/api/products";
 import Spinner from "@/components/Spinner";
 import {
   previewCartDiscounts,
@@ -21,7 +23,7 @@ import {
   type DiscountResult,
   type Cart as ServerCart,
   type CustomerContext,
-} from "@/app/actions/promotions";
+} from "@/lib/api/promotions";
 import PaymentModal from "./PaymentModal";
 
 // ---------- Types ----------

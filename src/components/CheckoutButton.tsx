@@ -2,7 +2,7 @@
 
 import React, { FC, ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, useSession } from "@/lib/session";
 import { useCart } from "@/app/context/CartContext";
 
 interface Product {

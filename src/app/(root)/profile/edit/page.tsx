@@ -4,10 +4,10 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import Spinner from "@/components/Spinner";
 import { useUserData } from "@/app/context/UserDataContext";
-import { updateUserProfile } from "@/app/actions/users";
+import { updateUserProfile } from "@/lib/api/users";
 import useFileUploader from "@/hooks/useFileUploader";
 
 /* -------------------------------------------------------------------------- */

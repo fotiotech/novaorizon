@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { getOrderByNumber, requestReturn } from "@/app/actions/order";
+import { getOrderByNumber, requestReturn } from "@/lib/api/orders";
 import Spinner from "@/components/Spinner";
 import { useSearchParams } from "next/navigation";
 

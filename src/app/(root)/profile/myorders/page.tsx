@@ -1,9 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { useRouter } from "next/navigation";
-import { findOrders } from "@/app/actions/order";
+import { findOrders } from "@/lib/api/orders";
 import Spinner from "@/components/Spinner";
 import OrderDetailsSheet from "./_component/OrderDetailsSheet";
 

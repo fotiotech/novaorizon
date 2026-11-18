@@ -1,5 +1,5 @@
 // lib/useUserId.ts
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { useEffect, useState } from "react";
 
 export function useUserId() {

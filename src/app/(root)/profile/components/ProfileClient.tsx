@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { SignOut } from "@/app/(auth)/components/auth/SignInButton";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
-import { updateUserProfile } from "@/app/actions/users";
+import { updateUserProfile } from "@/lib/api/users";
 import { useUserData } from "@/app/context/UserDataContext";
 import { useUnreadMessages } from "../../checkout/chat/_component/useUnreadMessages";
 

@@ -1,17 +1,25 @@
 // lib/getUserId.ts
-import { auth } from "@/app/auth";
 import { cookies } from "next/headers";
+import { apiData } from "@/lib/server-api";
 
 export async function getCurrentUserId() {
-  // 1) Get session – uses the current request context automatically
-  const session = await auth();
-  if (session?.user?.id) return session.user.id;
+  // 1) Backend session (verified server-side).
+  try {
+    const cookieStore = await cookies();
+    if (cookieStore.get("session")?.value) {
+      const me = await apiData<{ _id?: string; id?: string } | null>("/auth/me");
+      const id = me?._id ?? me?.id;
+      if (id) return String(id);
+    }
+  } catch {
+    /* fall through to guest */
+  }
 
-  // 2) Fallback to guest cookie
-  const cookieStore = await cookies(); // <-- await here
+  // 2) Guest cookie set by the app's middleware.
+  const cookieStore = await cookies();
   const guestId = cookieStore.get("guestId")?.value;
   if (guestId) return guestId;
 
-  // 3) Should never happen because middleware sets it, but just in case
+  // 3) Last resort.
   return crypto.randomUUID();
 }

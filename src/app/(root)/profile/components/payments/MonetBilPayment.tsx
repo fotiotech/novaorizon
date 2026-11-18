@@ -3,7 +3,7 @@
 import {
   getCheckoutOrderAction,
   startMonetbilPayment,
-} from "@/app/actions/checkout";
+} from "@/lib/api/checkout";
 import React, { useEffect, useState } from "react";
 
 interface MonetbilPaymentProps {

@@ -1,10 +1,8 @@
 // app/api/sitemap/route.ts
 import { NextResponse } from "next/server";
-import { findProductsForSitemap } from "@/app/actions/products";
+import { findProductsForSitemap } from "@/lib/api/products.server";
 import { Category, Product } from "@/constant/types";
-import { getCategory } from "@/app/actions/category";
-import SitemapSettings from "@/models/SitemapSettings";
-import { connection } from "@/utils/connection";
+import { getCategory } from "@/lib/api/category.server";
 
 // Add caching headers for better performance
 export const dynamic = "force-static";
@@ -59,13 +57,12 @@ export async function GET() {
   }
 
   try {
-    // Connect to database first
-    await connection();
+    // TODO(migration): no backend endpoint yet — sitemap settings
+    // (excludedUrls / prioritySettings) are not exposed by the Express API.
+    // The defaults below keep the sitemap valid without the backend.
+    const sitemapSettings: any = null;
 
-    // Get sitemap settings
-    const sitemapSettings = await SitemapSettings.findOne();
-
-    // Fetch data from the database
+    // Fetch data from the Express API
     const [staticPages, products, categories] = await Promise.all([
       getStaticPages(),
       findProductsForSitemap(),

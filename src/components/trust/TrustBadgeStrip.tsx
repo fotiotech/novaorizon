@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import TrustBadgeIcon from "@/components/trust/TrustBadgeIcon";
-import type { TrustBadgeDTO } from "@/app/actions/trust_badge";
+import type { TrustBadgeDTO } from "@/lib/api/trust-badge";
 
 const isExternal = (url: string) => /^https?:\/\//i.test(url);
 

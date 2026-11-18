@@ -1,8 +1,6 @@
 import ProductDetailsClient from "./_compnents/ProductDetailsClient";
 import RelatedProduct from "./_compnents/RelatedProduct";
-import { findProducts } from "@/app/actions/products";
-import { connection } from "@/utils/connection";
-import Product from "@/models/Product";
+import { apiData } from "@/lib/server-api";
 import type { Metadata } from "next";
 
 interface Params {
@@ -24,9 +22,20 @@ export const revalidate = 3600;
 // rendered on-demand on first request, then cached (ISR).
 export async function generateStaticParams() {
   try {
-    await connection();
-    const products = await Product.find({}).select("_id name").lean();
-    return products.map((p: any) => ({
+    const all: Array<{ _id: string; name: string }> = [];
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const result = await apiData<{
+        products: Array<{ _id: string; name: string }>;
+        totalPages: number;
+      }>("/catalog/products", { query: { page, pageSize: 100 }, cache: "force-cache" });
+      all.push(...(result?.products ?? []));
+      totalPages = Number(result?.totalPages) || 1;
+      page += 1;
+    } while (page <= totalPages && page <= 20);
+
+    return all.map((p) => ({
       slug: slugify(String(p.name || "")),
       _id: String(p._id),
     }));
@@ -116,7 +125,10 @@ function resolveCategory(product: any): {
 
 async function fetchProduct(id: string) {
   try {
-    const result = await findProducts(id);
+    const result = await apiData<any>(
+      `/catalog/products/${encodeURIComponent(id)}`,
+      { cache: "force-cache" },
+    );
     if (!result || (result as any).success === false) return null;
     return result as any;
   } catch (err) {

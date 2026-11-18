@@ -1,5 +1,4 @@
 // proxy.ts
-import { auth } from "@/app/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -18,14 +17,14 @@ function isProtected(pathname: string) {
   );
 }
 
-export default auth((request) => {
-  // Local cast bypasses the broken NextAuthRequest type.
-  const req = request as unknown as NextRequest & {
-    auth: { user?: { id?: string } } | null;
-  };
-
+/**
+ * Lightweight route guard. The Express backend enforces authorization on
+ * every API call; this only bounces anonymous visitors away from pages that
+ * need a session, using the presence of the backend's `session` cookie.
+ */
+export default function middleware(req: NextRequest) {
   const { pathname, origin, search } = req.nextUrl;
-  const isLoggedIn = !!req.auth?.user?.id;
+  const isLoggedIn = Boolean(req.cookies.get("session")?.value);
 
   if (isProtected(pathname) && !isLoggedIn) {
     const loginUrl = new URL("/auth/login", origin);
@@ -34,7 +33,7 @@ export default auth((request) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [

@@ -9,8 +9,8 @@ import { Suspense } from "react";
 import Loading from "./loading";
 import { cn } from "@/lib/utils";
 import { PageViewTracker } from "@/components/PageViewTracker";
-import { getSeoSetting } from "@/app/actions/seo";
-import { DEFAULT_SEO } from "@/app/lib/seo-defaults";
+import { apiData } from "@/lib/server-api";
+import { DEFAULT_SEO, type SeoForm } from "@/app/lib/seo-defaults";
 import MetaPixel from "@/components/MetaPixel";
 
 const geist = Geist({
@@ -23,9 +23,9 @@ const TWITTER_HANDLE = "@novaorizon";
 const GOOGLE_VERIFICATION = "jGAR6wmWVPQe_fzOwoL1MqqKWSdN-Ty2dFf60Zu";
 
 export async function generateMetadata(): Promise<Metadata> {
-  let seo = DEFAULT_SEO;
+  let seo: SeoForm = DEFAULT_SEO;
   try {
-    seo = await getSeoSetting();
+    seo = await apiData<SeoForm>("/seo", { cache: "force-cache" });
   } catch (err) {
     console.error("[layout] Failed to load SEO settings:", err);
   }

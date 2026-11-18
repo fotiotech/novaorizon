@@ -1,6 +1,6 @@
 // components/content/blocks/BlockRenderer.tsx
 import { BlockSection } from "./BlockSection";
-import type { ResolvedBlock } from "@/lib/content/blocks/resolve";
+import type { ResolvedBlock } from "@/lib/content/types";
 
 interface BlockRendererProps {
   blocks: ResolvedBlock[];

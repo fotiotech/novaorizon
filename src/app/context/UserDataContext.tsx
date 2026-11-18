@@ -7,16 +7,42 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { useSession } from "next-auth/react";
-import { getUserAddresses } from "@/app/actions/address";
-import { getUserPaymentMethods } from "@/app/actions/payment";
-import { getUserProfile } from "@/app/actions/users";
-import { IAddress } from "@/models/Address";
-import { IPaymentMethod } from "@/models/PaymentMethod";
-
+import { useSession } from "@/lib/session";
+import { getUserAddresses } from "@/lib/api/address";
+import { getUserPaymentMethods } from "@/lib/api/payment";
+import { getUserProfile } from "@/lib/api/users";
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Browser-safe address/payment shapes (the backend's JSON payloads).
+ * Defined here instead of importing the Mongoose models.
+ */
+export interface IAddress {
+  _id?: string;
+  userId?: string;
+  guestId?: string | null;
+  label: string;
+  street: string;
+  city: string;
+  state?: string | null;
+  postalCode: string;
+  country: string;
+  isDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface IPaymentMethod {
+  _id?: string;
+  userId?: string;
+  guestId?: string | null;
+  methodType: "CreditCard" | "MobileMoney" | "PayPal";
+  details: Record<string, any>;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export interface IPhone {
   countryCode?: string | null;

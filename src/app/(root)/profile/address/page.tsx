@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getUserAddresses, deleteAddress } from "@/app/actions/address";
+import { getUserAddresses, deleteAddress } from "@/lib/api/address";
 import { toast } from "react-hot-toast";
 import Modal from "@/components/ui/Modal";
-import { IAddress } from "@/models/Address";
+import type { IAddress } from "@/app/context/UserDataContext";
 import AddressForm from "../components/AddressForm";
 
 export default function AddressesPage() {

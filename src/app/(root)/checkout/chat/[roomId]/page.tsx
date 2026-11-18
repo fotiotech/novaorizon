@@ -17,7 +17,7 @@ import {
 } from "firebase/firestore";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { useParams, useRouter } from "next/navigation";
 
 interface Message {

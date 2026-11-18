@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createAddress, updateAddress } from "@/app/actions/address";
-import { IAddress } from "@/models/Address";
+import { createAddress, updateAddress } from "@/lib/api/address";
+import type { IAddress } from "@/app/context/UserDataContext";
 
 interface AddressFormProps {
   initialData?: IAddress | null;

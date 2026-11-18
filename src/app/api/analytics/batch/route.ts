@@ -1,6 +1,6 @@
 // front/app/api/analytics/batch/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { trackEvent } from "@/app/actions/events";
+import { trackEvent } from "@/lib/api/events.server";
 import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";

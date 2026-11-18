@@ -1,26 +1,11 @@
-import { connection } from "@/utils/connection";
-import { Collection } from "@/models/Collection";
-
-import {
-  getTrendingItems,
-  getRecommendations,
-  getRecentlyViewed,
-  // getRelatedProducts, // uncomment once you want to resolve related here
-} from "@/app/actions/events";
+import { apiData } from "@/lib/server-api";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import {
-  buildQueryFromRules,
-  getModelForTargetType,
-  normalizeItem,
-} from "@/app/lib/collection/collection-helpers";
 
 export const dynamic = "force-dynamic";
 
-const ITEM_LIMIT = 50;
-
 function slugify(text: string): string {
-  return text
+  return String(text || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
@@ -38,65 +23,11 @@ function getRoutePrefix(targetType: string): string {
   return map[targetType] || "item";
 }
 
-async function resolveCollectionItems(
-  collection: any,
-  context?: { productId?: string },
-) {
-  const targetType = collection.targetType;
-
-  // ---------- Recommendation ----------
-  if (collection.type === "recommendation") {
-    const limit = collection.recommendationLimit || 10;
-    let raw: any[] = [];
-    switch (collection.recommendationType) {
-      case "trending":
-        raw = await getTrendingItems(limit);
-        break;
-      case "personalized":
-        raw = await getRecommendations(limit);
-        break;
-      case "recentlyViewed":
-        raw = await getRecentlyViewed(limit);
-        break;
-      default:
-        raw = [];
-    }
-    return raw.map((item) => normalizeItem(item, "Product"));
-  }
-
-  // ---------- Related ----------
-  if (collection.type === "related") {
-    // Requires a product context — this page has none.
-    if (!context?.productId) return [];
-    // If you want to resolve related here, import getRelatedProducts
-    // and call it with context.productId.
-    return [];
-  }
-
-  // ---------- Rule / Manual ----------
-  const Model = getModelForTargetType(targetType);
-  if (!Model) return [];
-
-  let raw: any[] = [];
-
-  if (collection.type === "manual") {
-    if (collection.items?.length > 0) {
-      raw = await (Model as any)
-        .find({ _id: { $in: collection.items } })
-        .limit(ITEM_LIMIT)
-        .lean();
-    }
-  } else {
-    // rule
-    if (["Product", "Collection"].includes(targetType)) {
-      const query = buildQueryFromRules(collection.rules, targetType);
-      if (Object.keys(query).length > 0) {
-        raw = await (Model as any).find(query).limit(ITEM_LIMIT).lean();
-      }
-    }
-  }
-
-  return raw.map((item) => normalizeItem(item, targetType));
+interface ResolvedCollectionRow {
+  collection: any;
+  items: any[];
+  itemCount: number;
+  isDynamic: boolean;
 }
 
 export default async function CollectionDetailPage({
@@ -106,24 +37,32 @@ export default async function CollectionDetailPage({
 }) {
   const { slug, id } = await params;
 
-  await connection();
+  let row: ResolvedCollectionRow | null = null;
+  try {
+    const rows = await apiData<ResolvedCollectionRow[]>("/catalog/collections", {
+      query: { id, status: "active" },
+    });
+    const list = Array.isArray(rows) ? rows : [];
+    row =
+      list.find((r) => String(r?.collection?._id) === String(id)) ??
+      list[0] ??
+      null;
+  } catch (error) {
+    console.error("[collection page] failed to load collection:", error);
+  }
 
-  const collection: any = await Collection.findOne({
-    _id: id,
-    status: "active",
-  }).lean();
-
-  if (!collection) {
+  if (!row) {
     notFound();
   }
+
+  const collection: any = row.collection;
+  const items: any[] = Array.isArray(row.items) ? row.items : [];
 
   // Ensure the slug in the URL matches the collection name; redirect if not.
   const canonicalSlug = slugify(collection.name);
   if (slug !== canonicalSlug) {
     redirect(`/collections/${canonicalSlug}/${id}`);
   }
-
-  const items = await resolveCollectionItems(collection);
 
   const title = collection.name || "Collection";
   const description = collection.description || "";
@@ -195,7 +134,7 @@ export default async function CollectionDetailPage({
                   {item.price != null && (
                     <div className="flex items-baseline gap-2 mt-1">
                       <p className="font-semibold text-sm">
-                        {item.price.toLocaleString("en-US")} F
+                        {Number(item.price).toLocaleString("en-US")} F
                       </p>
                       {showListPrice && (
                         <p className="text-xs text-muted-foreground line-through">

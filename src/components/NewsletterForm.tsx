@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { subscribeToNewsletter } from "@/app/actions/newsletter";
+import { subscribeToNewsletter } from "@/lib/api/newsletter";
 import { useUserDataOptional } from "@/app/context/UserDataContext";
 
 type State = "idle" | "submitting" | "success" | "error";

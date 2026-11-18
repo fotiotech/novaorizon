@@ -14,7 +14,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
 import { SignIn } from "../app/(auth)/components/auth/SignInButton";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { useUnreadMessages } from "@/app/(root)/checkout/chat/_component/useUnreadMessages";
 import Sidebar from "./Sidebar";
 import SearchModal from "./ui/SearchModal";

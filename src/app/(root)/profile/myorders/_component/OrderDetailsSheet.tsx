@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { getOrderByNumber } from "@/app/actions/order";
+import { getOrderByNumber } from "@/lib/api/orders";
 import BottomSheet from "@/components/ux/BottomSheet";
 import Spinner from "@/components/Spinner";
 import InvoiceDisplay from "@/components/InvoiceDisplay";

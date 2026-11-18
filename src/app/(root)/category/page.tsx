@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
-import { getCategoriesForTree } from "@/app/actions/category";
+import { getCategoriesForTree } from "@/lib/api/category.server";
 import CategoryIndexClient from "./_component/CategoryIndexClient";
 import type { CategoryNode } from "./_component/_shared";
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
-import { getCategoriesForTree } from "@/app/actions/category";
-import { findProductByCategory } from "@/app/actions/products";
+import { getCategoriesForTree } from "@/lib/api/category.server";
+import { findProductByCategory } from "@/lib/api/products.server";
 import CategoryClient from "../../_component/CategoryClient";
 import {
   buildCategoryTree,

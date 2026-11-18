@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { addProductReview } from "@/app/actions/review";
+import { addProductReview } from "@/lib/api/review";
 import { useUserData } from "@/app/context/UserDataContext";
 
 export default function ReviewForm({

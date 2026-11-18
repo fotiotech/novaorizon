@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import {
   getCustomerReviews,
   deleteCustomerReview,
-} from "@/app/actions/customer";
+} from "@/lib/api/customer";
 import Link from "next/link";
 import Image from "next/image";
 import Spinner from "@/components/Spinner";

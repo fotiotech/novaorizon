@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import type { NormalizedContentItem } from "@/lib/content/resolve";
+import type { NormalizedContentItem } from "@/lib/content/types";
 import type {
   CardShape,
   CardRatio,

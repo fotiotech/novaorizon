@@ -1,8 +1,8 @@
 // components/RelatedMenus.tsx
-import { getRelatedProducts } from "@/app/actions/events";
+import { getRelatedProducts } from "@/lib/api/events.server";
 import { CarouselRail } from "@/components/content/Carousel";
 import { ContentCard } from "@/components/content/ContentCard";
-import type { NormalizedContentItem } from "@/lib/content/resolve";
+import type { NormalizedContentItem } from "@/lib/content/types";
 
 // ---------- Typography tokens ----------
 // Mirrors the token map in ProductDetailsClient.tsx so related products

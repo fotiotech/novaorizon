@@ -1,8 +1,6 @@
 // app/sitemap.ts
 import type { MetadataRoute } from "next";
-import { connection } from "@/utils/connection";
-import Product from "@/models/Product";
-import { getCategoriesForTree } from "@/app/actions/category";
+import { apiData } from "@/lib/server-api";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://novaorizon.com";
 
@@ -25,6 +23,33 @@ function encodeSegment(s: string): string {
 }
 
 export const revalidate = 3600;
+
+interface CatalogProduct {
+  _id: string;
+  name?: string;
+  updatedAt?: string;
+  createdAt?: string;
+  categoryId?: string | { _id?: string } | null;
+}
+
+async function fetchAllProducts(): Promise<CatalogProduct[]> {
+  const all: CatalogProduct[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const result = await apiData<{
+      products: CatalogProduct[];
+      totalPages: number;
+    }>("/catalog/products", { query: { page, pageSize: 100 }, cache: "force-cache" });
+
+    all.push(...(result?.products ?? []));
+    totalPages = Number(result?.totalPages) || 1;
+    page += 1;
+  } while (page <= totalPages && page <= 50);
+
+  return all;
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -80,24 +105,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let categoryEntries: MetadataRoute.Sitemap = [];
 
   try {
-    await connection();
-
-    const [productsRaw, categoriesRaw] = await Promise.all([
-      Product.find({})
-        .select("_id name updatedAt createdAt categoryId")
-        .lean()
-        .exec(),
-      getCategoriesForTree(),
+    const [products, categoriesRaw] = await Promise.all([
+      fetchAllProducts(),
+      apiData<any[]>("/catalog/categories/tree", { cache: "force-cache" }),
     ]);
 
-    const products = (productsRaw as any[]) || [];
     const categories = Array.isArray(categoriesRaw) ? categoriesRaw : [];
 
     // ---------- Product entries ----------
     productEntries = products
       .filter((p) => p && p._id && p.name)
       .map((p) => {
-        const slug = slugify(p.name) || "product";
+        const slug = slugify(p.name || "") || "product";
         const lastMod = p.updatedAt
           ? new Date(p.updatedAt)
           : p.createdAt
@@ -116,19 +135,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Only include categories that reference at least one product.
     const usedCategoryIds = new Set<string>();
     for (const p of products) {
-      const cid = (p as any)?.categoryId;
+      const cid = p?.categoryId;
       if (!cid) continue;
       const key =
         typeof cid === "object" && cid !== null
           ? String((cid as any)._id ?? cid)
           : String(cid);
-      if (key) usedCategoryIds.add(key);
+      if (key) usedCategoryIds.add(String(key));
     }
 
     categoryEntries = categories
       .filter((c: any) => c && c._id && usedCategoryIds.has(String(c._id)))
       .map((c: any) => {
-        // getCategoriesForTree returns `slug`, not `url_slug`.
+        // The tree endpoint returns `slug`, not `url_slug`.
         const rawSlug = c.slug || slugify(c.name || "") || "category";
         const slug = encodeSegment(rawSlug);
 

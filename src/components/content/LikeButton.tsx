@@ -6,7 +6,7 @@ import {
   getLikeStates,
   toggleLike,
   type LikeState,
-} from "@/app/actions/events";
+} from "@/lib/api/events";
 
 /* -------------------------------------------------------------------------- */
 /*                          Batched initial-state fetch                       */

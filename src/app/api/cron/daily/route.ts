@@ -1,80 +1,59 @@
 // app/api/cron/daily/route.ts
+//
+// Thin proxy to the Express cron jobs (rollups + product metrics). Vercel cron
+// keeps calling this URL; the backend owns the aggregation.
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath, revalidateTag } from "next/cache";
-import { connection } from "@/utils/connection";
-import { rollupEvents } from "@/app/lib/cron/rollupEvents";
-import { refreshProductMetrics } from "@/app/lib/cron/refreshProductMetrics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+const API_BASE = (
+  process.env.SERVER_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:3000"
+).replace(/\/+$/, "");
+
+async function callJob(path: string, authorization: string) {
+  const res = await fetch(`${API_BASE}/api/cron/${path}`, {
+    method: "POST",
+    headers: { authorization },
+    cache: "no-store",
+    signal: AbortSignal.timeout(55_000),
+  });
+  const body = await res.text();
+  let parsed: any = null;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    parsed = body;
+  }
+  return { status: res.status, body: parsed };
+}
+
 export async function GET(req: NextRequest) {
-  // ── Auth ────────────────────────────────────────────────────────
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  const authorization = req.headers.get("authorization");
+  if (!authorization) {
     return new NextResponse("unauthorized", { status: 401 });
   }
 
   const startedAt = Date.now();
 
   try {
-    await connection();
-  } catch (err: any) {
+    const rollup = await callJob("rollup", authorization);
+    const metrics = await callJob("product-metrics", authorization);
+
+    return NextResponse.json({
+      ok: rollup.status < 300 && metrics.status < 300,
+      durationMs: Date.now() - startedAt,
+      rollup,
+      metrics,
+    });
+  } catch (error: any) {
+    console.error("[cron/daily] proxy failed:", error);
     return NextResponse.json(
-      {
-        ok: false,
-        stage: "connection",
-        error: err?.message ?? "DB connection failed",
-      },
-      { status: 500 },
+      { ok: false, error: error?.message ?? "Cron job failed" },
+      { status: 502 },
     );
   }
-
-  // ── Stage 1: event rollup ──────────────────────────────────────
-  // Must run first — metrics reads EventRollup.
-  const rollup = await rollupEvents();
-  if (!rollup.ok) {
-    return NextResponse.json(
-      {
-        ok: false,
-        stage: "rollup",
-        rollup,
-        elapsedMs: Date.now() - startedAt,
-      },
-      { status: 500 },
-    );
-  }
-
-  // ── Stage 2: product metrics ───────────────────────────────────
-  const metrics = await refreshProductMetrics();
-  if (!metrics.ok) {
-    return NextResponse.json(
-      {
-        ok: false,
-        stage: "metrics",
-        rollup,
-        metrics,
-        elapsedMs: Date.now() - startedAt,
-      },
-      { status: 500 },
-    );
-  }
-
-  // ── Stage 3: purge storefront caches ───────────────────────────
-  // Done once, at the end, only after both stages succeeded — a
-  // partial run should leave the previous caches intact rather than
-  // flash an empty section to users.
-  revalidateTag("products", "max");
-  revalidateTag("trending", "max");
-  revalidateTag("bestsellers", "max");
-  revalidatePath("/", "layout");
-  revalidatePath("/products", "layout");
-
-  return NextResponse.json({
-    ok: true,
-    rollup,
-    metrics,
-    elapsedMs: Date.now() - startedAt,
-  });
 }

@@ -5,7 +5,7 @@ import HeaderClient, {
   type NavItem,
   type NavMenuConfig,
 } from "./HeaderClient";
-import { getMenusByLocation } from "@/app/actions/menu";
+import { apiData } from "@/lib/server-api";
 
 // ---------- Types shared with the client ----------
 export interface HeaderData {
@@ -37,20 +37,12 @@ function pickNavMenu(menus: any[]): NavMenu | null {
 const getHeaderData = unstable_cache(
   async (): Promise<HeaderData> => {
     try {
-      const [navRes, sidebarRes] = await Promise.all([
-        getMenusByLocation("NavBar"),
-        getMenusByLocation("SideBar"),
+      const [navMenus, sidebarMenus] = await Promise.all([
+        apiData<any[]>("/menus/location/NavBar", { cache: "force-cache" }),
+        apiData<any[]>("/menus/location/SideBar", { cache: "force-cache" }),
       ]);
 
-      const navMenu =
-        navRes?.success && Array.isArray(navRes.data)
-          ? pickNavMenu(navRes.data)
-          : null;
-
-      const sidebarMenus =
-        sidebarRes?.success && Array.isArray(sidebarRes.data)
-          ? sidebarRes.data
-          : [];
+      const navMenu = Array.isArray(navMenus) ? pickNavMenu(navMenus) : null;
 
       return { navMenu, sidebarMenus };
     } catch (err) {

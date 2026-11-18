@@ -3,7 +3,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ContentCard } from "./ContentCard";
-import type { NormalizedContentItem } from "@/lib/content/resolve";
+import type { NormalizedContentItem } from "@/lib/content/types";
 import type {
   CardSize,
   CardVariant,

@@ -1,4 +1,4 @@
-import { findProducts } from "@/app/actions/products";
+import { findProducts } from "@/lib/api/products";
 import { normalizeProducts } from "@/app/store/slices/normalizedData";
 import { setProducts } from "@/app/store/slices/productSlice";
 import { AppDispatch } from "@/app/store/store";

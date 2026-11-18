@@ -1,6 +1,6 @@
 // components/menu/MenuRenderer.tsx
 import React from "react";
-import { getMenusByLocation } from "@/app/actions/menu";
+import { apiData } from "@/lib/server-api";
 import { NavTree, type NavMenuConfig } from "./NavTree";
 import type { MenuDisplayType } from "@/lib/menu/constants";
 
@@ -22,11 +22,13 @@ export default async function MenuRenderer({
   className = "",
   as = "section",
 }: MenuRendererProps) {
-  const result = await getMenusByLocation(location);
-  if (!result.success || !result.data?.length) return null;
+  const menus = await apiData<any[]>(`/menus/location/${encodeURIComponent(location)}`, {
+    cache: "force-cache",
+  });
+  if (!Array.isArray(menus) || menus.length === 0) return null;
 
   // Skip menus where every item is hidden — nothing to draw.
-  const usable = result.data.filter((menu: any) =>
+  const usable = menus.filter((menu: any) =>
     (menu.items ?? []).some((i: any) => i.isVisible !== false),
   );
   if (!usable.length) return null;

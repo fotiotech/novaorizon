@@ -3,7 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/app/context/CartContext";
-import { getCheckoutOrderAction } from "@/app/actions/checkout";
+import { getCheckoutOrderAction } from "@/lib/api/checkout";
 
 type CheckoutOrder = {
   orderNumber: string;

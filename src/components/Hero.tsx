@@ -5,7 +5,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { HeroSection } from "@/constant/types";
-import { findHeroContent } from "@/app/actions/content_management";
+import { findHeroContent } from "@/lib/api/hero-content";
 
 const MAX_SLIDES = 6;
 const PLACEHOLDER_IMAGE = "/placeholder-hero.jpg";

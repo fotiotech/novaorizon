@@ -1,6 +1,6 @@
 "use server";
 
-import { calculateShippingPrice } from "@/app/actions/carrier";
+import { calculateShippingPrice } from "@/lib/api/carrier";
 
 const DEFAULT_CARRIER_ID = "675eeda75a81d16c81aca736";
 
