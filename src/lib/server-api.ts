@@ -104,6 +104,7 @@ export async function apiRequest(
 
   const finalHeaders: Record<string, string> = {
     Accept: "application/json",
+    "x-auth-audience": "client",
     ...headers,
   };
 

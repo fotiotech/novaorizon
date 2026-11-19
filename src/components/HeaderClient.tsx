@@ -182,6 +182,33 @@ const CartIcon = React.memo(() => {
 CartIcon.displayName = "CartIcon";
 
 /* -------------------------------------------------------------------------- */
+/*                          MobileSearchBar                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mobile-only search bar.
+ * - Vertically centered content inside a taller pill (h-11 = 44px tap target)
+ * - Search action button on the right
+ * - Opens the existing SearchModal on tap
+ */
+const MobileSearchBar = React.memo(({ onOpen }: { onOpen: () => void }) => (
+  <button
+    type="button"
+    onClick={onOpen}
+    aria-label="Open search"
+    className="group flex h-11 w-full items-center rounded-full bg-primary-foreground/10 pl-4 pr-1.5 text-left ring-1 ring-inset ring-primary-foreground/20 transition-colors hover:bg-primary-foreground/15 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60"
+  >
+    <span className="flex-1 truncate text-sm text-primary-foreground/70">
+      Search products...
+    </span>
+    <span className="ml-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-foreground text-primary-600 transition-transform group-hover:scale-105">
+      <Search style={{ fontSize: 18 }} />
+    </span>
+  </button>
+));
+MobileSearchBar.displayName = "MobileSearchBar";
+
+/* -------------------------------------------------------------------------- */
 /*                               HeaderClient                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -256,26 +283,17 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
                 <DesktopSearchBar isTransparent />
               </div>
 
-              {/* Right: search (mobile), user, cart */}
-              <div className="flex items-center gap-1 lg:gap-3">
-                {/* Mobile-only search icon — opens the search modal */}
-                <button
-                  type="button"
-                  onClick={openSearch}
-                  aria-label="Open search"
-                  className="rounded-full p-2 transition-colors hover:bg-primary-foreground/10 focus:outline-none focus:ring-2 focus:ring-primary-foreground/60 lg:hidden"
-                >
-                  <Search
-                    style={{ fontSize: 32 }}
-                    className="text-primary-foreground"
-                  />
-                </button>
-
-                <div className="flex items-center gap-3">
-                  <UserProfile />
-                  <CartIcon />
-                </div>
+              {/* Right: user + cart (mobile search moved to its own row below) */}
+              <div className="flex items-center gap-3">
+                <UserProfile />
+                <CartIcon />
               </div>
+            </div>
+
+            {/* Mobile-only inline search bar — vertically centered, taller,
+                with the search action button on the right. */}
+            <div className="lg:hidden pl-2 pb-2 pt-1">
+              <MobileSearchBar onOpen={openSearch} />
             </div>
 
             {/* Nav menu — home page only, and only while at the top.

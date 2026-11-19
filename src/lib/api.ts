@@ -5,7 +5,10 @@ export const api = axios.create({
   // Critical for cookies: tells the browser to include them on every
   // cross-origin request. Backend has `credentials: true` on CORS.
   withCredentials: true,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "x-auth-audience": "client",
+  },
 });
 
 /**

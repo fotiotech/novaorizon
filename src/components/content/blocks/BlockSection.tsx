@@ -136,6 +136,31 @@ function SectionHeading({ data }: { data: ResolvedBlock }) {
   );
 }
 
+const BANNER_OVERLAY_CLS: Record<string, string> = {
+  none: "",
+  light: "bg-white/30",
+  dark: "bg-black/55",
+  gradient: "bg-gradient-to-r from-black/75 via-black/45 to-transparent",
+};
+
+const BANNER_ALIGN_CLS: Record<string, string> = {
+  left: "items-start text-left",
+  center: "items-center text-center",
+  right: "items-end text-right",
+};
+
+const BANNER_POS_CLS: Record<string, string> = {
+  top: "justify-start",
+  center: "justify-center",
+  bottom: "justify-end",
+};
+
+const BANNER_MAXW_CLS: Record<string, string> = {
+  left: "max-w-2xl",
+  center: "max-w-3xl",
+  right: "max-w-2xl ml-auto",
+};
+
 function BannerSlide({
   banner,
   dc,
@@ -143,7 +168,6 @@ function BannerSlide({
   banner: ResolvedBanner;
   dc: ResolvedDisplayConfig;
 }) {
-  const imgPos = IMG_POS_CLS[dc.imagePosition] ?? IMG_POS_CLS.center;
   const paragraphs = banner.body
     .split(/\n{2,}/)
     .map((p) => p.trim())
@@ -152,100 +176,249 @@ function BannerSlide({
 
   const cta = banner.cta;
   const hasCta = cta.style !== "none" && Boolean(cta.link);
+  const wrapperHref = banner.link || (hasCta ? "" : cta.link);
 
-  return (
-    <div
-      className={`relative h-full overflow-hidden ${
-        dc.rounded ? "rounded-2xl" : ""
-      }`}
-    >
-      {banner.image ? (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+  const frameCls =
+    "relative h-full overflow-hidden " + (dc.rounded ? "rounded-2xl" : "");
+
+  // Custom HTML banners own their entire slide; nothing is layered on top.
+  if (banner.type === "html" && banner.html) {
+    return (
+      <div className={frameCls}>
+        <div
+          className="aspect-[21/9] w-full [&_iframe]:h-full [&_iframe]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_video]:h-full [&_video]:w-full [&_video]:object-cover"
+          dangerouslySetInnerHTML={{ __html: banner.html }}
+        />
+      </div>
+    );
+  }
+
+  // Compact tile presentation: the banner owns its ratio and size so a row of
+  // logo cards does not depend on the block's card settings.
+  const COMPACT_RATIO_CLS: Record<string, string> = {
+    "1:1": "aspect-square",
+    "4:3": "aspect-[4/3]",
+    "3:2": "aspect-[3/2]",
+    "16:9": "aspect-[16/9]",
+  };
+  const COMPACT_SIZE: Record<
+    string,
+    { pad: string; logo: string; centerLogo: string; title: string; sub: string }
+  > = {
+    xs: {
+      pad: "gap-1.5 px-2.5 py-2.5",
+      logo: "h-7 w-7",
+      centerLogo: "h-10 w-10",
+      title: "text-[12px]",
+      sub: "text-[10px]",
+    },
+    sm: {
+      pad: "gap-2 px-3 py-3",
+      logo: "h-8 w-8",
+      centerLogo: "h-11 w-11",
+      title: "text-[13px]",
+      sub: "text-[11px]",
+    },
+    md: {
+      pad: "gap-3 px-4 py-4",
+      logo: "h-10 w-10",
+      centerLogo: "h-14 w-14",
+      title: "text-sm",
+      sub: "text-[12px]",
+    },
+    lg: {
+      pad: "gap-3.5 px-5 py-5",
+      logo: "h-12 w-12",
+      centerLogo: "h-16 w-16",
+      title: "text-base",
+      sub: "text-[13px]",
+    },
+  };
+
+  // Compact banners are small tiles: a logo plus a title, either stacked and
+  // centred or side by side. Useful for category / collection shortcuts.
+  if (banner.type === "compact") {
+    const isCenter = banner.align === "center";
+    const dark = banner.theme === "dark";
+    const s = COMPACT_SIZE[banner.size] ?? COMPACT_SIZE.md;
+    // Ratio applies to every arrangement (the tile keeps a fixed aspect).
+    const ratioCls = COMPACT_RATIO_CLS[banner.ratio] ?? COMPACT_RATIO_CLS["1:1"];
+
+    const cardCls =
+      "flex h-full w-full transition hover:opacity-90 " +
+      s.pad +
+      " " +
+      (isCenter
+        ? "flex-col items-center justify-center text-center " + ratioCls
+        : banner.align === "right"
+          ? "flex-row-reverse items-center justify-center text-right " + ratioCls
+          : "flex-row items-center justify-center text-left " + ratioCls) +
+      " " +
+      (dc.rounded ? "rounded-2xl " : "") +
+      (dark ? "bg-neutral-900 text-white" : "bg-white text-neutral-900") +
+      " border border-black/5 shadow-sm";
+
+    const content = (
+      <div className={cardCls}>
+        {banner.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={banner.image}
-            alt={banner.heading.title || banner.name}
-            className={`aspect-[21/9] w-full object-cover ${imgPos}`}
+            alt={banner.imageAlt || banner.heading.title || banner.name}
+            className={
+              "shrink-0 object-contain " +
+              (isCenter ? s.centerLogo : s.logo)
+            }
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-transparent" />
-        </>
+        ) : null}
+        <span className="min-w-0">
+          <span className={"block truncate font-semibold " + s.title}>
+            {banner.heading.title || banner.name}
+          </span>
+          {banner.heading.subtitle && (
+            <span className={"mt-0.5 block truncate opacity-70 " + s.sub}>
+              {banner.heading.subtitle}
+            </span>
+          )}
+        </span>
+      </div>
+    );
+
+    if (wrapperHref) {
+      return (
+        <Link
+          href={ctaHrefSafe(wrapperHref)}
+          target={banner.openInNewTab ? "_blank" : undefined}
+          rel={banner.openInNewTab ? "noreferrer noopener" : undefined}
+          className="block h-full"
+          aria-label={banner.heading.title || banner.name}
+        >
+          {content}
+        </Link>
+      );
+    }
+    return content;
+  }
+
+  const isVideo = banner.type === "video" && Boolean(banner.videoUrl);
+  const hasText = Boolean(
+    banner.eyebrow ||
+      banner.heading.title ||
+      banner.heading.subtitle ||
+      paragraphs.length ||
+      hasCta,
+  );
+  const lightText = banner.theme !== "dark";
+  const textCls = lightText ? "text-white" : "text-neutral-900";
+  const subTextCls = lightText ? "text-white/80" : "text-neutral-700";
+  const overlayCls =
+    BANNER_OVERLAY_CLS[banner.overlay] ?? BANNER_OVERLAY_CLS.gradient;
+  const alignCls = BANNER_ALIGN_CLS[banner.align] ?? BANNER_ALIGN_CLS.left;
+  const posCls = BANNER_POS_CLS[banner.position] ?? BANNER_POS_CLS.center;
+  const maxWCls = BANNER_MAXW_CLS[banner.align] ?? BANNER_MAXW_CLS.left;
+
+  return (
+    <div className={frameCls}>
+      {isVideo ? (
+        <video
+          className="aspect-[21/9] w-full object-cover"
+          src={banner.videoUrl}
+          poster={banner.image || undefined}
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      ) : banner.image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={banner.image}
+          alt={banner.imageAlt || banner.heading.title || banner.name}
+          className="aspect-[21/9] w-full object-cover object-center"
+        />
       ) : (
         <div className="aspect-[21/9] w-full bg-neutral-900" />
       )}
 
-      <div className="absolute inset-0 flex flex-col justify-center p-6 sm:p-10 lg:p-16">
-        <div className="max-w-2xl text-white [&_*]:text-white">
-          {banner.eyebrow && (
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
-              {banner.eyebrow}
-            </p>
-          )}
-          {banner.heading.title && (
-            <h2 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl lg:text-4xl">
-              {banner.heading.title}
-            </h2>
-          )}
-          {banner.heading.subtitle && (
-            <p className="mt-3 text-base text-white/80 sm:text-lg">
-              {banner.heading.subtitle}
-            </p>
-          )}
-          {paragraphs.map((p, i) => (
-            <p
-              key={i}
-              className="mt-3 max-w-lg text-sm leading-relaxed text-white/80 sm:text-base"
-            >
-              {p}
-            </p>
-          ))}
-          {hasCta && (
-            <div className="mt-6">
-              {cta.style === "button" ? (
-                cta.text ? (
+      {hasText && overlayCls && (
+        <div className={"absolute inset-0 " + overlayCls} />
+      )}
+
+      {wrapperHref && (
+        <Link
+          href={ctaHrefSafe(wrapperHref)}
+          target={banner.openInNewTab ? "_blank" : undefined}
+          rel={banner.openInNewTab ? "noreferrer noopener" : undefined}
+          aria-label={banner.heading.title || banner.name}
+          className="absolute inset-0 z-10"
+        />
+      )}
+
+      {hasText && (
+      <div
+        className={"absolute inset-0 flex flex-col p-6 sm:p-10 lg:p-16 " + posCls}
+      >
+        <div className={"relative z-20 w-full " + maxWCls + " " + alignCls}>
+          <div className={textCls}>
+            {banner.eyebrow && (
+              <p
+                className={
+                  "mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] " +
+                  (lightText ? "text-white/70" : "text-neutral-600")
+                }
+              >
+                {banner.eyebrow}
+              </p>
+            )}
+            {banner.heading.title && (
+              <h2 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl lg:text-4xl">
+                {banner.heading.title}
+              </h2>
+            )}
+            {banner.heading.subtitle && (
+              <p className={"mt-3 text-base sm:text-lg " + subTextCls}>
+                {banner.heading.subtitle}
+              </p>
+            )}
+            {paragraphs.map((p, i) => (
+              <p
+                key={i}
+                className={"mt-3 text-sm leading-relaxed sm:text-base " + subTextCls}
+              >
+                {p}
+              </p>
+            ))}
+            {hasCta && (
+              <div className="mt-6">
+                {cta.style === "button" ? (
                   <Link
                     href={ctaHrefSafe(cta.link)}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
                   >
-                    {cta.text}
+                    {cta.text || "Learn more"}
                     <span aria-hidden>→</span>
                   </Link>
                 ) : (
                   <Link
                     href={ctaHrefSafe(cta.link)}
-                    aria-label="Open link"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90"
+                    className={
+                      "inline-flex items-center gap-1 text-sm font-semibold transition hover:underline " +
+                      (lightText ? "text-white" : "text-neutral-900")
+                    }
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                      aria-hidden
-                    >
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
+                    {cta.text || "Learn more"}
+                    <span aria-hidden>→</span>
                   </Link>
-                )
-              ) : (
-                <Link
-                  href={ctaHrefSafe(cta.link)}
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition hover:underline"
-                >
-                  {cta.text || "Learn more"}
-                  <span aria-hidden>→</span>
-                </Link>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
-
 function BannerDisplay({ data }: { data: ResolvedBlock }) {
   const { block, banners = [] } = data;
   const dc = block.displayConfig;

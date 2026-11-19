@@ -74,24 +74,18 @@ const HeaderScroll: React.FC = () => {
         aria-label="Hero carousel loading"
         className="relative overflow-hidden bg-black m-1 my-2 lg:mx-6 rounded-xl"
       >
-        <div className="relative grid grid-cols-[45%_55%] sm:grid-cols-[2fr_3fr] lg:grid-cols-2 items-stretch min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
-          {/* Text panel skeleton — left */}
-          <div className="relative flex items-center justify-center px-3 py-3 sm:px-6 lg:px-12 lg:py-10 bg-black">
-            <div className="relative z-10 w-full max-w-xl space-y-3 sm:space-y-4 text-center lg:text-left">
-              <div className="h-5 sm:h-9 lg:h-10 xl:h-12 w-3/4 mx-auto lg:mx-0 rounded-md bg-white/10 animate-pulse" />
-              <div className="space-y-1.5 sm:space-y-2">
+        <div className="relative w-full aspect-[2/1] sm:aspect-[2/1] lg:aspect-[21/6] min-h-[120px] sm:min-h-[180px] lg:min-h-[220px] bg-neutral-900">
+          <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 animate-pulse" />
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 flex items-center px-4 sm:px-6 lg:px-12">
+            <div className="relative z-10 w-full max-w-[75%] sm:max-w-xl space-y-2 sm:space-y-3 text-left">
+              <div className="h-5 sm:h-8 lg:h-10 w-3/4 rounded-md bg-white/10 animate-pulse" />
+              <div className="space-y-1.5">
                 <div className="h-3 sm:h-4 w-full rounded bg-white/10 animate-pulse" />
-                <div className="h-3 sm:h-4 w-5/6 mx-auto lg:mx-0 rounded bg-white/10 animate-pulse" />
+                <div className="h-3 sm:h-4 w-5/6 rounded bg-white/10 animate-pulse" />
               </div>
-              <div className="mt-3 sm:mt-4 h-7 sm:h-10 w-24 sm:w-36 mx-auto lg:mx-0 rounded-full bg-white/10 animate-pulse" />
+              <div className="mt-2.5 h-9 sm:h-9 w-28 sm:w-32 rounded-full bg-white/10 animate-pulse" />
             </div>
-          </div>
-
-          {/* Image panel skeleton — right */}
-          <div className="relative h-full bg-neutral-900">
-            <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 animate-pulse" />
-            <div className="absolute inset-0 bg-black/40" />
-            <div className="absolute inset-y-0 left-0 w-[45%] sm:w-[55%] lg:w-[60%] bg-gradient-to-r from-black via-black/40 to-transparent" />
           </div>
         </div>
       </section>
@@ -127,30 +121,41 @@ const HeaderScroll: React.FC = () => {
                   tabIndex={isActive ? 0 : -1}
                 >
                   {/*
-                    Layout — image on the RIGHT, but wider than the text panel.
-                    Mobile: 45/55 · Tablet: 40/60 · Desktop: 50/50
-                    The image's left edge reaches further toward the text,
-                    and the fade band (45% → 55% → 60%) spans further right.
+                    Shorter full-bleed hero ratio, extra compact on mobile.
+                    Mobile 2:1 · Tablet 2:1 · Desktop 21:6 (3.5:1)
                   */}
-                  <div className="relative grid grid-cols-[45%_55%] sm:grid-cols-[2fr_3fr] lg:grid-cols-2 items-stretch min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
-                    {/* Text panel — LEFT */}
-                    <div className="relative flex items-center justify-center px-3 py-3 sm:px-6 lg:px-12 lg:py-10 bg-black">
-                      <div className="relative z-10 w-full max-w-xl text-center lg:text-left">
-                        <h1 className="text-base sm:text-2xl lg:text-4xl xl:text-5xl font-extrabold text-white leading-tight line-clamp-2 drop-shadow-lg">
+                  <div className="relative w-full aspect-[2/1] sm:aspect-[2/1] lg:aspect-[21/6] min-h-[120px] sm:min-h-[180px] lg:min-h-[220px]">
+                    <Image
+                      src={imageUrl}
+                      alt={title}
+                      fill
+                      className="object-cover"
+                      priority={index === 0}
+                      sizes="100vw"
+                    />
+
+                    {/* Uniform scrim (not a gradient) for text readability */}
+                    <div className="absolute inset-0 bg-black/40" />
+
+                    {/* Text overlay — left-aligned on all screens */}
+                    <div className="absolute inset-0 flex items-center px-4 sm:px-6 lg:px-12">
+                      {/* Narrower text block on mobile, full width on sm+ */}
+                      <div className="relative z-10 w-full max-w-[75%] sm:max-w-xl text-left">
+                        <h1 className="text-xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white leading-tight line-clamp-1 sm:line-clamp-2 drop-shadow-lg">
                           {title}
                         </h1>
 
                         {hero.description && (
-                          <p className="mt-1.5 text-xs leading-snug sm:mt-2 sm:text-sm lg:text-lg text-white/80 line-clamp-2 lg:line-clamp-3">
+                          <p className="mt-1 sm:mt-2 text-[11px] leading-snug sm:text-sm lg:text-base text-white/90 line-clamp-2 drop-shadow">
                             {hero.description}
                           </p>
                         )}
 
                         {hero.cta_text && (
-                          <span className="mt-3 sm:mt-6 inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-primary px-4 sm:px-7 py-1.5 sm:py-3 text-sm sm:text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                          <span className="mt-2.5 sm:mt-4 inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-primary px-4 sm:px-6 py-2 sm:py-2 text-xs sm:text-sm lg:text-base font-semibold sm:font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                             {hero.cta_text}
                             <svg
-                              className="h-3 w-3 sm:h-4 sm:w-4"
+                              className="h-3 w-3 sm:h-3.5 sm:w-3.5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -166,27 +171,6 @@ const HeaderScroll: React.FC = () => {
                         )}
                       </div>
                     </div>
-
-                    {/* Image panel — RIGHT (wider) */}
-                    <div className="relative h-full min-h-[190px] sm:min-h-[300px] lg:min-h-[360px]">
-                      <Image
-                        src={imageUrl}
-                        alt={title}
-                        fill
-                        className="object-cover"
-                        priority={index === 0}
-                        sizes="(max-width: 640px) 55vw, (max-width: 1024px) 60vw, 50vw"
-                      />
-                      {/* Base scrim */}
-                      <div className="absolute inset-0 bg-black/40" />
-                      {/*
-                        Left-to-right fade — band widens as screens grow:
-                        mobile 45% · tablet 55% · desktop 60%
-                        This lets the overlay span further right into the
-                        image while the image itself occupies more space.
-                      */}
-                      <div className="absolute inset-y-0 left-0 w-[45%] sm:w-[55%] lg:w-[60%] bg-gradient-to-r from-black via-black/40 to-transparent" />
-                    </div>
                   </div>
                 </Link>
               </div>
@@ -197,13 +181,13 @@ const HeaderScroll: React.FC = () => {
 
       {/* Navigation dots */}
       {slides.length > 1 && (
-        <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+        <div className="absolute bottom-1.5 sm:bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 sm:gap-2 z-20">
           {slides.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
               aria-label={`Go to slide ${index + 1}`}
-              className={`h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full transition-all duration-300 ${
+              className={`h-1 w-1 sm:h-2 sm:w-2 rounded-full transition-all duration-300 ${
                 index === currentIndex
                   ? "bg-primary scale-125 shadow-lg"
                   : "bg-white/40 hover:bg-white/70"
