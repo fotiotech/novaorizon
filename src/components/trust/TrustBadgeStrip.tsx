@@ -99,9 +99,9 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
   if (!badges || badges.length === 0) return null;
 
   return (
-    <div className="m-1 lg:mx-6">
+    <div className="px-3 lg:px-8 my-1 lg:my-3">
       {/* Card container — bridges the white header and the black hero */}
-      <div className="rounded-xl border border-border bg-card p-2 lg:p-3">
+      <div className=" ">
         <div className="relative">
           <ul
             ref={scrollRef}

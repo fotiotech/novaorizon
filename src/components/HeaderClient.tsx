@@ -201,7 +201,7 @@ const MobileSearchBar = React.memo(({ onOpen }: { onOpen: () => void }) => (
     <span className="flex-1 truncate text-sm text-primary-foreground/70">
       Search products...
     </span>
-    <span className="ml-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-foreground text-primary-600 transition-transform group-hover:scale-105">
+    <span className="ml-2 flex h-8 w-14 flex-shrink-0 items-center justify-center rounded-full bg-primary-foreground text-primary-600 transition-transform group-hover:scale-105">
       <Search style={{ fontSize: 18 }} />
     </span>
   </button>
@@ -255,13 +255,13 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
         - `bg-background` masks whatever scrolls behind that inset strip
           so it reads as page background, not page content.
       */}
-      <div className="sticky top-0 z-50 pt-1 bg-background">
+      <div className="sticky top-0 z-50 bg-background">
         <header
           role="banner"
-          className="mx-1 mb-1 pr-2 lg:mx-6 lg:p-3 border border-primary-700/40 rounded-xl bg-primary-600 text-primary-foreground shadow-sm"
+          className=" px-3 py-1 lg:pt-3 bg-primary-600 text-primary-foreground shadow-sm"
         >
           <div className=" ">
-            <div className="flex items-center justify-between gap-3 py-1">
+            <div className="flex items-center justify-between gap-3 ">
               {/* Left: menu + logo */}
               <div className="flex items-center lg:gap-2">
                 <button
@@ -292,7 +292,7 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
 
             {/* Mobile-only inline search bar — vertically centered, taller,
                 with the search action button on the right. */}
-            <div className="lg:hidden pl-2 pb-2 pt-1">
+            <div className="lg:hidden py-1">
               <MobileSearchBar onOpen={openSearch} />
             </div>
 

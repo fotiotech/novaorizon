@@ -72,9 +72,9 @@ const HeaderScroll: React.FC = () => {
     return (
       <section
         aria-label="Hero carousel loading"
-        className="relative overflow-hidden bg-black m-1 my-2 lg:mx-6 rounded-xl"
+        className="relative overflow-hidden bg-black mx-3 my-2 rounded-3xl "
       >
-        <div className="relative w-full aspect-[2/1] sm:aspect-[2/1] lg:aspect-[21/6] min-h-[120px] sm:min-h-[180px] lg:min-h-[220px] bg-neutral-900">
+        <div className="relative w-full aspect-[2/1] sm:aspect-[2/1] lg:aspect-[21/6] min-h-[100px] sm:min-h-[180px] lg:min-h-[220px] bg-neutral-900">
           <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 animate-pulse" />
           <div className="absolute inset-0 bg-black/40" />
           <div className="absolute inset-0 flex items-center px-4 sm:px-6 lg:px-12">
