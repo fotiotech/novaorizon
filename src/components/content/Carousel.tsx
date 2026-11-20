@@ -129,7 +129,7 @@ export function CarouselRail({
     "absolute top-1/2 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-foreground shadow-md backdrop-blur transition hover:bg-background hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1";
 
   return (
-    <div className="group/rail relative">
+    <div className="group/rail relative -mx-3">
       {canScrollLeft ? (
         <button
           type="button"
