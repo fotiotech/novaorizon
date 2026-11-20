@@ -14,22 +14,28 @@ interface Product {
 
 interface AddToCartProps {
   product: Product | null;
+  /** Selected variant identity (variantId / legacy _id) when applicable. */
+  variant?: string | null;
   showQuantityWhenInCart?: boolean;
 }
 
 // Try several shapes in case the cart line doesn't key on the product _id.
-function findCartLine(items: any[], productId: string) {
+function findCartLine(items: any[], productId: string, variant?: string | null) {
   if (!Array.isArray(items)) return undefined;
-  return items.find(
-    (it: any) =>
+  return items.find((it: any) => {
+    const sameProduct =
       it?._id === productId ||
       it?.productId === productId ||
-      it?.product?._id === productId,
-  );
+      it?.product?._id === productId;
+    if (!sameProduct) return false;
+    if (!variant) return !it?.variant;
+    return String(it?.variant ?? "") === String(variant);
+  });
 }
 
 const AddToCart = ({
   product,
+  variant,
   showQuantityWhenInCart = true,
 }: AddToCartProps) => {
   const track = useTrackEvent();
@@ -44,7 +50,7 @@ const AddToCart = ({
   if (!product) return null;
 
   const line = showQuantityWhenInCart
-    ? findCartLine(items, product._id)
+    ? findCartLine(items, product._id, variant)
     : undefined;
 
   // Log once per render so you can see what's happening in the console.
@@ -66,7 +72,7 @@ const AddToCart = ({
     }
     setIsAdding(true);
     try {
-      await addItem(product._id, undefined, 1);
+      await addItem(product._id, variant ?? undefined, 1);
 
       await track({
         itemId: product._id,

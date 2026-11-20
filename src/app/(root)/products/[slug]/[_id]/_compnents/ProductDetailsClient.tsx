@@ -867,7 +867,16 @@ export default function ProductDetailsClient({
   const displayPrice = pickPrice(matchedVariant?.price, basePrice, listPrice);
   const numericListPrice = Number(listPrice) || 0;
   const showListPrice = numericListPrice > displayPrice && displayPrice > 0;
-  const displayQuantity = matchedVariant?.quantity ?? baseQuantity;
+  // Per-variant stock: units promised to open orders are already reserved.
+  const variantAvailable =
+    matchedVariant !== null && matchedVariant !== undefined
+      ? Math.max(
+          0,
+          (Number(matchedVariant.quantity) || 0) -
+            (Number(matchedVariant.reserved) || 0),
+        )
+      : null;
+  const displayQuantity = variantAvailable ?? baseQuantity;
 
   const baseImages = normalizeImages(baseImagesRaw);
   const variantImages = normalizeImages(matchedVariant?.images);
@@ -963,6 +972,16 @@ export default function ProductDetailsClient({
                   image: displayImages[0] || "",
                   price: displayPrice,
                 }}
+                variant={
+                  matchedVariant
+                    ? String(
+                        matchedVariant.variantId ??
+                          matchedVariant._id ??
+                          matchedVariant.sku ??
+                          "",
+                      ) || null
+                    : null
+                }
               />
             </div>
 
@@ -979,7 +998,11 @@ export default function ProductDetailsClient({
 
             {isMobile && (
               <>
-                <ProductAttributes product={product} variant="keyFeatures" />
+                <ProductAttributes
+                  product={product}
+                  selectedVariant={matchedVariant}
+                  variant="keyFeatures"
+                />
 
                 <button
                   type="button"
@@ -1008,6 +1031,7 @@ export default function ProductDetailsClient({
                 >
                   <ProductAttributes
                     product={product}
+                    selectedVariant={matchedVariant}
                     variant="specifications"
                   />
                 </BottomSheet>
@@ -1023,7 +1047,11 @@ export default function ProductDetailsClient({
           <div className="border-t border-border md:col-span-2">
             {!isMobile && (
               <>
-                <ProductAttributes product={product} variant="keyFeatures" />
+                <ProductAttributes
+                  product={product}
+                  selectedVariant={matchedVariant}
+                  variant="keyFeatures"
+                />
 
                 <FadePreview
                   id="product-specifications-section"
@@ -1034,6 +1062,7 @@ export default function ProductDetailsClient({
                 >
                   <ProductAttributes
                     product={product}
+                    selectedVariant={matchedVariant}
                     variant="specifications"
                   />
                 </FadePreview>

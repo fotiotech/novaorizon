@@ -7,6 +7,8 @@ type Variant = "both" | "keyFeatures" | "specifications";
 
 interface ProductAttributesProps {
   product: any;
+  /** The variant currently selected on the PDP, if any. */
+  selectedVariant?: any;
   /**
    * Which section(s) to render.
    *   "both"           → Key Features + Specifications  (desktop default)
@@ -55,6 +57,7 @@ const AttrTable: React.FC<{ items: { k: string; v: any }[] }> = ({ items }) => (
 
 export default function ProductAttributes({
   product,
+  selectedVariant,
   variant = "both",
 }: ProductAttributesProps) {
   const [sets, setSets] = useState<any[]>([]);
@@ -76,8 +79,45 @@ export default function ProductAttributes({
     const kf: { k: string; v: any }[] = [];
     const specs: any[] = [];
 
+    // Which attributes are variant axes (flagged on the category property).
+    const isVariantByCode = new Map<string, boolean>();
+    const collectVariantFlags = (group: any) => {
+      (group.attributes || []).forEach((attr: any) => {
+        if (attr?.code) isVariantByCode.set(String(attr.code), !!attr.isVariant);
+      });
+      (group.children || []).forEach(collectVariantFlags);
+    };
+    sets.forEach((set: any) => (set.groups || []).forEach(collectVariantFlags));
+
+    // Variant objects key their values by a normalised code, while product
+    // fields use camelCase. Match either form.
+    const pickVariantValue = (code: string) => {
+      if (!selectedVariant) return undefined;
+      if (selectedVariant[code] !== undefined) return selectedVariant[code];
+      const wanted = code.toLowerCase().replace(/[^a-z0-9]/g, "");
+      for (const [key, value] of Object.entries(selectedVariant)) {
+        if (key.toLowerCase().replace(/[^a-z0-9]/g, "") === wanted) {
+          return value;
+        }
+      }
+      return undefined;
+    };
+
     // Codes are camelCase in the DB — direct lookup, no conversion.
-    const readValue = (code: string) => product?.[code];
+    // Variant-axis attributes follow the selected variant.
+    const readValue = (code: string) => {
+      if (isVariantByCode.get(code)) {
+        const fromVariant = pickVariantValue(code);
+        if (
+          fromVariant !== undefined &&
+          fromVariant !== null &&
+          fromVariant !== ""
+        ) {
+          return fromVariant;
+        }
+      }
+      return product?.[code];
+    };
 
     // ---- Specifications: attributes inside the `specifications` set.
     //      Skips any attribute flagged `isHighlight` so it doesn't
@@ -137,7 +177,7 @@ export default function ProductAttributes({
     }
 
     return { keyFeatures: kf, specifications: specs };
-  }, [sets, product]);
+  }, [sets, product, selectedVariant]);
 
   if (loading) return null;
 
