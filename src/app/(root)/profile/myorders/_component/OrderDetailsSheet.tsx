@@ -9,20 +9,31 @@ import InvoiceDisplay from "@/components/InvoiceDisplay";
 
 const ORDER_STEPS = [
   "pending",
+  "confirmed",
   "processing",
   "shipped",
-  "in transit",
-  "completed",
+  "delivered",
 ] as const;
 type OrderStep = (typeof ORDER_STEPS)[number];
 
+/** Older orders may still carry "in transit" / "completed". */
+const normalizeStatus = (status: string): string => {
+  if (status === "in transit") return "shipped";
+  if (status === "completed") return "delivered";
+  return status;
+};
+
 const stepIndex = (status: string): number => {
-  const idx = ORDER_STEPS.indexOf(status as OrderStep);
+  const normalized = normalizeStatus(status);
+  if (normalized === "return_requested") return ORDER_STEPS.length - 1;
+  const idx = ORDER_STEPS.indexOf(normalized as OrderStep);
   return idx === -1 ? -1 : idx;
 };
 
 const isTerminal = (status: string) =>
-  status === "cancelled" || status === "returned";
+  ["cancelled", "returned", "return_requested"].includes(
+    normalizeStatus(status),
+  );
 
 // ------------------------------------------------------------------
 // Sheet — fetches the full order and renders the details UI
@@ -148,6 +159,7 @@ const OrderDetailsContent: React.FC<OrderDetailsContentProps> = ({
   paymentStatusColor,
 }) => {
   const currentStatus = order.orderStatus;
+  const normalizedStatus = normalizeStatus(currentStatus);
   const currentStepIdx = stepIndex(currentStatus);
   const isTerminalState = isTerminal(currentStatus);
 
@@ -160,7 +172,7 @@ const OrderDetailsContent: React.FC<OrderDetailsContentProps> = ({
             currentStatus,
           )}`}
         >
-          Order: {currentStatus}
+          Order: {normalizedStatus.replace(/_/g, " ")}
         </span>
         <span
           className={`px-3 py-1 rounded-full text-xs font-medium ${paymentStatusColor(
@@ -237,15 +249,42 @@ const OrderDetailsContent: React.FC<OrderDetailsContentProps> = ({
       ) : isTerminalState ? (
         <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
           <p className="text-destructive font-medium capitalize text-sm">
-            This order has been {currentStatus}.
+            This order is {normalizedStatus.replace(/_/g, " ")}.
           </p>
           <p className="text-xs text-destructive/80 mt-1">
-            {currentStatus === "cancelled"
+            {normalizedStatus === "cancelled"
               ? "The order was cancelled and will not be processed."
-              : "The order was returned. Please contact support if you have any questions."}
+              : normalizedStatus === "return_requested"
+                ? "A return has been requested. Our team will review it and contact you."
+                : "The order was returned. Please contact support if you have any questions."}
           </p>
         </div>
       ) : null}
+
+      {/* Lifecycle timeline */}
+      {Array.isArray(order.statusHistory) && order.statusHistory.length > 0 && (
+        <div>
+          <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Status history
+          </h3>
+          <ol className="space-y-2">
+            {order.statusHistory.map((event: any, index: number) => (
+              <li key={index} className="flex items-start gap-2 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                <span className="min-w-0">
+                  <span className="font-medium capitalize">
+                    {String(event.status ?? "").replace(/_/g, " ")}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {event.at ? new Date(event.at).toLocaleString() : "—"}
+                    {event.note ? ` · ${event.note}` : ""}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {/* Details + Address */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
