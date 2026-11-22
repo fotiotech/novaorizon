@@ -45,9 +45,9 @@ async function loadCategoryTree(
 }
 
 /**
- * Effective property resolution (inheritProperty → inheritedProperty snapshot,
- * otherwise the category property) now lives in the backend; this is a thin
- * passthrough to `GET /api/catalog/categories/:id/attribute-sets`.
+ * Effective property resolution (ancestor chain merged on demand) lives in
+ * the backend; this is a thin passthrough to
+ * `GET /api/catalog/categories/:id/attribute-sets`.
  */
 export async function getCategoryAttributeSets(
   categoryId: string,

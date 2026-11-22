@@ -1,35 +1,21 @@
 // components/Hero.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { HeroSection } from "@/constant/types";
-import { findHeroContent } from "@/lib/api/hero-content";
 
 const MAX_SLIDES = 6;
 const PLACEHOLDER_IMAGE = "/placeholder-hero.jpg";
 
-const HeaderScroll: React.FC = () => {
+const HeaderScroll: React.FC<{ slides?: HeroSection[] }> = ({
+  slides: initialSlides = [],
+}) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [heroContent, setHeroContent] = useState<HeroSection[]>([]);
   const [isPaused, setIsPaused] = useState(false);
 
-  const slides = heroContent.slice(0, MAX_SLIDES);
-
-  const fetchHeroContent = useCallback(async () => {
-    try {
-      const content = await findHeroContent();
-      setHeroContent(content || []);
-    } catch (error) {
-      console.error("Failed to fetch hero content:", error);
-      setHeroContent([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchHeroContent();
-  }, [fetchHeroContent]);
+  const slides = initialSlides.slice(0, MAX_SLIDES);
 
   useEffect(() => {
     if (slides.length <= 1 || isPaused) return;

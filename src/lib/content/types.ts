@@ -68,29 +68,6 @@ export interface ResolvedDisplayConfig {
 
 export type ResolvedSourceStyles = BlockSourceStyles;
 
-export interface ResolvedBanner {
-  _id: string;
-  name: string;
-  /** image | video | html */
-  type: string;
-  eyebrow: string;
-  body: string;
-  heading: { title: string; subtitle: string };
-  image: string | null;
-  imageAlt: string;
-  videoUrl: string;
-  html: string;
-  link: string;
-  openInNewTab: boolean;
-  overlay: string;
-  ratio: string;
-  size: string;
-  align: string;
-  position: string;
-  theme: string;
-  cta: ResolvedCta;
-}
-
 export interface ResolvedBlock {
   block: {
     _id: string;
@@ -104,5 +81,4 @@ export interface ResolvedBlock {
     limit: number;
   };
   items: NormalizedContentItem[];
-  banners?: ResolvedBanner[];
 }

@@ -15,7 +15,6 @@ export const BLOCK_SOURCE_TYPES = [
   "category",
   "promotion",
   "manual",
-  "banner",
 ] as const;
 export type BlockSourceType = (typeof BLOCK_SOURCE_TYPES)[number];
 
@@ -39,7 +38,10 @@ export const BLOCK_DISPLAYS = [
   "carousel",
   "list",
   "hero",
-  "banner",
+  "slides",
+  "bento",
+  "masonry",
+  "tiles",
 ] as const;
 export type BlockDisplay = (typeof BLOCK_DISPLAYS)[number];
 
@@ -196,24 +198,3 @@ export const DEFAULT_BLOCK_SOURCE_STYLES: BlockSourceStyles = {
   manualCardVariant: "card",
   manualShowDescription: true,
 };
-/* -------------------------------------------------------------------------- */
-/*                          Banner card presentation                          */
-/* -------------------------------------------------------------------------- */
-
-export const BANNER_RATIOS = [
-  "9:16",
-  "2:3",
-  "3:4",
-  "4:5",
-  "1:1",
-  "5:4",
-  "4:3",
-  "3:2",
-  "16:9",
-  "2:1",
-  "21:9",
-] as const;
-export type BannerRatio = (typeof BANNER_RATIOS)[number];
-
-export const BANNER_CARD_SIZES = ["xs", "sm", "md", "lg"] as const;
-export type BannerCardSize = (typeof BANNER_CARD_SIZES)[number];

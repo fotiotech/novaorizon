@@ -8,7 +8,6 @@ import { CarouselRail } from "@/components/content/Carousel";
 import type {
   ResolvedBlock,
   ResolvedDisplayConfig,
-  ResolvedBanner,
   NormalizedContentItem,
 } from "@/lib/content/types";
 import type {
@@ -19,6 +18,20 @@ import type {
   ImagePosition,
   TitlePosition,
 } from "@/lib/content/constants";
+
+interface SharedCardProps {
+  size: CardSize;
+  variant: "card" | "bare";
+  shape: CardShape;
+  ratio: CardRatio;
+  layout: CardLayout;
+  titlePosition: TitlePosition;
+  imagePosition: ImagePosition;
+  textColor?: string;
+}
+
+const gridClass = (columns: number): string =>
+  "grid " + (GRID_COLS[columns] ?? GRID_COLS[4]);
 
 const GRID_COLS: Record<number, string> = {
   1: "grid-cols-1",
@@ -161,364 +174,6 @@ const BANNER_MAXW_CLS: Record<string, string> = {
   right: "max-w-2xl ml-auto",
 };
 
-function BannerSlide({
-  banner,
-  dc,
-}: {
-  banner: ResolvedBanner;
-  dc: ResolvedDisplayConfig;
-}) {
-  const paragraphs = banner.body
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .slice(0, 2);
-
-  const cta = banner.cta;
-  const hasCta = cta.style !== "none" && Boolean(cta.link);
-  const wrapperHref = banner.link || (hasCta ? "" : cta.link);
-
-  const frameCls =
-    "relative h-full overflow-hidden " + (dc.rounded ? "rounded-2xl" : "");
-
-  // Custom HTML banners own their entire slide; nothing is layered on top.
-  if (banner.type === "html" && banner.html) {
-    return (
-      <div className={frameCls}>
-        <div
-          className="aspect-[21/9] w-full [&_iframe]:h-full [&_iframe]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_video]:h-full [&_video]:w-full [&_video]:object-cover"
-          dangerouslySetInnerHTML={{ __html: banner.html }}
-        />
-      </div>
-    );
-  }
-
-  // Compact tile presentation: the banner owns its ratio and size so a row of
-  // logo cards does not depend on the block's card settings.
-  const COMPACT_RATIO_CLS: Record<string, string> = {
-    "1:1": "aspect-square",
-    "4:3": "aspect-[4/3]",
-    "3:2": "aspect-[3/2]",
-    "16:9": "aspect-[16/9]",
-  };
-  const COMPACT_SIZE: Record<
-    string,
-    { pad: string; logo: string; centerLogo: string; title: string; sub: string }
-  > = {
-    xs: {
-      pad: "gap-1.5 px-2.5 py-2.5",
-      logo: "h-7 w-7",
-      centerLogo: "h-10 w-10",
-      title: "text-[12px]",
-      sub: "text-[10px]",
-    },
-    sm: {
-      pad: "gap-2 px-3 py-3",
-      logo: "h-8 w-8",
-      centerLogo: "h-11 w-11",
-      title: "text-[13px]",
-      sub: "text-[11px]",
-    },
-    md: {
-      pad: "gap-3 px-4 py-4",
-      logo: "h-10 w-10",
-      centerLogo: "h-14 w-14",
-      title: "text-sm",
-      sub: "text-[12px]",
-    },
-    lg: {
-      pad: "gap-3.5 px-5 py-5",
-      logo: "h-12 w-12",
-      centerLogo: "h-16 w-16",
-      title: "text-base",
-      sub: "text-[13px]",
-    },
-  };
-
-  // Compact banners are small tiles: a logo plus a title, either stacked and
-  // centred or side by side. Useful for category / collection shortcuts.
-  if (banner.type === "compact") {
-    const isCenter = banner.align === "center";
-    const dark = banner.theme === "dark";
-    const s = COMPACT_SIZE[banner.size] ?? COMPACT_SIZE.md;
-    // Ratio applies to every arrangement (the tile keeps a fixed aspect).
-    const ratioCls = COMPACT_RATIO_CLS[banner.ratio] ?? COMPACT_RATIO_CLS["1:1"];
-
-    const cardCls =
-      "flex h-full w-full transition hover:opacity-90 " +
-      s.pad +
-      " " +
-      (isCenter
-        ? "flex-col items-center justify-center text-center " + ratioCls
-        : banner.align === "right"
-          ? "flex-row-reverse items-center justify-center text-right " + ratioCls
-          : "flex-row items-center justify-center text-left " + ratioCls) +
-      " " +
-      (dc.rounded ? "rounded-2xl " : "") +
-      (dark ? "bg-neutral-900 text-white" : "bg-white text-neutral-900") +
-      " border border-black/5 shadow-sm";
-
-    const content = (
-      <div className={cardCls}>
-        {banner.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={banner.image}
-            alt={banner.imageAlt || banner.heading.title || banner.name}
-            className={
-              "shrink-0 object-contain " +
-              (isCenter ? s.centerLogo : s.logo)
-            }
-          />
-        ) : null}
-        <span className="min-w-0">
-          <span className={"block truncate font-semibold " + s.title}>
-            {banner.heading.title || banner.name}
-          </span>
-          {banner.heading.subtitle && (
-            <span className={"mt-0.5 block truncate opacity-70 " + s.sub}>
-              {banner.heading.subtitle}
-            </span>
-          )}
-        </span>
-      </div>
-    );
-
-    if (wrapperHref) {
-      return (
-        <Link
-          href={ctaHrefSafe(wrapperHref)}
-          target={banner.openInNewTab ? "_blank" : undefined}
-          rel={banner.openInNewTab ? "noreferrer noopener" : undefined}
-          className="block h-full"
-          aria-label={banner.heading.title || banner.name}
-        >
-          {content}
-        </Link>
-      );
-    }
-    return content;
-  }
-
-  const isVideo = banner.type === "video" && Boolean(banner.videoUrl);
-  const hasText = Boolean(
-    banner.eyebrow ||
-      banner.heading.title ||
-      banner.heading.subtitle ||
-      paragraphs.length ||
-      hasCta,
-  );
-  const lightText = banner.theme !== "dark";
-  const textCls = lightText ? "text-white" : "text-neutral-900";
-  const subTextCls = lightText ? "text-white/80" : "text-neutral-700";
-  const overlayCls =
-    BANNER_OVERLAY_CLS[banner.overlay] ?? BANNER_OVERLAY_CLS.gradient;
-  const alignCls = BANNER_ALIGN_CLS[banner.align] ?? BANNER_ALIGN_CLS.left;
-  const posCls = BANNER_POS_CLS[banner.position] ?? BANNER_POS_CLS.center;
-  const maxWCls = BANNER_MAXW_CLS[banner.align] ?? BANNER_MAXW_CLS.left;
-
-  return (
-    <div className={frameCls}>
-      {isVideo ? (
-        <video
-          className="aspect-[21/9] w-full object-cover"
-          src={banner.videoUrl}
-          poster={banner.image || undefined}
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
-      ) : banner.image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={banner.image}
-          alt={banner.imageAlt || banner.heading.title || banner.name}
-          className="aspect-[21/9] w-full object-cover object-center"
-        />
-      ) : (
-        <div className="aspect-[21/9] w-full bg-neutral-900" />
-      )}
-
-      {hasText && overlayCls && (
-        <div className={"absolute inset-0 " + overlayCls} />
-      )}
-
-      {wrapperHref && (
-        <Link
-          href={ctaHrefSafe(wrapperHref)}
-          target={banner.openInNewTab ? "_blank" : undefined}
-          rel={banner.openInNewTab ? "noreferrer noopener" : undefined}
-          aria-label={banner.heading.title || banner.name}
-          className="absolute inset-0 z-10"
-        />
-      )}
-
-      {hasText && (
-      <div
-        className={"absolute inset-0 flex flex-col p-6 sm:p-10 lg:p-16 " + posCls}
-      >
-        <div className={"relative z-20 w-full " + maxWCls + " " + alignCls}>
-          <div className={textCls}>
-            {banner.eyebrow && (
-              <p
-                className={
-                  "mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] " +
-                  (lightText ? "text-white/70" : "text-neutral-600")
-                }
-              >
-                {banner.eyebrow}
-              </p>
-            )}
-            {banner.heading.title && (
-              <h2 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl lg:text-4xl">
-                {banner.heading.title}
-              </h2>
-            )}
-            {banner.heading.subtitle && (
-              <p className={"mt-3 text-base sm:text-lg " + subTextCls}>
-                {banner.heading.subtitle}
-              </p>
-            )}
-            {paragraphs.map((p, i) => (
-              <p
-                key={i}
-                className={"mt-3 text-sm leading-relaxed sm:text-base " + subTextCls}
-              >
-                {p}
-              </p>
-            ))}
-            {hasCta && (
-              <div className="mt-6">
-                {cta.style === "button" ? (
-                  <Link
-                    href={ctaHrefSafe(cta.link)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-                  >
-                    {cta.text || "Learn more"}
-                    <span aria-hidden>→</span>
-                  </Link>
-                ) : (
-                  <Link
-                    href={ctaHrefSafe(cta.link)}
-                    className={
-                      "inline-flex items-center gap-1 text-sm font-semibold transition hover:underline " +
-                      (lightText ? "text-white" : "text-neutral-900")
-                    }
-                  >
-                    {cta.text || "Learn more"}
-                    <span aria-hidden>→</span>
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      )}
-    </div>
-  );
-}
-function BannerDisplay({ data }: { data: ResolvedBlock }) {
-  const { block, banners = [] } = data;
-  const dc = block.displayConfig;
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (index >= banners.length) setIndex(0);
-  }, [banners.length, index]);
-
-  if (banners.length === 0) return null;
-
-  const total = banners.length;
-  const current = banners[Math.min(index, total - 1)];
-
-  return (
-    <section
-      className={`m-1 p-2 lg:m-6 lg:p-3 ${themeWrapCls(dc.theme)}`}
-      style={sectionStyle(dc)}
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading data={data} />
-
-        <div className="relative">
-          <BannerSlide banner={current} dc={dc} />
-
-          {total > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={() => setIndex((index - 1 + total) % total)}
-                aria-label="Previous banner"
-                className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white shadow-md backdrop-blur transition hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white/50"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="size-4"
-                  aria-hidden
-                >
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIndex((index + 1) % total)}
-                aria-label="Next banner"
-                className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white shadow-md backdrop-blur transition hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white/50"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="size-4"
-                  aria-hidden
-                >
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </button>
-
-              <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
-                {banners.map((b, i) => (
-                  <button
-                    key={b._id}
-                    type="button"
-                    onClick={() => setIndex(i)}
-                    aria-label={`Go to banner ${i + 1}`}
-                    className={`h-2.5 w-2.5 rounded-full transition-all ${
-                      i === index
-                        ? "scale-125 bg-white shadow-lg"
-                        : "bg-white/40 hover:bg-white/70"
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-interface SharedCardProps {
-  size: CardSize;
-  variant: "card" | "bare";
-  shape: CardShape;
-  ratio: CardRatio;
-  layout: CardLayout;
-  titlePosition: TitlePosition;
-  imagePosition: ImagePosition;
-  textColor: string | undefined;
-}
-
 function buildCardProps(
   dc: ResolvedDisplayConfig,
   ss: ResolvedBlock["block"]["sourceStyles"],
@@ -533,6 +188,189 @@ function buildCardProps(
     imagePosition: dc.imagePosition,
     textColor: dc.textColor || undefined,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                       Editorial layouts (no banners)                       */
+/* -------------------------------------------------------------------------- */
+
+function SlidesLayout({
+  items,
+  dc,
+}: {
+  items: NormalizedContentItem[];
+  dc: ResolvedDisplayConfig;
+}) {
+  const ratioCls = RATIO_CLS[dc.cardRatio] ?? RATIO_CLS["4:5"];
+
+  return (
+    <div
+      className="flex snap-x snap-mandatory overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{ gap: `${dc.gap}px` }}
+    >
+      {items.map((it) => (
+        <Link
+          key={`${it.contentType}:${it._id}`}
+          href={it.href}
+          className={
+            "group relative w-[85%] shrink-0 snap-start overflow-hidden bg-neutral-900 sm:w-[420px] " +
+            ratioCls +
+            " " +
+            (dc.rounded ? "rounded-2xl" : "")
+          }
+        >
+          {it.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={it.image}
+              alt={it.name}
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-5">
+            {it.badge ? (
+              <span className="mb-2 inline-flex rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide backdrop-blur">
+                {it.badge}
+              </span>
+            ) : null}
+            <p className="line-clamp-2 text-lg font-semibold sm:text-xl">
+              {it.name}
+            </p>
+            {it.subline ? (
+              <p className="mt-1 line-clamp-1 text-xs text-white/80">
+                {it.subline}
+              </p>
+            ) : null}
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium">
+              Explore <span aria-hidden>→</span>
+            </span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function BentoLayout({
+  items,
+  dc,
+}: {
+  items: NormalizedContentItem[];
+  dc: ResolvedDisplayConfig;
+}) {
+  const tiles = items.slice(0, 5);
+
+  return (
+    <div
+      className="grid auto-rows-[150px] grid-cols-2 md:auto-rows-[190px] md:grid-cols-4"
+      style={{ gap: `${dc.gap}px` }}
+    >
+      {tiles.map((it, index) => {
+        const isFeature = index === 0;
+        return (
+          <Link
+            key={`${it.contentType}:${it._id}`}
+            href={it.href}
+            className={
+              "group relative overflow-hidden bg-neutral-900 " +
+              (isFeature ? "col-span-2 row-span-2 " : "") +
+              (dc.rounded ? "rounded-2xl" : "")
+            }
+          >
+            {it.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={it.image}
+                alt={it.name}
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : null}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+              <p
+                className={
+                  "line-clamp-2 font-semibold " +
+                  (isFeature ? "text-xl sm:text-2xl" : "text-sm sm:text-base")
+                }
+              >
+                {it.name}
+              </p>
+              {isFeature && it.subline ? (
+                <p className="mt-1 line-clamp-2 text-xs text-white/80">
+                  {it.subline}
+                </p>
+              ) : null}
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function MasonryLayout({
+  items,
+  cardProps,
+}: {
+  items: NormalizedContentItem[];
+  cardProps: SharedCardProps;
+}) {
+  return (
+    <div className="columns-2 gap-3 sm:columns-3 lg:columns-4">
+      {items.map((it) => (
+        <div
+          key={`${it.contentType}:${it._id}`}
+          className="mb-3 break-inside-avoid"
+        >
+          <ContentCard item={it} {...cardProps} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TilesLayout({
+  items,
+  dc,
+}: {
+  items: NormalizedContentItem[];
+  dc: ResolvedDisplayConfig;
+}) {
+  return (
+    <div
+      className={gridClass(dc.columns)}
+      style={{ gap: `${dc.gap}px` }}
+    >
+      {items.map((it) => (
+        <Link
+          key={`${it.contentType}:${it._id}`}
+          href={it.href}
+          className={
+            "flex min-h-[76px] flex-col items-center justify-center gap-1.5 bg-card px-2 py-3 text-center transition hover:border-primary " +
+            (dc.rounded ? "rounded-xl " : "rounded-none ") +
+            (dc.borderless ? "" : "border border-border ") +
+            (dc.shadow ? "shadow-sm" : "")
+          }
+        >
+          {it.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={it.image}
+              alt=""
+              loading="lazy"
+              className="h-8 w-8 object-contain"
+            />
+          ) : null}
+          <span className="line-clamp-2 text-[12px] font-medium text-foreground">
+            {it.name}
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 function CardBlock({ data }: { data: ResolvedBlock }) {
@@ -556,9 +394,6 @@ function CardBlock({ data }: { data: ResolvedBlock }) {
 }
 
 export function BlockSection({ data }: { data: ResolvedBlock }) {
-  if (data.block.display === "banner" && data.banners) {
-    return <BannerDisplay data={data} />;
-  }
   return <CardBlock data={data} />;
 }
 
@@ -593,6 +428,18 @@ function renderCardBody(
 
     case "hero":
       return <HeroLayout items={items} gap={dc.gap} cardProps={cardProps} />;
+
+    case "slides":
+      return <SlidesLayout items={items} dc={dc} />;
+
+    case "bento":
+      return <BentoLayout items={items} dc={dc} />;
+
+    case "masonry":
+      return <MasonryLayout items={items} cardProps={cardProps} />;
+
+    case "tiles":
+      return <TilesLayout items={items} dc={dc} />;
 
     case "grid":
     default:

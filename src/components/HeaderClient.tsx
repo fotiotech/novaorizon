@@ -263,7 +263,7 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
           <div className=" ">
             <div className="flex items-center justify-between gap-3 ">
               {/* Left: menu + logo */}
-              <div className="flex items-center lg:gap-2">
+              <div className="flex items-center lg:gap-2 -pl-2  lg:-pl-0">
                 <button
                   type="button"
                   onClick={toggleSidebar}
@@ -302,7 +302,7 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
                 panels (nested `ul`s) are untouched and keep their light card
                 styling. */}
             {showNav ? (
-              <div className="relative w-full overflow-x-auto md:overflow-visible scrollbar-hide">
+              <div className="relative w-full -pl-2 lg:-pl-0 overflow-x-auto md:overflow-visible scrollbar-hide">
                 <nav
                   aria-label="Main navigation"
                   className="w-max min-w-full md:w-full
