@@ -132,12 +132,12 @@ const HeaderScroll: React.FC<{ slides?: HeroSection[] }> = ({
                     {/* Text — left */}
                     <div className="relative z-10 flex w-1/2 sm:w-[55%] items-center px-3 sm:px-6 lg:px-12">
                       <div className="w-full max-w-xl text-left">
-                        <h1 className="text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white leading-[1.1] tracking-tight line-clamp-2 sm:line-clamp-2 drop-shadow-lg">
+                        <h1 className="text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white leading-[1.1] tracking-tight line-clamp-3 drop-shadow-lg">
                           {title}
                         </h1>
 
                         {hero.description && (
-                          <p className="mt-1.5 sm:mt-3 text-xs leading-snug sm:text-base lg:text-lg text-white/90 line-clamp-1 lg:line-clamp-2 drop-shadow">
+                          <p className="mt-1.5 sm:mt-3 text-xs leading-snug sm:text-base lg:text-lg text-white/90 line-clamp-2 drop-shadow">
                             {hero.description}
                           </p>
                         )}
