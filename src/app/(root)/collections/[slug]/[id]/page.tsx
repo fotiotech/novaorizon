@@ -89,6 +89,21 @@ export default async function CollectionDetailPage({
           <p className="text-sm text-muted-foreground mt-1">
             {items.length} item{items.length !== 1 ? "s" : ""}
           </p>
+          {collection.ctaStyle &&
+            collection.ctaStyle !== "none" &&
+            collection.ctaText &&
+            collection.ctaLink && (
+              <Link
+                href={collection.ctaLink}
+                className={
+                  collection.ctaStyle === "button"
+                    ? "mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+                    : "mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline"
+                }
+              >
+                {collection.ctaText}
+              </Link>
+            )}
           <p className="text-xs text-muted-foreground mt-0.5">
             Type: {collection.targetType}
           </p>

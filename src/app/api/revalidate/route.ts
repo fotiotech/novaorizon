@@ -5,11 +5,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Tags that this endpoint is allowed to purge. */
-const ALLOWED_TAGS = new Set(["home-hero"]);
+const ALLOWED_TAGS = new Set(["home-hero", "blocks"]);
 
 /**
  * POST /api/revalidate
- * Body: { tag: "home-hero" }  (or ?tag=home-hero)
+ * Body: { tag: "blocks" } / { tags: ["blocks", "home-hero"] }
  * Header: x-revalidate-secret: <REVALIDATE_SECRET>
  *
  * Called by the API after hero content changes; can also be hit manually.

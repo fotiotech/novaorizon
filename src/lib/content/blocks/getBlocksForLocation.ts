@@ -16,7 +16,9 @@ export async function getBlocksForLocation(
   try {
     const blocks = await apiData<ResolvedBlock[]>("/catalog/blocks", {
       query: { location },
-      cache: "force-cache",
+      // `unstable_cache` owns the cache; a nested force-cache would keep
+      // deleted blocks alive indefinitely.
+      cache: "no-store",
     });
 
     return Array.isArray(blocks) ? blocks : [];
