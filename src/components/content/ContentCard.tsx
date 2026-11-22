@@ -21,6 +21,9 @@ interface ContentCardProps {
   showImage?: boolean;
   size?: CardSize;
   cardStyle?: BlockCardStyle;
+  borderless?: boolean;
+  rounded?: boolean;
+  shadow?: boolean;
   variant?: CardVariant;
   shape?: CardShape;
   ratio?: CardRatio;
@@ -172,6 +175,9 @@ export function ContentCard({
   showImage = true,
   size = "md",
   cardStyle = "default",
+  borderless = false,
+  rounded = true,
+  shadow = false,
   variant = "card",
   shape = "default",
   ratio = "1:1",
@@ -180,11 +186,19 @@ export function ContentCard({
   imagePosition = "center",
   textColor,
 }: ContentCardProps) {
+  const surfaceCls = [
+    rounded ? "rounded-xl" : "rounded-none",
+    borderless ? "" : "border border-border",
+    shadow ? "shadow-sm" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   if (cardStyle === "tile") {
     return (
       <Link
         href={item.href}
-        className="flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-2 py-3 text-center transition hover:border-primary"
+        className={`flex min-h-[76px] flex-col items-center justify-center gap-1.5 bg-card px-2 py-3 text-center transition hover:border-primary ${surfaceCls}`}
       >
         {showImage && item.image ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -300,7 +314,7 @@ export function ContentCard({
 
   const cardCls =
     variant === "card"
-      ? "group flex h-full flex-col overflow-hidden rounded-xl bg-card transition"
+      ? `group flex h-full flex-col overflow-hidden bg-card transition ${surfaceCls}`
       : "group flex h-full flex-col";
 
   /* ------------------------- side-by-side mode --------------------------- */
@@ -319,7 +333,7 @@ export function ContentCard({
 
     const rowCls =
       variant === "card"
-        ? "group flex h-full overflow-hidden rounded-xl bg-card transition"
+        ? `group flex h-full overflow-hidden bg-card transition ${surfaceCls}`
         : "group flex h-full";
 
     const sideImage = (

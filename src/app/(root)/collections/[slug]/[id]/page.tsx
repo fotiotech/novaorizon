@@ -91,7 +91,6 @@ export default async function CollectionDetailPage({
           </p>
           {collection.ctaStyle &&
             collection.ctaStyle !== "none" &&
-            collection.ctaText &&
             collection.ctaLink && (
               <Link
                 href={collection.ctaLink}
@@ -101,7 +100,10 @@ export default async function CollectionDetailPage({
                     : "mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline"
                 }
               >
-                {collection.ctaText}
+                {collection.ctaText ||
+                  (collection.ctaStyle === "button"
+                    ? "Shop now"
+                    : "View collection")}
               </Link>
             )}
           <p className="text-xs text-muted-foreground mt-0.5">

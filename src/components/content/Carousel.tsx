@@ -18,6 +18,9 @@ import type {
 export interface CardOverride {
   size?: CardSize;
   cardStyle?: BlockCardStyle;
+  borderless?: boolean;
+  rounded?: boolean;
+  shadow?: boolean;
   variant?: CardVariant;
   shape?: CardShape;
   ratio?: CardRatio;
@@ -159,6 +162,9 @@ export function CarouselRail({
               showImage={showImages}
               size={cardOverride?.size}
               cardStyle={cardOverride?.cardStyle}
+              borderless={cardOverride?.borderless}
+              rounded={cardOverride?.rounded}
+              shadow={cardOverride?.shadow}
               variant={cardOverride?.variant}
               shape={cardOverride?.shape}
               ratio={cardOverride?.ratio}

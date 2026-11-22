@@ -23,6 +23,9 @@ import type {
 interface SharedCardProps {
   size: CardSize;
   cardStyle: BlockCardStyle;
+  borderless: boolean;
+  rounded: boolean;
+  shadow: boolean;
   variant: "card" | "bare";
   shape: CardShape;
   ratio: CardRatio;
@@ -180,6 +183,9 @@ function buildCardProps(
   return {
     size: dc.cardSize,
     cardStyle: dc.cardStyle,
+    borderless: dc.borderless,
+    rounded: dc.rounded,
+    shadow: dc.shadow,
     variant: (ss.manualCardVariant as "card" | "bare") ?? "card",
     shape: dc.cardShape,
     ratio: dc.cardRatio,
@@ -382,6 +388,9 @@ function renderCardBody(
           gap={dc.gap}
           cardShape={dc.cardShape}
           cardStyle={dc.cardStyle}
+          borderless={dc.borderless}
+          rounded={dc.rounded}
+          shadow={dc.shadow}
           textColor={cardProps.textColor}
         />
       );
@@ -422,12 +431,18 @@ function ListLayout({
   gap,
   cardShape,
   cardStyle,
+  borderless,
+  rounded,
+  shadow,
   textColor,
 }: {
   items: NormalizedContentItem[];
   gap: number;
   cardShape: CardShape;
   cardStyle: BlockCardStyle;
+  borderless: boolean;
+  rounded: boolean;
+  shadow: boolean;
   textColor?: string;
 }) {
   if (cardStyle === "tile") {
@@ -441,6 +456,9 @@ function ListLayout({
             key={`${it.contentType}:${it._id}`}
             item={it}
             cardStyle="tile"
+            borderless={borderless}
+            rounded={rounded}
+            shadow={shadow}
             textColor={textColor}
           />
         ))}
@@ -449,6 +467,13 @@ function ListLayout({
   }
 
   const imgRounding = cardShape === "circle" ? "rounded-full" : "rounded-lg";
+  const rowSurface = [
+    rounded ? "rounded-lg" : "rounded-none",
+    borderless ? "" : "border border-border",
+    shadow ? "shadow-sm" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const textStyle = textColor ? { color: textColor } : undefined;
   return (
     <div className="flex flex-col" style={{ gap: `${gap}px` }}>
@@ -456,7 +481,7 @@ function ListLayout({
         <Link
           key={`${it.contentType}:${it._id}`}
           href={it.href}
-          className="flex items-center gap-4 rounded-lg border bg-card p-3 transition hover:border-primary"
+          className={`flex items-center gap-4 bg-card p-3 transition hover:border-primary ${rowSurface}`}
         >
           {it.image ? (
             // eslint-disable-next-line @next/next/no-img-element
