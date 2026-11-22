@@ -261,9 +261,9 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
           className=" px-3 py-1 lg:pt-3 bg-primary-600 text-primary-foreground shadow-sm"
         >
           <div className=" ">
-            <div className="flex items-center justify-between gap-3 ">
+            <div className="flex items-center justify-between gap-4 lg:gap-6">
               {/* Left: menu + logo */}
-              <div className="flex items-center lg:gap-2 -pl-2  lg:-pl-0">
+              <div className="flex items-center lg:gap-2 -ml-2  lg:ml-0">
                 <button
                   type="button"
                   onClick={toggleSidebar}
@@ -302,7 +302,7 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
                 panels (nested `ul`s) are untouched and keep their light card
                 styling. */}
             {showNav ? (
-              <div className="relative w-full -pl-2 lg:-pl-0 overflow-x-auto md:overflow-visible scrollbar-hide">
+              <div className="relative w-full - -ml-2  lg:ml-0 overflow-x-auto md:overflow-visible scrollbar-hide">
                 <nav
                   aria-label="Main navigation"
                   className="w-max min-w-full md:w-full
