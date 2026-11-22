@@ -41,7 +41,6 @@ export const BLOCK_DISPLAYS = [
   "slides",
   "bento",
   "masonry",
-  "tiles",
 ] as const;
 export type BlockDisplay = (typeof BLOCK_DISPLAYS)[number];
 
@@ -104,6 +103,9 @@ export type CardSize = (typeof CARD_SIZES)[number];
 
 export const CARD_VARIANTS = ["card", "bare"] as const;
 export type CardVariant = (typeof CARD_VARIANTS)[number];
+
+export const BLOCK_CARD_STYLES = ["default", "tile"] as const;
+export type BlockCardStyle = (typeof BLOCK_CARD_STYLES)[number];
 
 /**
  * Card layout — how image and text relate inside each card.

@@ -11,6 +11,7 @@ import type {
   NormalizedContentItem,
 } from "@/lib/content/types";
 import type {
+  BlockCardStyle,
   CardRatio,
   CardShape,
   CardSize,
@@ -21,6 +22,7 @@ import type {
 
 interface SharedCardProps {
   size: CardSize;
+  cardStyle: BlockCardStyle;
   variant: "card" | "bare";
   shape: CardShape;
   ratio: CardRatio;
@@ -29,9 +31,6 @@ interface SharedCardProps {
   imagePosition: ImagePosition;
   textColor?: string;
 }
-
-const gridClass = (columns: number): string =>
-  "grid " + (GRID_COLS[columns] ?? GRID_COLS[4]);
 
 const GRID_COLS: Record<number, string> = {
   1: "grid-cols-1",
@@ -180,6 +179,7 @@ function buildCardProps(
 ): SharedCardProps {
   return {
     size: dc.cardSize,
+    cardStyle: dc.cardStyle,
     variant: (ss.manualCardVariant as "card" | "bare") ?? "card",
     shape: dc.cardShape,
     ratio: dc.cardRatio,
@@ -332,47 +332,6 @@ function MasonryLayout({
   );
 }
 
-function TilesLayout({
-  items,
-  dc,
-}: {
-  items: NormalizedContentItem[];
-  dc: ResolvedDisplayConfig;
-}) {
-  return (
-    <div
-      className={gridClass(dc.columns)}
-      style={{ gap: `${dc.gap}px` }}
-    >
-      {items.map((it) => (
-        <Link
-          key={`${it.contentType}:${it._id}`}
-          href={it.href}
-          className={
-            "flex min-h-[76px] flex-col items-center justify-center gap-1.5 bg-card px-2 py-3 text-center transition hover:border-primary " +
-            (dc.rounded ? "rounded-xl " : "rounded-none ") +
-            (dc.borderless ? "" : "border border-border ") +
-            (dc.shadow ? "shadow-sm" : "")
-          }
-        >
-          {it.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={it.image}
-              alt=""
-              loading="lazy"
-              className="h-8 w-8 object-contain"
-            />
-          ) : null}
-          <span className="line-clamp-2 text-[12px] font-medium text-foreground">
-            {it.name}
-          </span>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
 function CardBlock({ data }: { data: ResolvedBlock }) {
   const { block, items } = data;
   const dc = block.displayConfig;
@@ -422,6 +381,7 @@ function renderCardBody(
           items={items}
           gap={dc.gap}
           cardShape={dc.cardShape}
+          cardStyle={dc.cardStyle}
           textColor={cardProps.textColor}
         />
       );
@@ -437,9 +397,6 @@ function renderCardBody(
 
     case "masonry":
       return <MasonryLayout items={items} cardProps={cardProps} />;
-
-    case "tiles":
-      return <TilesLayout items={items} dc={dc} />;
 
     case "grid":
     default:
@@ -464,13 +421,33 @@ function ListLayout({
   items,
   gap,
   cardShape,
+  cardStyle,
   textColor,
 }: {
   items: NormalizedContentItem[];
   gap: number;
   cardShape: CardShape;
+  cardStyle: BlockCardStyle;
   textColor?: string;
 }) {
+  if (cardStyle === "tile") {
+    return (
+      <div
+        className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6"
+        style={{ gap: `${gap}px` }}
+      >
+        {items.map((it) => (
+          <ContentCard
+            key={`${it.contentType}:${it._id}`}
+            item={it}
+            cardStyle="tile"
+            textColor={textColor}
+          />
+        ))}
+      </div>
+    );
+  }
+
   const imgRounding = cardShape === "circle" ? "rounded-full" : "rounded-lg";
   const textStyle = textColor ? { color: textColor } : undefined;
   return (

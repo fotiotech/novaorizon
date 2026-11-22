@@ -6,6 +6,7 @@ import { ContentCard } from "./ContentCard";
 import type { NormalizedContentItem } from "@/lib/content/types";
 import type {
   CardSize,
+  BlockCardStyle,
   CardVariant,
   CardShape,
   CardRatio,
@@ -16,6 +17,7 @@ import type {
 
 export interface CardOverride {
   size?: CardSize;
+  cardStyle?: BlockCardStyle;
   variant?: CardVariant;
   shape?: CardShape;
   ratio?: CardRatio;
@@ -156,6 +158,7 @@ export function CarouselRail({
               item={item}
               showImage={showImages}
               size={cardOverride?.size}
+              cardStyle={cardOverride?.cardStyle}
               variant={cardOverride?.variant}
               shape={cardOverride?.shape}
               ratio={cardOverride?.ratio}

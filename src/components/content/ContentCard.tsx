@@ -4,6 +4,7 @@
 import Link from "next/link";
 import type { NormalizedContentItem } from "@/lib/content/types";
 import type {
+  BlockCardStyle,
   CardShape,
   CardRatio,
   CardSize,
@@ -19,6 +20,7 @@ interface ContentCardProps {
   item: NormalizedContentItem;
   showImage?: boolean;
   size?: CardSize;
+  cardStyle?: BlockCardStyle;
   variant?: CardVariant;
   shape?: CardShape;
   ratio?: CardRatio;
@@ -169,6 +171,7 @@ export function ContentCard({
   item,
   showImage = true,
   size = "md",
+  cardStyle = "default",
   variant = "card",
   shape = "default",
   ratio = "1:1",
@@ -177,6 +180,31 @@ export function ContentCard({
   imagePosition = "center",
   textColor,
 }: ContentCardProps) {
+  if (cardStyle === "tile") {
+    return (
+      <Link
+        href={item.href}
+        className="flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-2 py-3 text-center transition hover:border-primary"
+      >
+        {showImage && item.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.image}
+            alt=""
+            loading="lazy"
+            className="h-8 w-8 object-contain"
+          />
+        ) : null}
+        <span
+          className="line-clamp-2 text-[12px] font-medium text-foreground"
+          style={textColor ? { color: textColor } : undefined}
+        >
+          {item.name}
+        </span>
+      </Link>
+    );
+  }
+
   const price = formatPrice(item.price);
   const listPrice = formatPrice(item.listPrice);
   const hasDiscount =
