@@ -151,31 +151,6 @@ function SectionHeading({ data }: { data: ResolvedBlock }) {
   );
 }
 
-const BANNER_OVERLAY_CLS: Record<string, string> = {
-  none: "",
-  light: "bg-white/30",
-  dark: "bg-black/55",
-  gradient: "bg-gradient-to-r from-black/75 via-black/45 to-transparent",
-};
-
-const BANNER_ALIGN_CLS: Record<string, string> = {
-  left: "items-start text-left",
-  center: "items-center text-center",
-  right: "items-end text-right",
-};
-
-const BANNER_POS_CLS: Record<string, string> = {
-  top: "justify-start",
-  center: "justify-center",
-  bottom: "justify-end",
-};
-
-const BANNER_MAXW_CLS: Record<string, string> = {
-  left: "max-w-2xl",
-  center: "max-w-3xl",
-  right: "max-w-2xl ml-auto",
-};
-
 function buildCardProps(
   dc: ResolvedDisplayConfig,
   ss: ResolvedBlock["block"]["sourceStyles"],
