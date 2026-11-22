@@ -6,7 +6,6 @@
 import type {
   BlockAnimation,
   BlockAlignment,
-  BlockCardStyle,
   BlockLocation,
   BlockSourceStyles,
   BlockTheme,
@@ -60,7 +59,6 @@ export interface ResolvedDisplayConfig {
   cardShape: CardShape;
   cardRatio: CardRatio;
   cardSize: CardSize;
-  cardStyle: BlockCardStyle;
   cardLayout: CardLayout;
   titlePosition: TitlePosition;
   imagePosition: ImagePosition;

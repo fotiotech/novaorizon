@@ -4,7 +4,6 @@
 import Link from "next/link";
 import type { NormalizedContentItem } from "@/lib/content/types";
 import type {
-  BlockCardStyle,
   CardShape,
   CardRatio,
   CardSize,
@@ -20,7 +19,6 @@ interface ContentCardProps {
   item: NormalizedContentItem;
   showImage?: boolean;
   size?: CardSize;
-  cardStyle?: BlockCardStyle;
   borderless?: boolean;
   rounded?: boolean;
   shadow?: boolean;
@@ -174,7 +172,6 @@ export function ContentCard({
   item,
   showImage = true,
   size = "md",
-  cardStyle = "default",
   borderless = false,
   rounded = true,
   shadow = false,
@@ -193,31 +190,6 @@ export function ContentCard({
   ]
     .filter(Boolean)
     .join(" ");
-
-  if (cardStyle === "tile") {
-    return (
-      <Link
-        href={item.href}
-        className={`flex min-h-[76px] flex-col items-center justify-center gap-1.5 bg-card px-2 py-3 text-center transition hover:border-primary ${surfaceCls}`}
-      >
-        {showImage && item.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.image}
-            alt=""
-            loading="lazy"
-            className="h-8 w-8 object-contain"
-          />
-        ) : null}
-        <span
-          className="line-clamp-2 text-[12px] font-medium text-foreground"
-          style={textColor ? { color: textColor } : undefined}
-        >
-          {item.name}
-        </span>
-      </Link>
-    );
-  }
 
   const price = formatPrice(item.price);
   const listPrice = formatPrice(item.listPrice);

@@ -6,6 +6,8 @@ import { listActiveTrustBadges } from "@/lib/api/trust-badge";
 import { BlockRenderer } from "@/components/content/blocks/BlockRenderer";
 import { getCachedBlocksForLocation } from "@/lib/content/blocks/getBlocksForLocation";
 import { getCachedHeroSlides } from "@/lib/content/hero";
+import { getCachedTiles } from "@/lib/content/tiles";
+import { TileStrip } from "@/components/content/TileStrip";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -13,10 +15,11 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   // Everything above the fold is server-rendered and cached.
-  const [blocks, badges, heroSlides] = await Promise.all([
+  const [blocks, badges, heroSlides, tiles] = await Promise.all([
     getCachedBlocksForLocation("Home"),
     listActiveTrustBadges(),
     getCachedHeroSlides(),
+    getCachedTiles(),
   ]);
 
   return (
@@ -24,6 +27,7 @@ export default async function HomePage() {
       {/* Trust badges strip lives in the vertical gap between header and hero */}
       <TrustBadgeStrip badges={badges} />
       <Hero slides={heroSlides} />
+      <TileStrip tiles={tiles} />
       <BlockRenderer blocks={blocks} />
     </main>
   );

@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Tags that this endpoint is allowed to purge. */
-const ALLOWED_TAGS = new Set(["home-hero", "blocks"]);
+const ALLOWED_TAGS = new Set(["home-hero", "blocks", "tiles"]);
 
 /**
  * POST /api/revalidate

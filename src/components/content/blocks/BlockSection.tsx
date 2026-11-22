@@ -11,7 +11,6 @@ import type {
   NormalizedContentItem,
 } from "@/lib/content/types";
 import type {
-  BlockCardStyle,
   CardRatio,
   CardShape,
   CardSize,
@@ -22,7 +21,6 @@ import type {
 
 interface SharedCardProps {
   size: CardSize;
-  cardStyle: BlockCardStyle;
   borderless: boolean;
   rounded: boolean;
   shadow: boolean;
@@ -157,7 +155,6 @@ function buildCardProps(
 ): SharedCardProps {
   return {
     size: dc.cardSize,
-    cardStyle: dc.cardStyle,
     borderless: dc.borderless,
     rounded: dc.rounded,
     shadow: dc.shadow,
@@ -362,7 +359,6 @@ function renderCardBody(
           items={items}
           gap={dc.gap}
           cardShape={dc.cardShape}
-          cardStyle={dc.cardStyle}
           borderless={dc.borderless}
           rounded={dc.rounded}
           shadow={dc.shadow}
@@ -405,7 +401,6 @@ function ListLayout({
   items,
   gap,
   cardShape,
-  cardStyle,
   borderless,
   rounded,
   shadow,
@@ -414,33 +409,11 @@ function ListLayout({
   items: NormalizedContentItem[];
   gap: number;
   cardShape: CardShape;
-  cardStyle: BlockCardStyle;
   borderless: boolean;
   rounded: boolean;
   shadow: boolean;
   textColor?: string;
 }) {
-  if (cardStyle === "tile") {
-    return (
-      <div
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6"
-        style={{ gap: `${gap}px` }}
-      >
-        {items.map((it) => (
-          <ContentCard
-            key={`${it.contentType}:${it._id}`}
-            item={it}
-            cardStyle="tile"
-            borderless={borderless}
-            rounded={rounded}
-            shadow={shadow}
-            textColor={textColor}
-          />
-        ))}
-      </div>
-    );
-  }
-
   const imgRounding = cardShape === "circle" ? "rounded-full" : "rounded-lg";
   const rowSurface = [
     rounded ? "rounded-lg" : "rounded-none",
