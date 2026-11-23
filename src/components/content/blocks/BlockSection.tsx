@@ -319,7 +319,7 @@ function CardBlock({ data }: { data: ResolvedBlock }) {
 
   return (
     <section
-      className={`m-1 p-2 lg:mx-6 lg:p-3 bg-background rounded-xl ${themeWrapCls(dc.theme)}`}
+      className={` p-3 bg-background rounded-xl ${themeWrapCls(dc.theme)}`}
       style={sectionStyle(dc)}
     >
       <div>

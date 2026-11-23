@@ -23,7 +23,7 @@ export default async function HomePage() {
   ]);
 
   return (
-    <main className=" min-h-screen">
+    <main className=" min-h-screen lg:px-1">
       <TrustBadgeStrip badges={badges} />
       <Hero slides={heroSlides} />
       <TileStrip tiles={tiles} />
