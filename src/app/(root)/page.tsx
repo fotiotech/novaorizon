@@ -24,7 +24,6 @@ export default async function HomePage() {
 
   return (
     <main className=" min-h-screen">
-      {/* Trust badges strip lives in the vertical gap between header and hero */}
       <TrustBadgeStrip badges={badges} />
       <Hero slides={heroSlides} />
       <TileStrip tiles={tiles} />

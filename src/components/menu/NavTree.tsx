@@ -126,7 +126,7 @@ export function NavTree({
 
   return (
     <ul
-      className={isRoot ? rootCls : "scrollbar-hide flex flex-col gap-1"}
+      className={`${isRoot ? rootCls : "scrollbar-hide flex flex-col gap-1"} py-1`}
       style={isRoot && !isGridRoot ? { gap: `${gap}px` } : undefined}
     >
       {visible.map((item) => {
@@ -136,8 +136,8 @@ export function NavTree({
         const linkCls = isGridRoot
           ? "flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-6 text-center transition hover:border-primary hover:shadow-md"
           : isRoot
-            ? "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
-            : "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring";
+            ? "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+            : "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring";
 
         return (
           <li key={item._id ?? item.label} className="relative group">

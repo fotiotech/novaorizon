@@ -11,7 +11,7 @@ export function TileStrip({ tiles }: { tiles: Tile[] }) {
   if (!Array.isArray(tiles) || tiles.length === 0) return null;
 
   return (
-    <section className="container mx-auto px-4 pt-8 sm:pt-10">
+    <section className="container mx-auto px-3 py-2 lg:py-6">
       <h2 className="sr-only">Shop by category</h2>
       <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tiles.map((tile) => {

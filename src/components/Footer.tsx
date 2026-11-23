@@ -16,7 +16,7 @@ import { PAYMENT_LOGOS } from "./PaymentLogos";
 const Footer = async () => {
   return (
     <footer className="bg-primary text-primary-foreground border-t border-white/20 w-full">
-      <div className="px-3 lg:px-10 py-12 max-w-7xl mx-auto">
+      <div className="p-3 py-6  max-w-7xl mx-auto">
         {/* Main footer content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
           {/* Brand/Logo Section */}

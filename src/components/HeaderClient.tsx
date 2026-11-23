@@ -8,7 +8,13 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Menu, Person, Search, ShoppingCart } from "@mui/icons-material";
+import {
+  LocationOn,
+  Menu,
+  Person,
+  Search,
+  ShoppingCart,
+} from "@mui/icons-material";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -38,6 +44,42 @@ const LOGO_DARK = "/novaorizon.png";
 interface HeaderClientProps {
   navMenu: NavMenu | null;
   sidebarMenus: any[];
+  /** Whether the visitor is authenticated (controls the location shortcut). */
+  signedIn?: boolean;
+  /** City, country of the default address; null prompts the user to add one. */
+  shippingLocation?: string | null;
+}
+
+/* ---------------------------- Shipping location --------------------------- */
+
+function ShippingLocation({
+  signedIn,
+  location,
+}: {
+  signedIn: boolean;
+  location: string | null;
+}) {
+  if (!signedIn) return null;
+
+  const label = location ?? "Set location";
+
+  return (
+    <Link
+      href="/profile/address"
+      title={location ?? "Add a shipping address"}
+      aria-label={
+        location
+          ? `Shipping location: ${location}`
+          : "Set your shipping location"
+      }
+      className="flex max-w-[7rem] items-center gap-1 rounded-md px-1.5 py-1 text-primary-foreground/90 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary-foreground/60 sm:max-w-[10rem]"
+    >
+      <LocationOn style={{ fontSize: 20 }} className="flex-none" />
+      <span className="hidden truncate text-[12px] font-medium sm:inline">
+        {label}
+      </span>
+    </Link>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -212,7 +254,12 @@ MobileSearchBar.displayName = "MobileSearchBar";
 /*                               HeaderClient                                 */
 /* -------------------------------------------------------------------------- */
 
-const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
+const HeaderClient = ({
+  navMenu,
+  sidebarMenus,
+  signedIn = false,
+  shippingLocation = null,
+}: HeaderClientProps) => {
   const pathname = usePathname();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -256,14 +303,11 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
           so it reads as page background, not page content.
       */}
       <div className="sticky top-0 z-50 bg-background">
-        <header
-          role="banner"
-          className=" px-3 py-1 lg:pt-3 bg-primary-600 text-primary-foreground shadow-sm"
-        >
-          <div className=" ">
+        <header role="banner" className="   text-primary-foreground shadow-sm">
+          <div className="px-3 py-2 bg-primary-600 ">
             <div className="flex items-center justify-between gap-4 lg:gap-6">
               {/* Left: menu + logo */}
-              <div className="flex items-center lg:gap-2 -ml-2  lg:ml-0">
+              <div className="flex items-center gap-2 -ml-2">
                 <button
                   type="button"
                   onClick={toggleSidebar}
@@ -295,22 +339,22 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
             <div className="lg:hidden py-1">
               <MobileSearchBar onOpen={openSearch} />
             </div>
-
-            {/* Nav menu — home page only, and only while at the top.
-                Root links are forced to primary-foreground via arbitrary
-                variants so they remain legible on the navy header. Dropdown
-                panels (nested `ul`s) are untouched and keep their light card
-                styling. */}
-            {showNav ? (
-              <div className="relative w-full - -ml-2  lg:ml-0 overflow-x-auto md:overflow-visible scrollbar-hide">
+          </div>
+          {showNav ? (
+            <div className=" px-3  bg-primary">
+              <div className="relative w-full -ml-2 lg:ml-0 overflow-x-auto md:overflow-visible scrollbar-hide">
                 <nav
                   aria-label="Main navigation"
-                  className="w-max min-w-full md:w-full
+                  className="flex w-max min-w-full items-center gap-2 md:w-full
                     [&>ul>li>a]:text-primary-foreground
                     [&>ul>li>a:hover]:bg-primary-foreground/10
                     [&>ul>li>a:hover]:text-primary-foreground
                     [&>ul>li>a:focus-visible]:ring-primary-foreground/60"
                 >
+                  <ShippingLocation
+                    signedIn={signedIn}
+                    location={shippingLocation}
+                  />
                   <NavTree
                     items={navMenu.items}
                     config={displayConfig}
@@ -318,8 +362,8 @@ const HeaderClient = ({ navMenu, sidebarMenus }: HeaderClientProps) => {
                   />
                 </nav>
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </header>
       </div>
 

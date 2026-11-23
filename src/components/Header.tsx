@@ -1,5 +1,7 @@
 // components/Header.tsx
 import { unstable_cache } from "next/cache";
+import { cookies } from "next/headers";
+import crypto from "node:crypto";
 import HeaderClient, {
   type NavMenu,
   type NavItem,
@@ -62,8 +64,61 @@ const getHeaderData = unstable_cache(
 );
 
 // ---------- Server Component ----------
+/**
+ * Per-session shipping label cache.
+ *
+ * Kept in memory rather than `unstable_cache` because the address request
+ * needs the request's session cookie (dynamic API), which Next forbids inside
+ * a cache callback. The key is a hash of the session token, never the token.
+ */
+const SHIPPING_TTL_MS = 60_000;
+const shippingCache = new Map<
+  string,
+  { value: { signedIn: boolean; location: string | null }; expires: number }
+>();
+
+async function getShippingState(): Promise<{
+  signedIn: boolean;
+  location: string | null;
+}> {
+  const token = (await cookies()).get("session")?.value;
+  if (!token) return { signedIn: false, location: null };
+
+  const key = crypto.createHash("sha256").update(token).digest("hex").slice(0, 24);
+  const hit = shippingCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.value;
+
+  let value: { signedIn: boolean; location: string | null };
+  try {
+    const addresses = await apiData<any[]>("/addresses");
+    let location: string | null = null;
+    if (Array.isArray(addresses) && addresses.length > 0) {
+      const address =
+        addresses.find((a) => a?.isDefault === true) ?? addresses[0];
+      location =
+        [address?.city, address?.country].filter(Boolean).join(", ") || null;
+    }
+    value = { signedIn: true, location };
+  } catch (err: any) {
+    value = { signedIn: err?.status !== 401, location: null };
+  }
+
+  shippingCache.set(key, { value, expires: Date.now() + SHIPPING_TTL_MS });
+  return value;
+}
+
 export default async function Header() {
   const { navMenu, sidebarMenus } = await getHeaderData();
 
-  return <HeaderClient navMenu={navMenu} sidebarMenus={sidebarMenus} />;
+  const { signedIn, location: shippingLocation } =
+    await getShippingState();
+
+  return (
+    <HeaderClient
+      navMenu={navMenu}
+      sidebarMenus={sidebarMenus}
+      signedIn={signedIn}
+      shippingLocation={shippingLocation}
+    />
+  );
 }

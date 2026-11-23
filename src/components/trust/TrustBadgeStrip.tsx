@@ -99,14 +99,14 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
   if (!badges || badges.length === 0) return null;
 
   return (
-    <div className="px-3 lg:px-8 my-1 lg:my-3">
+    <div className="px-3 my-2 lg:px-8 lg:my-3">
       {/* Card container — bridges the white header and the black hero */}
       <div className=" ">
         <div className="relative">
           <ul
             ref={scrollRef}
             aria-label="Trust badges"
-            className="flex w-full flex-nowrap items-center gap-x-5 overflow-x-auto py-1 sm:gap-x-6 scrollbar-hide"
+            className="flex w-full -ml-2 flex-nowrap items-center gap-x-5 overflow-x-auto py-1 sm:gap-x-6 scrollbar-hide"
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
@@ -166,7 +166,7 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
                         e.stopPropagation();
                         handleBadgeActivate(badge);
                       }}
-                      className="flex items-center gap-2 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="flex items-center gap-2 rounded-lg px-2 py-1 mx-2 -my-1 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
                       aria-haspopup={hasPopup ? "dialog" : undefined}
                       aria-label={
                         hasPopup

@@ -93,7 +93,7 @@ const HeaderScroll: React.FC<{ slides?: HeroSection[] }> = ({
   return (
     <section
       aria-label="Hero carousel"
-      className="relative overflow-hidden bg-black m-3 rounded-3xl"
+      className="relative overflow-hidden bg-black mx-3 my-2 rounded-3xl"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
