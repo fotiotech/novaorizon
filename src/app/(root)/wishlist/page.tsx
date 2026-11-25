@@ -23,6 +23,8 @@ export default function WishlistPage() {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
   useEffect(() => {
     if (status !== "authenticated" || !user) {
@@ -59,6 +61,13 @@ export default function WishlistPage() {
       setRemoving(null);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleItems = items.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
 
   if (status === "loading" || loading) {
     return (
@@ -102,7 +111,7 @@ export default function WishlistPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const product = item.product ?? {};
             const id = String(product._id ?? "");
             const href = `/products/${product.slug ?? "product"}/${id}`;
@@ -146,6 +155,32 @@ export default function WishlistPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+            disabled={currentPage === 1}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-xs text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              setPage((value) => Math.min(totalPages, value + 1))
+            }
+            disabled={currentPage === totalPages}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs disabled:opacity-40"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

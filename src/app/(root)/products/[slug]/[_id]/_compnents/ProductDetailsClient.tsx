@@ -449,115 +449,6 @@ function useShippingInfo(product: any, userAddresses: any[]) {
   return { loading, primaryAddress, carrier, region };
 }
 
-// ---------- Carrier Shipping Options ----------
-const CarrierShippingOptions: React.FC<{
-  product: any;
-  userAddresses: any[];
-}> = ({ product, userAddresses }) => {
-  const [carriers, setCarriers] = useState<Carrier[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Carriers are store-level now (carrier selection was removed from the
-  // product form). A legacy product may still narrow the list, but an empty
-  // list no longer hides the shipping section.
-  const carrierIds: string[] = Array.isArray(product?.carrier)
-    ? product.carrier.map(String)
-    : product?.carrier
-      ? [String(product.carrier)]
-      : [];
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    getCarriers()
-      .then((data) => {
-        if (cancelled) return;
-        setCarriers(data);
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error("Failed to load carriers:", err);
-        setError("Could not load shipping options.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const primaryAddress =
-    userAddresses && userAddresses.length > 0 ? userAddresses[0] : null;
-  const availableCarriers = carriers.filter((carrier) => {
-    const inLegacyScope =
-      carrierIds.length === 0 || carrierIds.includes(String(carrier._id));
-    return inLegacyScope && doesCarrierServeAddress(carrier, primaryAddress);
-  });
-
-  if (loading)
-    return (
-      <div className={`mt-4 ${TYPO.muted}`}>Loading shipping options…</div>
-    );
-  if (error)
-    return <div className="mt-4 text-sm text-destructive">{error}</div>;
-
-  return (
-    <div className="mt-6">
-      <h3 className={`${TYPO.sectionTitle} mb-2`}>Shipping</h3>
-      {!primaryAddress ? (
-        <p className={TYPO.muted}>
-          Please{" "}
-          <Link
-            href="/profile/address"
-            className="text-primary hover:underline"
-          >
-            add an address
-          </Link>{" "}
-          to check shipping availability.
-        </p>
-      ) : availableCarriers.length === 0 ? (
-        <p className={TYPO.muted}>
-          No carriers serve your region (
-          {primaryAddress.city || primaryAddress.state || "your area"}).
-        </p>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
-          {availableCarriers.map((carrier) => {
-            const regionDetail = carrier.regionsServed.find((r) =>
-              doesCarrierServeAddress(carrier, primaryAddress),
-            );
-            return (
-              <li
-                key={carrier._id}
-                className="flex items-center justify-between gap-3 px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">
-                    {carrier.name}
-                  </p>
-                  {regionDetail && (
-                    <p className={TYPO.tiny}>
-                      Estimated delivery: {regionDetail.averageDeliveryTime}
-                    </p>
-                  )}
-                </div>
-                {regionDetail && (
-                  <span className="text-sm font-semibold text-primary">
-                    {formatPrice(regionDetail.basePrice)}
-                  </span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-};
-
 // ---------- Per-theme Variant Card ----------
 interface ThemeCardProps {
   value: string;
@@ -1055,8 +946,8 @@ export default function ProductDetailsClient({
                 <ProductTitle name={name} brand={brand} />
               </h1>
               <div className="flex flex-shrink-0 items-center gap-2">
-                <LikeButton itemId={_id} size="md" />
-                {/* <WishlistButton productId={_id} /> */}
+                {/* <LikeButton itemId={_id} size="md" /> */}
+                <WishlistButton productId={_id} />
                 <ShareButton title={name} productId={_id} size="md" />
               </div>
             </div>

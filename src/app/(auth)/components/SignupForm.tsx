@@ -3,11 +3,10 @@
 import { useAuth } from "@/hooks/useAuth";
 import axios from "axios";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 import { useState } from "react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const { register } = useAuth();
 
   const [name, setName] = useState("");
@@ -16,6 +15,9 @@ export default function RegisterPage() {
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,7 +26,7 @@ export default function RegisterPage() {
     setPending(true);
     try {
       await register(name.trim(), email.trim().toLowerCase(), password);
-      router.replace("/");
+      setRegistered(true);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
         const body = (err.response.data ?? {}) as {
@@ -40,6 +42,47 @@ export default function RegisterPage() {
       setPending(false);
     }
   };
+
+  const resend = async () => {
+    setResending(true);
+    setResendMessage("");
+    try {
+      await api.post("/auth/resend-verification", { email });
+      setResendMessage("A new verification link has been sent.");
+    } catch {
+      setResendMessage("Could not resend the link. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  };
+
+  if (registered) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+        <div className="max-w-md w-full space-y-4 bg-white p-8 rounded-lg shadow-md text-center">
+          <h2 className="text-2xl font-bold">Check your email</h2>
+          <p className="text-sm text-gray-600">
+            We sent a verification link to <strong>{email}</strong>. Click it
+            to verify your account. You can browse while you wait.
+          </p>
+          <button
+            type="button"
+            onClick={() => void resend()}
+            disabled={resending}
+            className="w-full py-2 border rounded-md text-sm disabled:opacity-50"
+          >
+            {resending ? "Sending…" : "Resend verification email"}
+          </button>
+          {resendMessage && (
+            <p className="text-xs text-gray-600">{resendMessage}</p>
+          )}
+          <Link href="/" className="block text-sm text-indigo-600">
+            Continue to store
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">

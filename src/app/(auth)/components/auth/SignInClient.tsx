@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
  */
 function postLoginTarget(role: string, callbackUrl: string | null): string {
   if (callbackUrl) return callbackUrl;
-  return role === "admin" ? "/admin" : "/";
+  return role === "admin" ? "/" : "/";
 }
 
 export default function SignInClient() {
@@ -203,7 +203,7 @@ export default function SignInClient() {
           <div className="text-center text-sm text-gray-600 dark:text-gray-400">
             Don&apos;t have an account?{" "}
             <Link
-              href="/auth/register"
+              href="/auth/sign_up"
               className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
             >
               Sign up

@@ -203,7 +203,11 @@ export function ContentCard({
     item.pricing.promotionalPrice < item.price
       ? formatPrice(item.price)
       : null;
-  const promotionLabel = item.promotions?.[0]?.label ?? null;
+  const promotion = item.promotions?.[0] ?? null;
+  const promotionLabel = promotion?.label ?? null;
+  const promotionMeta =
+    promotion?.description ??
+    (promotion?.code ? `Code ${promotion.code}` : null);
   const listPrice = formatPrice(item.listPrice);
   const hasDiscount =
     price &&
@@ -275,9 +279,19 @@ export function ContentCard({
         ) : null}
 
         {promotionLabel && titlePosition !== "hidden" ? (
-          <p className="line-clamp-1 text-[11px] font-medium text-primary" style={textStyle}>
-            {promotionLabel}
-          </p>
+          <div style={textStyle}>
+            <p
+              className="line-clamp-1 text-[11px] font-medium text-primary"
+              title={promotionMeta ?? promotionLabel}
+            >
+              {promotionLabel}
+            </p>
+            {promotionMeta ? (
+              <p className="line-clamp-1 text-[10px] text-muted-foreground">
+                {promotionMeta}
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         {titlePosition !== "hidden" && price ? (
