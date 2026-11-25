@@ -1,5 +1,7 @@
 import ProductDetailsClient from "./_compnents/ProductDetailsClient";
 import RelatedProduct from "./_compnents/RelatedProduct";
+import { BlockRenderer } from "@/components/content/blocks/BlockRenderer";
+import { getCachedBlocksForLocation } from "@/lib/content/blocks/getBlocksForLocation";
 import { apiData } from "@/lib/server-api";
 import type { Metadata } from "next";
 
@@ -214,7 +216,10 @@ export default async function Page({ params }: { params: Promise<Params> }) {
   const { slug, _id } = await params;
 
   // Fetch once on the server so the client component doesn't have to.
-  const product = await fetchProduct(_id);
+  const [product, pdpBlocks] = await Promise.all([
+    fetchProduct(_id),
+    getCachedBlocksForLocation("pdp"),
+  ]);
 
   // Structured data for rich results.
   const productJsonLd = product
@@ -245,7 +250,13 @@ export default async function Page({ params }: { params: Promise<Params> }) {
       <ProductDetailsClient
         productId={_id}
         initialProduct={product ?? undefined}
-        relatedSlot={<RelatedProduct productId={_id} />}
+        relatedSlot={
+          pdpBlocks.length > 0 ? (
+            <BlockRenderer blocks={pdpBlocks} />
+          ) : (
+            <RelatedProduct productId={_id} />
+          )
+        }
       />
     </>
   );

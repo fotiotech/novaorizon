@@ -100,7 +100,7 @@ export default function Layout({
 }>) {
   return (
     <html lang="en" className={cn(geist.variable, "font-sans")}>
-      <body className="font-sans">
+      <body className="overflow-x-clip font-sans">
         {/* GTM noscript fallback */}
         <noscript>
           <iframe

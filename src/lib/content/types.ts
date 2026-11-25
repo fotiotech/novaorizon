@@ -33,6 +33,13 @@ export interface NormalizedContentItem {
   meta?: { code?: string };
   averageRating?: number | null;
   reviewCount?: number | null;
+  promotions?: Array<{ _id: string; label: string; calculationType?: string; discount?: number | null }>;
+  pricing?: {
+    originalPrice: number;
+    promotionalPrice: number;
+    discount: number;
+    appliedPromotionId: string | null;
+  } | null;
 }
 
 export interface ResolvedHeading {

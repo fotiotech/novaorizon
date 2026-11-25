@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Tags that this endpoint is allowed to purge. */
-const ALLOWED_TAGS = new Set(["home-hero", "blocks", "tiles"]);
+const ALLOWED_TAGS = new Set(["home-hero", "blocks", "tiles", "promotions"]);
 
 /**
  * POST /api/revalidate
@@ -16,9 +16,9 @@ const ALLOWED_TAGS = new Set(["home-hero", "blocks", "tiles"]);
  */
 export async function POST(req: NextRequest) {
   const secret = process.env.REVALIDATE_SECRET;
-  if (!secret) {
+  if (!secret && !process.env.NEXT_PUBLIC_SERVER_URL) {
     return NextResponse.json(
-      { error: "REVALIDATE_SECRET is not configured" },
+      { error: "Revalidation is not configured" },
       { status: 500 },
     );
   }
@@ -26,8 +26,30 @@ export async function POST(req: NextRequest) {
   const provided =
     req.headers.get("x-revalidate-secret") ??
     req.nextUrl.searchParams.get("secret");
-  if (provided !== secret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (!secret || provided !== secret) {
+    // Fall back to the API, which owns the AWS-managed secret. This lets the
+    // storefront run without REVALIDATE_SECRET in its environment.
+    const apiBase = (process.env.NEXT_PUBLIC_SERVER_URL || "").replace(
+      /\/+$/,
+      "",
+    );
+    let verified = false;
+    if (apiBase && provided) {
+      try {
+        const res = await fetch(`${apiBase}/api/internal/revalidate/verify`, {
+          method: "POST",
+          headers: { "x-revalidate-secret": provided },
+          signal: AbortSignal.timeout(5_000),
+        });
+        verified = res.ok;
+      } catch {
+        verified = false;
+      }
+    }
+    if (!verified) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   let tag = req.nextUrl.searchParams.get("tag") ?? "";

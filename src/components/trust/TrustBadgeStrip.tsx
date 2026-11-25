@@ -10,9 +10,17 @@ const isExternal = (url: string) => /^https?:\/\//i.test(url);
 
 interface TrustBadgeStripProps {
   badges: TrustBadgeDTO[];
+  orientation?: "horizontal" | "vertical";
+  /** Flat vertical list: no card chrome around each badge. */
+  flat?: boolean;
 }
 
-const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
+const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({
+  badges,
+  orientation = "horizontal",
+  flat = false,
+}) => {
+  const isVertical = orientation === "vertical";
   const router = useRouter();
   const [activePopup, setActivePopup] = useState<TrustBadgeDTO | null>(null);
 
@@ -99,14 +107,18 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
   if (!badges || badges.length === 0) return null;
 
   return (
-    <div className="px-3 my-2 lg:px-8 lg:my-3">
+    <div className={isVertical ? "my-2" : "px-3 my-2 lg:px-8 lg:my-3"}>
       {/* Card container — bridges the white header and the black hero */}
       <div className=" ">
         <div className="relative">
           <ul
             ref={scrollRef}
             aria-label="Trust badges"
-            className="flex w-full -ml-2 flex-nowrap items-center gap-x-5 overflow-x-auto py-1 sm:gap-x-6 scrollbar-hide"
+            className={
+              isVertical
+                ? "flex w-full flex-col items-stretch gap-1.5 overflow-visible py-0"
+                : "flex w-full -ml-2 flex-nowrap items-center gap-x-5 overflow-x-auto py-1 sm:gap-x-6 scrollbar-hide"
+            }
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
@@ -137,7 +149,13 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
 
               const inner = (
                 <>
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted ring-1 ring-border">
+                  <span
+                    className={
+                      flat && isVertical
+                        ? "flex h-5 w-5 flex-shrink-0 items-center justify-center"
+                        : "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted ring-1 ring-border"
+                    }
+                  >
                     <TrustBadgeIcon
                       name={badge.icon}
                       className="h-4 w-4 text-foreground"
@@ -148,7 +166,7 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
                       {badge.title}
                     </span>
                     {badge.description && (
-                      <span className="block whitespace-nowrap text-[10px] text-muted-foreground sm:text-xs">
+                      <span className={`block text-[10px] text-muted-foreground sm:text-xs ${isVertical ? "" : "whitespace-nowrap"}`}>
                         {badge.description}
                       </span>
                     )}
@@ -158,7 +176,7 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
 
               if (isInteractive) {
                 return (
-                  <li key={key} className="flex-shrink-0">
+                  <li key={key} className={isVertical ? "w-full" : "flex-shrink-0"}>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -166,7 +184,11 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
                         e.stopPropagation();
                         handleBadgeActivate(badge);
                       }}
-                      className="flex items-center gap-2 rounded-lg px-2 py-1 mx-2 -my-1 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                      className={
+                        isVertical
+                          ? "flex w-full items-center gap-2 rounded-lg px-0 py-1 text-left transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                          : "flex items-center gap-2 rounded-lg px-2 py-1 mx-2 -my-1 transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                      }
                       aria-haspopup={hasPopup ? "dialog" : undefined}
                       aria-label={
                         hasPopup
@@ -181,7 +203,14 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
               }
 
               return (
-                <li key={key} className="flex flex-shrink-0 items-center gap-2">
+                <li
+                  key={key}
+                  className={
+                    isVertical
+                      ? "flex w-full flex-shrink-0 items-center gap-2"
+                      : "flex flex-shrink-0 items-center gap-2"
+                  }
+                >
                   {inner}
                 </li>
               );
@@ -189,13 +218,13 @@ const TrustBadgeStrip: React.FC<TrustBadgeStripProps> = ({ badges }) => {
           </ul>
 
           {/* Edge fades — inside the gutter, over the ul edges */}
-          {canScrollLeft && (
+          {!isVertical && canScrollLeft && (
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-y-0 left-0 z-[5] w-8 bg-gradient-to-r from-card via-card/70 to-transparent"
             />
           )}
-          {canScrollRight && (
+          {!isVertical && canScrollRight && (
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-y-0 right-0 z-[5] w-8 bg-gradient-to-l from-card via-card/70 to-transparent"

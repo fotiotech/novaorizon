@@ -26,6 +26,12 @@ import BottomSheet from "@/components/ux/BottomSheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { LikeButton } from "@/components/content/LikeButton";
 import { ShareButton } from "@/components/content/ShareButton";
+import { WishlistButton } from "@/components/WishlistButton";
+import {
+  listActiveTrustBadges,
+  type TrustBadgeDTO,
+} from "@/lib/api/trust-badge";
+import TrustBadgeStrip from "@/components/trust/TrustBadgeStrip";
 
 // ---------- Types ----------
 interface Carrier {
@@ -57,6 +63,28 @@ const TYPO = {
 } as const;
 
 // ---------- Helpers ----------
+function promotionValueLabel(promotion: any): string {
+  const type = promotion?.offer?.type ?? promotion?.calculationType;
+  const value = promotion?.offer?.discountValue ?? promotion?.discount;
+  switch (type) {
+    case "percentage":
+      return value != null ? `${value}% off` : "Percentage off";
+    case "fixed":
+    case "fixed_amount":
+      return value != null ? `${value} off` : "Fixed discount";
+    case "bogo":
+    case "buy_x_get_y":
+      return `Buy ${promotion?.offer?.buyQuantity ?? 1} get ${promotion?.offer?.getQuantity ?? 1}`;
+    case "bundle":
+    case "bundle_discount":
+      return "Bundle discount";
+    case "free_shipping":
+      return "Free shipping";
+    default:
+      return "Offer";
+  }
+}
+
 function formatPrice(value: any): string {
   if (value === undefined || value === null || value === "") return "";
   const n = typeof value === "number" ? value : Number(value);
@@ -379,6 +407,48 @@ function CartPreview() {
   );
 }
 
+function useShippingInfo(product: any, userAddresses: any[]) {
+  const [carriers, setCarriers] = useState<Carrier[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCarriers()
+      .then((data) => {
+        if (!cancelled) setCarriers(data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const carrierIds: string[] = Array.isArray(product?.carrier)
+    ? product.carrier.map(String)
+    : product?.carrier
+      ? [String(product.carrier)]
+      : [];
+  const primaryAddress =
+    userAddresses && userAddresses.length > 0 ? userAddresses[0] : null;
+  const available = carriers.filter(
+    (carrier) =>
+      (carrierIds.length === 0 || carrierIds.includes(String(carrier._id))) &&
+      doesCarrierServeAddress(carrier, primaryAddress),
+  );
+  const carrier = available[0] ?? null;
+  const region =
+    carrier && primaryAddress
+      ? carrier.regionsServed.find((entry) =>
+          doesCarrierServeAddress(carrier, primaryAddress),
+        )
+      : null;
+
+  return { loading, primaryAddress, carrier, region };
+}
+
 // ---------- Carrier Shipping Options ----------
 const CarrierShippingOptions: React.FC<{
   product: any;
@@ -388,34 +458,44 @@ const CarrierShippingOptions: React.FC<{
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const carrierIds: string[] = product?.carrier || [];
-  const hasCarriers = carrierIds.length > 0;
+  // Carriers are store-level now (carrier selection was removed from the
+  // product form). A legacy product may still narrow the list, but an empty
+  // list no longer hides the shipping section.
+  const carrierIds: string[] = Array.isArray(product?.carrier)
+    ? product.carrier.map(String)
+    : product?.carrier
+      ? [String(product.carrier)]
+      : [];
 
   useEffect(() => {
-    if (!hasCarriers) {
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
     setLoading(true);
     getCarriers()
       .then((data) => {
+        if (cancelled) return;
         setCarriers(data);
         setError(null);
       })
       .catch((err) => {
+        if (cancelled) return;
         console.error("Failed to load carriers:", err);
         setError("Could not load shipping options.");
       })
-      .finally(() => setLoading(false));
-  }, [hasCarriers]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const primaryAddress =
     userAddresses && userAddresses.length > 0 ? userAddresses[0] : null;
-  const availableCarriers = carriers.filter((carrier) =>
-    doesCarrierServeAddress(carrier, primaryAddress),
-  );
-
-  if (!hasCarriers) return null;
+  const availableCarriers = carriers.filter((carrier) => {
+    const inLegacyScope =
+      carrierIds.length === 0 || carrierIds.includes(String(carrier._id));
+    return inLegacyScope && doesCarrierServeAddress(carrier, primaryAddress);
+  });
 
   if (loading)
     return (
@@ -431,7 +511,7 @@ const CarrierShippingOptions: React.FC<{
         <p className={TYPO.muted}>
           Please{" "}
           <Link
-            href="/account/addresses"
+            href="/profile/address"
             className="text-primary hover:underline"
           >
             add an address
@@ -680,7 +760,7 @@ export default function ProductDetailsClient({
   );
 
   const isMobile = useIsMobile();
-  const { addresses: userAddresses } = useUserData();
+  const { addresses: userAddresses, profile } = useUserData();
 
   // Fetch product — skipped when the server already provided it.
   useEffect(() => {
@@ -864,7 +944,25 @@ export default function ProductDetailsClient({
     images: baseImagesRaw = [],
   } = product;
 
+  const renderPromotions = Array.isArray(product.renderPromotions)
+    ? product.renderPromotions
+    : [];
   const displayPrice = pickPrice(matchedVariant?.price, basePrice, listPrice);
+  const pricing = product.pricing as
+    | { promotionalPrice?: number; originalPrice?: number }
+    | undefined;
+  const promotionalPrice = Number(pricing?.promotionalPrice ?? 0);
+  const hasPromotionalPrice =
+    promotionalPrice > 0 && promotionalPrice < displayPrice;
+  const hasCartPricedPromotion = renderPromotions.some((promotion: any) =>
+    [
+      "bogo",
+      "buy_x_get_y",
+      "bundle",
+      "bundle_discount",
+      "free_shipping",
+    ].includes(promotion?.offer?.type ?? promotion?.calculationType),
+  );
   const numericListPrice = Number(listPrice) || 0;
   const showListPrice = numericListPrice > displayPrice && displayPrice > 0;
   // Per-variant stock: units promised to open orders are already reserved.
@@ -894,9 +992,46 @@ export default function ProductDetailsClient({
 
   const inStock = displayQuantity > 0;
   const stockStatus = inStock ? "In Stock" : "Out of Stock";
+  const shipping = useShippingInfo(product, userAddresses);
+  const [trustBadges, setTrustBadges] = useState<TrustBadgeDTO[]>([]);
+  const [deliveryDate, setDeliveryDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    const average = shipping.region?.averageDeliveryTime;
+    if (!average) {
+      setDeliveryDate(null);
+      return;
+    }
+    const numbers = average.match(/\d+/g)?.map(Number) ?? [];
+    if (numbers.length === 0) {
+      setDeliveryDate(average);
+      return;
+    }
+    const date = new Date();
+    date.setDate(date.getDate() + Math.max(...numbers));
+    setDeliveryDate(
+      date.toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }),
+    );
+  }, [shipping.region?.averageDeliveryTime]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listActiveTrustBadges()
+      .then((badges) => {
+        if (!cancelled) setTrustBadges(badges);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
-    <div className="m-1 p-2 lg:mx-6 mb-2 lg:p-3 bg-background rounded-xl border border-border">
+    <div className="px-3 py-2 lg:px-6 lg:py-3 mb-2 bg-background rounded-xl border border-border">
       <ProductViewAnalytics productId={productId} />
 
       <div className="mx-auto max-w-7xl">
@@ -921,6 +1056,7 @@ export default function ProductDetailsClient({
               </h1>
               <div className="flex flex-shrink-0 items-center gap-2">
                 <LikeButton itemId={_id} size="md" />
+                {/* <WishlistButton productId={_id} /> */}
                 <ShareButton title={name} productId={_id} size="md" />
               </div>
             </div>
@@ -928,25 +1064,105 @@ export default function ProductDetailsClient({
             <div className="mb-2 flex items-baseline gap-3">
               <p className={TYPO.price}>
                 {displayPrice > 0
-                  ? formatPrice(displayPrice)
+                  ? formatPrice(
+                      hasPromotionalPrice ? promotionalPrice : displayPrice,
+                    )
                   : "Price on request"}
               </p>
-              {showListPrice && (
+              {hasPromotionalPrice ? (
+                <p className="text-sm text-muted-foreground line-through">
+                  {formatPrice(displayPrice)}
+                </p>
+              ) : showListPrice ? (
                 <p className="text-sm text-muted-foreground line-through">
                   {formatPrice(numericListPrice)}
                 </p>
-              )}
+              ) : null}
             </div>
 
-            <div
-              className={`mb-4 text-sm font-medium ${
-                inStock
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-destructive"
-              }`}
-            >
-              {stockStatus}
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+              <div
+                className={`text-sm font-medium ${
+                  inStock
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-destructive"
+                }`}
+              >
+                {stockStatus}
+              </div>
+              <div className="min-w-0 max-w-full break-words text-xs text-muted-foreground">
+                {shipping.loading
+                  ? "Checking shipping…"
+                  : `Estimated delivery date: ${
+                      deliveryDate ?? "calculated at checkout"
+                    }, shipping to ${profile?.name || "you"} at ${
+                      shipping.primaryAddress
+                        ? [
+                            shipping.primaryAddress.city,
+                            shipping.primaryAddress.state,
+                            shipping.primaryAddress.country,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")
+                        : "your address"
+                    }.`}
+              </div>
             </div>
+
+            {hasPromotionalPrice && (
+              <p className="mb-2 text-[11px] text-muted-foreground">
+                Promotional price — discount is applied automatically at
+                checkout.
+              </p>
+            )}
+            {!hasPromotionalPrice && hasCartPricedPromotion && (
+              <p className="mb-2 text-[11px] text-muted-foreground">
+                This offer is calculated in your cart (quantities/eligibility
+                may apply).
+              </p>
+            )}
+
+            {renderPromotions.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {renderPromotions.map((promotion: any) => (
+                    <span
+                      key={promotion._id}
+                      className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
+                    >
+                      {promotion.label}
+                    </span>
+                  ))}
+                </div>
+
+                {/* {renderPromotions.map((promotion: any) => (
+                  <div
+                    key={`detail-${promotion._id}`}
+                    className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {promotion.name}
+                      </p>
+                      <span className="text-xs font-medium text-primary">
+                        {promotionValueLabel(promotion)}
+                      </span>
+                    </div>
+                    {promotion.description && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {promotion.description}
+                      </p>
+                    )}
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {promotion.code ? `Code ${promotion.code} · ` : ""}
+                      {promotion.endDate
+                        ? `Valid until ${new Date(promotion.endDate).toLocaleDateString()}`
+                        : "Limited time"}
+                    </p>
+                  </div>
+                ))} */}
+              </div>
+            )}
 
             {Array.isArray(variants) && variants.length > 0 && (
               <VariantSelector
@@ -985,10 +1201,24 @@ export default function ProductDetailsClient({
               />
             </div>
 
-            <CarrierShippingOptions
-              product={product}
-              userAddresses={userAddresses}
-            />
+            <div className="mt-3 space-y-1">
+              <p className="text-sm text-muted-foreground">
+                Shipped by:{" "}
+                <span className="font-medium text-foreground">
+                  {shipping.carrier?.name ?? "Store fulfillment"}
+                </span>
+                {shipping.region?.averageDeliveryTime
+                  ? ` · ${shipping.region.averageDeliveryTime}`
+                  : ""}
+              </p>
+              {trustBadges.length > 0 && (
+                <TrustBadgeStrip
+                  badges={trustBadges}
+                  orientation="vertical"
+                  flat
+                />
+              )}
+            </div>
 
             {shortDescription && (
               <div className="my-4">

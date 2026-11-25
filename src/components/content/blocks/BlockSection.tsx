@@ -317,15 +317,23 @@ function CardBlock({ data }: { data: ResolvedBlock }) {
 
   if (items.length === 0) return null;
 
+  const isCarousel = block.display === "carousel";
+
   return (
     <section
-      className={` p-3 bg-background rounded-xl ${themeWrapCls(dc.theme)}`}
+      className={`py-3 bg-background rounded-xl ${themeWrapCls(dc.theme)}`}
       style={sectionStyle(dc)}
     >
-      <div>
+      <div className="px-3">
         <SectionHeading data={data} />
-        {renderCardBody(block.display, items, dc, ss)}
       </div>
+      {isCarousel ? (
+        renderCardBody(block.display, items, dc, ss)
+      ) : (
+        <div className="px-3">
+          {renderCardBody(block.display, items, dc, ss)}
+        </div>
+      )}
     </section>
   );
 }

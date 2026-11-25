@@ -191,14 +191,26 @@ export function ContentCard({
     .filter(Boolean)
     .join(" ");
 
-  const price = formatPrice(item.price);
+  const effectivePrice =
+    item.pricing?.promotionalPrice != null &&
+    item.pricing.promotionalPrice < (item.price ?? Infinity)
+      ? item.pricing.promotionalPrice
+      : item.price;
+  const price = formatPrice(effectivePrice);
+  const originalPrice =
+    item.pricing?.promotionalPrice != null &&
+    typeof item.price === "number" &&
+    item.pricing.promotionalPrice < item.price
+      ? formatPrice(item.price)
+      : null;
+  const promotionLabel = item.promotions?.[0]?.label ?? null;
   const listPrice = formatPrice(item.listPrice);
   const hasDiscount =
     price &&
     listPrice &&
-    typeof item.price === "number" &&
+    typeof effectivePrice === "number" &&
     typeof item.listPrice === "number" &&
-    item.price < item.listPrice;
+    effectivePrice < item.listPrice;
 
   const canBuy =
     item.contentType === "Product" && typeof item.price === "number";
@@ -262,13 +274,19 @@ export function ContentCard({
           </p>
         ) : null}
 
+        {promotionLabel && titlePosition !== "hidden" ? (
+          <p className="line-clamp-1 text-[11px] font-medium text-primary" style={textStyle}>
+            {promotionLabel}
+          </p>
+        ) : null}
+
         {titlePosition !== "hidden" && price ? (
           <div className="flex items-baseline gap-1.5">
             <span
               className="text-sm font-bold text-foreground"
               style={textStyle}
             >
-              {price}
+              <>{price}{originalPrice ? (<span className="ml-1 text-xs text-muted-foreground line-through">{originalPrice}</span>) : null}</>
             </span>
             {hasDiscount ? (
               <span className="hidden text-xs text-muted-foreground line-through sm:inline">
@@ -372,7 +390,7 @@ export function ContentCard({
               className="text-sm font-bold text-foreground"
               style={textStyle}
             >
-              {price}
+              <>{price}{originalPrice ? (<span className="ml-1 text-xs text-muted-foreground line-through">{originalPrice}</span>) : null}</>
             </span>
             {hasDiscount ? (
               <span className="hidden text-xs text-muted-foreground line-through sm:inline">
@@ -470,7 +488,7 @@ export function ContentCard({
               ) : null}
               {price ? (
                 <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-sm font-bold text-white">{price}</span>
+                  <span className="text-sm font-bold text-white"><>{price}{originalPrice ? (<span className="ml-1 text-xs text-muted-foreground line-through">{originalPrice}</span>) : null}</></span>
                   {hasDiscount ? (
                     <span className="text-[11px] text-white/70 line-through">
                       {listPrice}
@@ -525,7 +543,7 @@ export function ContentCard({
                 className="text-sm font-bold text-foreground"
                 style={textStyle}
               >
-                {price}
+                <>{price}{originalPrice ? (<span className="ml-1 text-xs text-muted-foreground line-through">{originalPrice}</span>) : null}</>
               </span>
               {hasDiscount ? (
                 <span className="hidden text-xs text-muted-foreground line-through sm:inline">

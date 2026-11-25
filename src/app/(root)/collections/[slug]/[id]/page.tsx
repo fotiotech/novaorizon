@@ -124,7 +124,15 @@ export default async function CollectionDetailPage({
             const link = `/${routePrefix}/${itemSlug}/${item._id}`;
 
             const numericListPrice = Number(item.listPrice) || 0;
+            const promotedPrice = Number(item.pricing?.promotionalPrice ?? 0);
+            const hasPromotion =
+              promotedPrice > 0 &&
+              item.price != null &&
+              promotedPrice < Number(item.price);
+            const effectivePrice = hasPromotion ? promotedPrice : item.price;
+            const promotionLabel = item.promotions?.[0]?.label ?? null;
             const showListPrice =
+              !hasPromotion &&
               numericListPrice > 0 &&
               item.price != null &&
               numericListPrice > item.price;
@@ -142,22 +150,31 @@ export default async function CollectionDetailPage({
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                   />
+                  {promotionLabel ? (
+                    <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                      {promotionLabel}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="p-3">
                   <h2 className="text-sm font-medium text-foreground line-clamp-2 group-hover:underline">
                     {item.name}
                   </h2>
 
-                  {item.price != null && (
+                  {effectivePrice != null && (
                     <div className="flex items-baseline gap-2 mt-1">
                       <p className="font-semibold text-sm">
-                        {Number(item.price).toLocaleString("en-US")} F
+                        {Number(effectivePrice).toLocaleString("en-US")} F
                       </p>
-                      {showListPrice && (
+                      {hasPromotion ? (
+                        <p className="text-xs text-muted-foreground line-through">
+                          {Number(item.price).toLocaleString("en-US")} F
+                        </p>
+                      ) : showListPrice ? (
                         <p className="text-xs text-muted-foreground line-through">
                           {numericListPrice.toLocaleString("en-US")} F
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   )}
 
